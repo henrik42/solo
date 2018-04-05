@@ -6,6 +6,7 @@
   (testing "Testing solo.core"
     (is (= [] (get-current-loggers)))
     (is (= [{:logger-name "foo"
-             :log-level "INFO"}] (do
-                (set-log-level! "foo" "INFO")
-                (get-current-loggers))))))
+             :log-level "INFO"}]
+           (do ;; mutator!
+             (set-log-level! "foo" "INFO")
+             (get-current-loggers))))))
