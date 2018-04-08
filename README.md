@@ -128,8 +128,8 @@ this instead:
 
 So `-e` prints the result of the __last__ __evaluated__ _form_.
 
-__Not:__ Clojure _script files_ and "regular" Clojure code look almost
-the same and they can basically contain the same forms. But you
+__Note:__ Clojure _script files_ and "regular" Clojure code look
+almost the same and they can basically contain the same forms. But you
 __load__ them differently. Script files are loaded directly by reading
 in the source forms (via file-io or from a socket or from an in-memory
 `String`). _Namespaced_ code is loaded via a classpath lookup for
@@ -232,7 +232,7 @@ Finally we can put the code into `src/clj/solo/swank.clj` for re-use:
         (swank/start-server :port port :host host)))
 
 The `-main` function is (by convention) special -- it can be run like
-this (note that it will recieve `String`-type arguments when called
+this (note that it will receive `String`-type arguments when called
 from command-line)
 
     solo-project$ rlwrap java -cp lib/\*:src/clj clojure.main -m solo.swank :port 4006
@@ -354,10 +354,21 @@ uses JSF.
 
 There are several ways to supply a JSF bean. One is to deliver the
 file/resource `META-INF/faces-config.xml` which contains the bean
-definition with the _named class_:
+definition with the _named class_. This is
+`jumpstart/resources/META-INF/faces-config.xml`:
 
-__TODO: show file META-INF/faces-config.xml__
-
+    <faces-config xmlns="http://java.sun.com/xml/ns/javaee" 
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+                  xsi:schemaLocation="http://java.sun.com/xml/ns/javaee 
+                                      http://java.sun.com/xml/ns/javaee/web-facesconfig_1_2.xsd" 
+                  version="1.2"> 
+      <managed-bean>
+        <managed-bean-name>jumpstart</managed-bean-name>
+        <managed-bean-class>solo.jumpstart.jsf</managed-bean-class>
+        <managed-bean-scope>application</managed-bean-scope>
+      </managed-bean>
+    </faces-config>
+    
 JSF will try to load/instanciate the class `solo.jumpstart.jsf` in
 this case. So we have to deliver such a _named class_. In Clojure you
 use `gen-class` and _Ahead-of-Time-Compilation_ (AOT) to create the
@@ -401,7 +412,7 @@ The JAR `jumpstart-jsf.jar` should look like this:
        905 Thu Apr 05 19:03:20 UTC 2018 solo/jumpstart/jsf$_init.class
       2066 Thu Apr 05 19:03:20 UTC 2018 solo/jumpstart/jsf.class
       2477 Thu Apr 05 19:03:20 UTC 2018 solo/jumpstart/jsf__init.class
-         0 Thu Apr 05 19:04:24 UTC 2018 META-INF/faces-config.xml
+       565 Thu Apr 05 19:04:24 UTC 2018 META-INF/faces-config.xml
 
 And you can run this class:
 
@@ -430,20 +441,20 @@ Some things to note:
   will use the compiled version.
 
 For _production_ we want to use `jumpstart-jsf.jar` just for loading
-Clojure and delegation logic. The logic that we want to jump-start
-should come from a source folder that we put into the classpath and
-have that loaded.
+Clojure and delegation logic. The _real_ logic that we want to have
+jump-started should come from a source folder that we put into the
+classpath and have that loaded.
 
 So let's try this: put your jump-start logic into
 `src/clj/solo/jumpstart/jsf.clj`:
 
     (ns solo.jumpstart.jsf
-      (use [solo.nrepl :as nrepl]))
+      (require [solo.swank :as swank]))
     
     (defn -init []
-      (println "solo.jumpstart.jsf/-init: starting nREPL server")
-      (nrepl/start-server)
-      (println "solo.jumpstart.jsf/-init: started nREPL server")
+      (println "solo.jumpstart.jsf/-init: starting Swank server")
+      (swank/-main)
+      (println "solo.jumpstart.jsf/-init: started Swank server")
       [[]])
     
     (defn -main [& args]
@@ -454,11 +465,10 @@ This time we put `src/clj/` and all the libs into the classpath:
 
     solo-project$ java -cp jumpstart-jsf.jar:lib/*:src/clj/ solo.jumpstart.jsf foo bar
     solo.jumpstart.jsf/-main: ("foo" "bar")
-    solo.jumpstart.jsf/-init: starting nREPL server
-    Starting nREPL server on port 7888 ...
-    Started nREPL server on port 7888 : {:class clojure.tools.nrepl.server.Server, :empty false}
-    solo.jumpstart.jsf/-init: started nREPL server
-
+    solo.jumpstart.jsf/-init: starting Swank server
+    Connection opened on 0.0.0.0 port 4005.
+    solo.jumpstart.jsf/-init: started Swank server
+    
 Cool!
 
 Now we have it: we use the generated _named classes_ just for loading
