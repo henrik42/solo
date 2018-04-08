@@ -1,10 +1,10 @@
 (ns solo.jumpstart.jsf
-  (use [solo.nrepl :as nrepl]))
+  (require [solo.swank :as swank]))
 
 (defn -init []
-  (println "solo.jumpstart.jsf/-init: starting nREPL server")
-  (nrepl/start-server)
-  (println "solo.jumpstart.jsf/-init: started nREPL server")
+  (println "solo.jumpstart.jsf/-init: starting Swank server")
+  (swank/-main)
+  (println "solo.jumpstart.jsf/-init: started Swank server")
   [[]])
 
 (defn -main [& args]
