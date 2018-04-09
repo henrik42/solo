@@ -477,18 +477,21 @@ classpath (in a JAR and/or in a file-system folder).
 
 __Wildfly/JBoss__
 
-For JBoss and Wildfly you can _deploy_ the JARs
-(incl. `jumpstart-faces.jar`) to the _content_ _repository_ and
-_assign_ them to the server group of your server.
+For JBoss and Wildfly (_domain_ _mode_) you can _deploy_ the JARs
+(incl. `jumpstart-jsf.jar`) to the _content_ _repository_ and _assign_
+them to the server group of your server (no need to package them into
+your Java host-application!).
 
 There is one problem: the module classloader that loads
-`jumpstart-faces.jar` does not _see_ the assigned (module)
-`clojure-1.8.0.jar`!  So you won't be able to load
-`solo/jumpstart/faces.class`. You could fix this by tweaking the
+`jumpstart-jsf.jar` does not _see_ the assigned (module)
+`clojure-1.8.0.jar`! So you won't be able to load
+`solo/jumpstart/jsf.class`. You could fix this by tweaking the
 module's dependencies.
 
-I usually just create a _global_ _module_ at
-`<jboss-root>/module/jumpstart-faces/main/module.xml`:
+Instead I usually just create a _global_ _module_ at
+`<jboss-root>/module/jumpstart-jsf/main/module.xml`:
+
+__TODO__
 
 So Clojure and the jumpstarter both are loaded by the same module
 classloader.
@@ -567,7 +570,7 @@ does not see the JAR/classes. One solution would be to also put the
 __assigning__ it.
 
 An alternative is to use the thread __context__ __classloader__ (CCL)
-that is active when `solo/jumpstart/faces.class` is loaded to load
+that is active when `solo/jumpstart/jsf.class` is loaded to load
 nREPL. The CCL _sees_ all (assigned and global) modules and all
 application JARs/EJBs.
 
@@ -601,7 +604,7 @@ resolution. We want to use it to setup a project (_scafolding_), to
 build, run and test the code. Finally we use it to package, release
 and deploy our application.
 
-First you have to install leiningen.
+First you have to install Leiningen.
 
 __TODO:__ Show install
 
@@ -749,9 +752,10 @@ for us.
         Connection opened on 0.0.0.0 port 4005.
 
 * __solo.swank__: Since we want to "use Swank in production" (as part
-  of our application without Leiningen), we use the `run` task to
-  execute `-main` function in `solo-project/src/clj/solo/swank.clj`
-  which start the swank server -- like this:
+  of our application without Leiningen and the Swank plugin), we use
+  the `run` task to execute `-main` function in
+  `solo-project/src/clj/solo/swank.clj` which start the swank server
+  -- like this:
 
         solo-project$ lein run -m solo.swank
 
@@ -765,7 +769,25 @@ __TODO__ fix server-tostring
 
 __Leiningen Build__
 
-__TODO__: build jumpstart-jsf.jar
+You can use Leiningen to build the `jumpstart-jsf.jar` (instead of
+`solo-project/scripts/make-jumpstart-jsf.sh`). Add the `:aliases` and
+`:profiles` entries to `project.clj`:
+
+    (defproject solo "0.1.0-SNAPSHOT"
+      :source-paths ["src/clj"]
+      :dependencies [[org.clojure/clojure "1.8.0"]
+                     [swank-clojure/swank-clojure "1.4.3"]
+                     [log4j/log4j "1.2.17"]]
+      :plugins [ [lein-swank "1.4.5"] ]
+      :aliases {"make-jumpstart-jsf" ["with-profile" "jumpstart-jsf" "do" ["clean"] "jar"]}
+      :profiles {:jumpstart-jsf {:resource-paths ^:replace ["jumpstart/resources"]
+                                 :aot :all
+                                 :main solo.jumpstart.jsf
+                                 :source-paths ^:replace ["jumpstart/src"]}})
+    
+And build `solo-project/target/solo-0.1.0-SNAPSHOT.jar`:
+
+    solo-project$ lein make-jumpstart-jsf
 
 [1] https://leiningen.org/  
 [2] https://github.com/technomancy/swank-clojure  
