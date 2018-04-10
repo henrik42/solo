@@ -477,25 +477,30 @@ classpath (in a JAR and/or in a file-system folder).
 
 __Wildfly/JBoss__
 
-For JBoss and Wildfly you can _deploy_ the JARs
-(incl. `jumpstart-faces.jar`) to the _content_ _repository_ and
-_assign_ them to the server group of your server.
+For JBoss and Wildfly (_domain_ _mode_) you can _deploy_ the JARs
+(incl. `jumpstart-jsf.jar`) to the _content_ _repository_ and _assign_
+them to the server group of your server (no need to package them into
+your Java host-application!).
 
 There is one problem: the module classloader that loads
-`jumpstart-faces.jar` does not _see_ the assigned (module)
-`clojure-1.8.0.jar`!  So you won't be able to load
-`solo/jumpstart/faces.class`. You could fix this by tweaking the
+`jumpstart-jsf.jar` does not _see_ the assigned (module)
+`clojure-1.8.0.jar`! So you won't be able to load
+`solo/jumpstart/jsf.class`. You could fix this by tweaking the
 module's dependencies.
 
-I usually just create a _global_ _module_ at
-`<jboss-root>/module/jumpstart-faces/main/module.xml`:
+Instead I usually just create a _global_ _module_ at
+`<jboss-root>/module/jumpstart-jsf/main/module.xml`:
+
+__TODO__
 
 So Clojure and the jumpstarter both are loaded by the same module
 classloader.
 
 Now you have to configure the global module for your profile:
 
-__TODO: Jump-start telnet server__
+__TODO: Jump-start telnet server, only clojure jar needed__
+
+__TODO: start swank via telnet REPL, swankjar needed__
 
 __TODO: jump-start swank__
 
@@ -558,8 +563,9 @@ ways to connect to an nREPL server:
 
 __Wildfly/JBoss__
 
-Now we want to jump-start the nREPL server so we have remote access to
-the application.
+Now we want to jump-start the nREPL server (just as we started the
+Swank server in step four above) so we have remote access to the
+application.
 
 Here again we cannot load the nREPL namespace because the classloader
 does not see the JAR/classes. One solution would be to also put the
@@ -567,7 +573,7 @@ does not see the JAR/classes. One solution would be to also put the
 __assigning__ it.
 
 An alternative is to use the thread __context__ __classloader__ (CCL)
-that is active when `solo/jumpstart/faces.class` is loaded to load
+that is active when `solo/jumpstart/jsf.class` is loaded to load
 nREPL. The CCL _sees_ all (assigned and global) modules and all
 application JARs/EJBs.
 
@@ -601,7 +607,7 @@ resolution. We want to use it to setup a project (_scafolding_), to
 build, run and test the code. Finally we use it to package, release
 and deploy our application.
 
-First you have to install leiningen.
+First you have to install Leiningen.
 
 __TODO:__ Show install
 
@@ -749,9 +755,10 @@ for us.
         Connection opened on 0.0.0.0 port 4005.
 
 * __solo.swank__: Since we want to "use Swank in production" (as part
-  of our application without Leiningen), we use the `run` task to
-  execute `-main` function in `solo-project/src/clj/solo/swank.clj`
-  which start the swank server -- like this:
+  of our application without Leiningen and the Swank plugin), we use
+  the `run` task to execute `-main` function in
+  `solo-project/src/clj/solo/swank.clj` which start the swank server
+  -- like this:
 
         solo-project$ lein run -m solo.swank
 
@@ -765,17 +772,188 @@ __TODO__ fix server-tostring
 
 __Leiningen Build__
 
-__TODO__: build jumpstart-jsf.jar
+You can use Leiningen to build the `jumpstart-jsf.jar` (instead of
+`solo-project/scripts/make-jumpstart-jsf.sh`). Add the `:aliases` and
+`:profiles` entries to `project.clj`:
+
+    (defproject solo "0.1.0-SNAPSHOT"
+      :source-paths ["src/clj"]
+      :dependencies [[org.clojure/clojure "1.8.0"]
+                     [swank-clojure/swank-clojure "1.4.3"]
+                     [log4j/log4j "1.2.17"]]
+      :plugins [ [lein-swank "1.4.5"] ]
+      :aliases {"make-jumpstart-jsf" ["with-profile" "jumpstart-jsf" "do" ["clean"] "jar"]}
+      :profiles {:jumpstart-jsf {:resource-paths ^:replace ["jumpstart/resources"]
+                                 :aot :all
+                                 :main solo.jumpstart.jsf
+                                 :source-paths ^:replace ["jumpstart/src"]}})
+    
+And build `solo-project/target/solo-0.1.0-SNAPSHOT.jar`:
+
+    solo-project$ lein make-jumpstart-jsf
 
 [1] https://leiningen.org/  
 [2] https://github.com/technomancy/swank-clojure  
 
 ------------------------------------------------------------------------
-# Step Seven: jetty, http-kit, ring, compojure, hiccup, solo.web
+# Step Seven: Jetty, http-kit, Ring, Compojure, Hiccup, solo.web
 ------------------------------------------------------------------------
 
-__TODO:__ build the typical POST-back/GET web-app. Routing with
-compojure, HTML markup server-side-generated with hiccup.
+By now we have an interactive REPL-access to the application via
+nREPL-server which we have jump-started via _Solo_. We can query and
+modify the log4j loggers of the Java host application at runtime.
+
+It's time to build our browser-based GUI for _Solo_.
+
+First we will build an old-style web-app: it will receive HTTP-GET
+requests (for _queries_) and HTTP-POST requests (for _modifications_)
+-- so called _POST-backs_.
+
+For each request the web-app will return a __complete__ __HTML-page__
+which is then rendered by the browser.
+
+We'll be using:
+
+* __Jetty, http-kit__: Jetty [1] and http-kit [2] are web-servers that
+  support _Java Servlets_ [3]. We will use them for development (and
+  optionally for production also). You can use either of them.
+
+* __Ring__: Ring [4] supplies the integration into the _Java Servlet
+  Layer_. It receives requests and must deliver responses in the way
+  the Java Servlet Spec dictates. Ring translates the requests into
+  Clojure function calls (which may well be your functions) and will
+  pass in the "transformed" Servlet request as a Clojure map (__pure
+  data__! No statefull streams!). In the end it will translate the
+  function's response -- your function! -- (also a map!) into the
+  Servlet API response stream.
+
+  For development Ring comes with Jetty included. For production we
+  will build a web-app WAR and use Ring's servlet.
+
+* __Compojure__: Compojure [5] lets you assign/map functions to
+  request URLs. The request URL is part of the Ring-request-map and we
+  can express the mapping to functions in several ways (see
+  below). This mapping is usually called _routing_. Compojure
+  interacts with Ring via _ring middleware_ [6].
+
+So our (pure) functions get called by Compojure and they have to
+return HTML (in a map). We could just concat the HTML markup into a
+`String` and return that. That would work, but it would be no fun.
+
+* __Hiccup__: Hiccup [7] lets you use Clojure's built-in data-types
+  (maps, vectors, keywords, strings) to describe the __structure__ of
+  an HTML document. It will then create a `String` containing the HTML
+  markup that corresponds to that structure.
+
+We'll put all of the web-app related Clojure sources into the
+namespace `solo.web`.
+
+__Ring__
+
+Add the dependencies for Ring:
+
+      :dependencies [[org.clojure/clojure "1.8.0"]
+                     [swank-clojure/swank-clojure "1.4.3"]
+                     [log4j/log4j "1.2.17"]
+                     [ring/ring-core "1.6.3"]
+                     [ring/ring-jetty-adapter "1.6.3"]]
+
+Let's run a "Hello World" example: since we will not use this code in
+_Solo_ I put it in `solo-project/scripts/script-two.clj`:
+
+    (use 'ring.adapter.jetty)
+    
+    (defn handler [ring-req]
+      {:status 200
+       :headers {"Content-Type" "text/html"}
+       :body "<h1>Hello World</h1>"})
+    
+    (run-jetty handler
+               {:port 3000
+                :host "0.0.0.0"})
+            
+And run:
+
+    solo-project$ lein run -m clojure.main scripts/script-two.clj
+    Java HotSpot(TM) Client VM warning: TieredCompilation is disabled in this release.
+    LOADING ~/.lein/profiles.d/user.clj
+    Java HotSpot(TM) Client VM warning: TieredCompilation is disabled in this release.
+    2018-04-10 17:47:56.417:INFO::main: Logging initialized @4174ms
+    2018-04-10 17:47:56.644:INFO:oejs.Server:main: jetty-9.2.21.v20170120
+    2018-04-10 17:47:56.724:INFO:oejs.ServerConnector:main: Started ServerConnector@70dd40{HTTP/1.1}{0.0.0.0:3000}
+    2018-04-10 17:47:56.727:INFO:oejs.Server:main: Started @4483ms
+
+Now point your browser to http://localhost:3000/ or just use `curl`:
+
+    solo-project$ curl http://localhost:3000
+    <h1>Hello World</h1>
+    
+To make life a little easier we use the `lein-ring` plugin, which can
+start a jetty server for us and hook our _top-level_ Ring handler in.
+
+Put this into `project.clj`:
+
+      :plugins [[lein-swank "1.4.5"]
+                [lein-ring "0.12.4"]]
+      :ring {:handler solo.web/app
+             :nrepl {:start? true
+                     :port 9998}}
+    
+And for a start the following code goes into
+`solo-project/src/clj/solo/web.clj` (note that there is no other
+namespace required!).
+
+    (ns solo.web)
+    
+    (defn handler [ring-req]
+      {:status 200
+       :headers {"Content-Type" "text/html"}
+       :body "Hello World!"})
+    
+    (defn app [ring-map]
+      (#'handler ring-map))
+
+And run:
+
+    solo-project$ lein ring server
+    2018-04-10 21:19:51.479:INFO::main: Logging initialized @4722ms
+    Started nREPL server on port 9998
+    2018-04-10 21:20:02.041:INFO:oejs.Server:main: jetty-9.2.21.v20170120
+    2018-04-10 21:20:02.124:INFO:oejs.ServerConnector:main: Started ServerConnector@7d1c1{HTTP/1.1}{0.0.0.0:3000}
+    2018-04-10 21:20:02.128:INFO:oejs.Server:main: Started @15371ms
+    Started server on port 3000
+    
+You can now go to http://localhost:3000/ and connect to the nREPL
+server at `9998`.
+
+__Compojure__
+
+Before we can use Compojure we have to add the dependency
+`[compojure "1.6.0"]`:
+
+      :dependencies [[org.clojure/clojure "1.8.0"]
+                     [swank-clojure/swank-clojure "1.4.3"]
+                     [log4j/log4j "1.2.17"]
+                     [ring/ring-core "1.6.3"]
+                     [ring/ring-jetty-adapter "1.6.3"]
+                     [compojure "1.6.0"]]
+    
+__TODO__: a function for each page (we have just one!)
+
+__TODO__: a function for POST-Requests
+
+
+__Hiccup__
+
+
+
+[1] Jetty  
+[2] http-kit  
+[3] Servlets  
+[4] Ring  
+[5] Compojure  
+[6] Ring Middleware  
+[7] Hiccup  
 
 ------------------------------------------------------------------------
 # Step Eight: clojurescript

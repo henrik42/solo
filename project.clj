@@ -4,9 +4,14 @@
                  [swank-clojure/swank-clojure "1.4.3"]
                  [log4j/log4j "1.2.17"]
                  [ring/ring-core "1.6.3"]
-                 [ring/ring-jetty-adapter "1.6.3"]]
-  :plugins [[lein-swank "1.4.5"]]
+                 [ring/ring-jetty-adapter "1.6.3"]
+                 [compojure "1.6.0"]]
   :aliases {"make-jumpstart-jsf" ["with-profile" "jumpstart-jsf" "do" ["clean"] "jar"]}
+  :plugins [[lein-swank "1.4.5"]
+            [lein-ring "0.12.4"]]
+  :ring {:handler solo.web/app
+         :nrepl {:start? true
+                 :port 9998}}
   :profiles {:jumpstart-jsf {:resource-paths ^:replace ["jumpstart/resources"]
                              :aot :all
                              :main solo.jumpstart.jsf
