@@ -3,7 +3,7 @@
 (defn handler [ring-req]
   {:status 200
    :headers {"Content-Type" "text/html"}
-   :body "Hello World"})
+   :body "<h1>Hello World</h1>"})
 
 (ring.adapter.jetty/run-jetty
  handler
