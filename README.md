@@ -938,7 +938,7 @@ Before we can use Compojure we have to add the dependency
                      [ring/ring-jetty-adapter "1.6.3"]
                      [compojure "1.6.0"]]
     
-__TODO__: a function for each page (we have just one!)
+__TODO:__ defroute GET "/"
 
 __TODO__: a function for POST-Requests
 
