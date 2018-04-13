@@ -1,19 +1,37 @@
 (ns solo.web
   (:use compojure.core)
-  (:require [compojure.handler :as handler]
-            [clojure.pprint :as pp]))
+  (:require [solo.core :as core]
+            [ring.util.response :use redirect]
+            [compojure.route :as route]
+            [hiccup.page :as hp]
+            [hiccup.form :as hf]))
 
-(defn handler [ring-req]
-  {:status 200
-   :headers {"Content-Type" "text/html"}
-   :body "Hello World!"})
+(defn loggers-form [loggers]
+  (hf/form-to
+   [:post "/update-loggers"]
+   [:table
+    [:tr [:th "LOGGER"] [:th "LEVEL"]]
+    (for [{:keys [logger-name log-level]} loggers]
+      [:tr
+       [:td logger-name]
+       [:td (hf/text-field logger-name log-level)]])]
+   (hf/submit-button "GO")))
 
-(defn echo [ring-map]
-  {:status 200
-   :headers {"Content-Type" "text/plain"}
-   :body (with-out-str (pp/pprint ring-map))})
+(defn the-page []
+  (let [loggers (core/get-current-loggers)]
+    (hp/html5
+     [:head
+      (hp/include-css "solo.css")]
+     [:body
+      (loggers-form loggers)])))
 
 (defroutes app
-  (GET "/echo" ring-map (#'echo ring-map))
-  (GET "/"     ring-map (#'handler ring-map))
-  )
+  ;;(GET "/" [] (#'the-page))
+  (GET "/" _ (#'the-page))
+  (POST "/update-loggers" req
+    (doseq [[logger level] (:params req)]
+      (core/set-log-level! logger level))
+    (redirect "/"))
+  (route/resources "/")
+  (route/not-found "Page not found"))
+
