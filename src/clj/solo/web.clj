@@ -3,6 +3,7 @@
   (:require [solo.core :as core]
             [ring.util.response :use redirect]
             [compojure.route :as route]
+            [compojure.handler :as handler]
             [hiccup.page :as hp]
             [hiccup.form :as hf]))
 
@@ -20,18 +21,19 @@
 (defn the-page []
   (let [loggers (core/get-current-loggers)]
     (hp/html5
+     "foo"
      [:head
       (hp/include-css "solo.css")]
      [:body
       (loggers-form loggers)])))
 
-(defroutes app
-  ;;(GET "/" [] (#'the-page))
-  (GET "/" _ (#'the-page))
+(defroutes main-routes
+  (GET "/" _ (the-page))
   (POST "/update-loggers" req
     (doseq [[logger level] (:params req)]
-      (core/set-log-level! logger level))
+      (core/set-log-level! (name logger) level))
     (redirect "/"))
   (route/resources "/")
   (route/not-found "Page not found"))
 
+(def app (handler/site main-routes))
