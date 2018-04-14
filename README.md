@@ -810,45 +810,58 @@ requests (for _queries_) and HTTP-POST requests (for _modifications_)
 -- so called _POST-backs_.
 
 For each request the web-app will return a __complete__ __HTML-page__
-which is then rendered by the browser.
+which is then rendered by the browser. With each (GET/POST) request
+the browser will __navigate__ (thus it's not an SPA).
 
 We'll be using:
 
 * __Jetty, http-kit__: Jetty [1] and http-kit [2] are web-servers that
-  support _Java Servlets_ [3]. We will use them for development (and
-  optionally for production also). You can use either of them.
+  support _Java Servlets_ [3] (__TODO__: really? check that for
+  http-kit). We will use them for development (and optionally for
+  production). You can use either of them.
 
 * __Ring__: Ring [4] supplies the integration into the _Java Servlet
   Layer_. It receives requests and must deliver responses in the way
-  the Java Servlet Spec dictates. Ring translates the requests into
-  Clojure function calls (which may well be your functions) and will
-  pass in the "transformed" Servlet request as a Clojure map (__pure
-  data__! No statefull streams!). In the end it will translate the
-  function's response -- your function! -- (also a map!) into the
-  Servlet API response stream.
+  the Java Servlet Spec dictates.
+
+  Ring translates the requests into Clojure function calls (which may
+  well be your functions) and will pass in the "transformed" Servlet
+  request as a Clojure map (__pure data__! No statefull streams ... if
+  you're not asking for it). In the end it will translate the
+  function's response -- your function! -- (also pure data, usually a
+  map) back into the Servlet API response stream (incl. HTTP-header,
+  HTTP-status, etc.).
 
   For development Ring comes with Jetty included. For production we
-  will build a web-app WAR and use Ring's servlet.
+  will build a web-app WAR and use Ring's servlet. We can then deploy
+  that WAR into JBoss/Wildfly/Websphere.
 
-* __Compojure__: Compojure [5] lets you assign/map functions to
-  request URLs. The request URL is part of the Ring-request-map and we
-  can express the mapping to functions in several ways (see
-  below). This mapping is usually called _routing_. Compojure
-  interacts with Ring via _ring middleware_ [6].
+* __Compojure__: Compojure [5] lets you assign/map HTTP-requests
+  (e.g. URLs) to functions. The request URL is part of the
+  Ring-request-map and we can express the mapping to functions in
+  several ways (see below). This mapping is called _routing_.
 
-So our (pure) functions get called by Compojure and they have to
-return HTML (in a map). We could just concat the HTML markup into a
+So our (pure) functions get called by/through Ring/Compojure and they
+have to return text/HTML. We could just concat the HTML markup into a
 `String` and return that. That would work, but it would be no fun.
 
-* __Hiccup__: Hiccup [7] lets you use Clojure's built-in data-types
-  (maps, vectors, keywords, strings) to describe the __structure__ of
-  an HTML document. It will then create a `String` containing the HTML
-  markup that corresponds to that structure.
+* __Hiccup__: Hiccup [6] is a templating lib that lets you use
+  Clojure's built-in data-types (maps, lists, vectors, keywords,
+  strings) to describe the __structure__ of an HTML document. It will
+  then create a `String` containing the HTML markup that corresponds
+  to that structure.
 
 We'll put all of the web-app related Clojure sources into the
 namespace `solo.web`.
 
-__Ring__
+[1] Jetty  
+[2] http-kit  
+[3] Servlets  
+[4] Ring  
+[5] Compojure  
+[6] Hiccup  
+
+## Ring
 
 Add the dependencies for Ring:
 
@@ -858,7 +871,7 @@ Add the dependencies for Ring:
                      [ring/ring-core "1.6.3"]
                      [ring/ring-jetty-adapter "1.6.3"]]
 
-Let's run a "Hello World" example: since we will not use this code in
+Let's run a "Hello World" example. Since we will not use this code in
 _Solo_ I put it in `solo-project/scripts/script-two.clj`:
 
     (use 'ring.adapter.jetty)
@@ -888,8 +901,9 @@ Now point your browser to http://localhost:3000/ or just use `curl`:
     solo-project$ curl http://localhost:3000
     <h1>Hello World</h1>
     
-To make life a little easier we use the `lein-ring` plugin, which can
-start a jetty server for us and hook our _top-level_ Ring handler in.
+To make life a little easier we use the `lein-ring` plugin for
+development, which can start a jetty server for us and hook our
+_top-level_ Ring handler `solo.web/app` in.
 
 Put this into `project.clj`:
 
@@ -911,7 +925,7 @@ namespace required!).
        :body "Hello World!"})
     
     (defn app [ring-map]
-      (#'handler ring-map))
+      (handler ring-map))
 
 And run:
 
@@ -923,10 +937,10 @@ And run:
     2018-04-10 21:20:02.128:INFO:oejs.Server:main: Started @15371ms
     Started server on port 3000
     
-You can now go to http://localhost:3000/ and connect to the nREPL
+You can now go to http://localhost:3000/ and connect to the __nREPL__
 server at `9998`.
 
-__Compojure__
+## Compojure
 
 Before we can use Compojure we have to add the dependency
 `[compojure "1.6.0"]`:
@@ -938,22 +952,103 @@ Before we can use Compojure we have to add the dependency
                      [ring/ring-jetty-adapter "1.6.3"]
                      [compojure "1.6.0"]]
     
-__TODO:__ defroute GET "/"
+## Hiccup
 
-__TODO__: a function for POST-Requests
+Before we can use Hiccup we have to add the dependency
+`[hiccup "1.0.5"]`:
 
+      :dependencies [[org.clojure/clojure "1.8.0"]
+                     [swank-clojure/swank-clojure "1.4.3"]
+                     [log4j/log4j "1.2.17"]
+                     [ring/ring-core "1.6.3"]
+                     [ring/ring-jetty-adapter "1.6.3"]
+                     [compojure "1.6.0"]
+                     [hiccup "1.0.5"]]
+    
+## solo.web
 
-__Hiccup__
+Our first application will have only one page (but it's __not__ a SPA
+;-). The page (`GET "/"`) will show a table with all current log4j
+loggers and their log-level (an input field). 
 
+You can change the log-level entries and use a `GO` button to submit
+the data to `(POST "/update-loggers")`.
 
+For the POST-request `solo.web` returns an `(redirect "/")` so that
+you can use the browser's page-reload for updating the page after a
+submit (if we were just returning the page-content for the
+POST-request the browser would ask us if we want to re-send the
+POST-request when doing a page-reload after a submit).
 
-[1] Jetty  
-[2] http-kit  
-[3] Servlets  
-[4] Ring  
-[5] Compojure  
-[6] Ring Middleware  
-[7] Hiccup  
+So here' the code for reference:
+
+    (ns solo.web
+      (:use compojure.core)
+      (:require [solo.core :as core]
+                [ring.util.response :use redirect]
+                [compojure.route :as route]
+                [compojure.handler :as handler]
+                [hiccup.page :as hp]
+                [hiccup.form :as hf]))
+    
+    (defn loggers-form [loggers]
+      (hf/form-to
+       [:post "/update-loggers"]
+       [:table
+        [:tr [:th "LOGGER"] [:th "LEVEL"]]
+        (for [{:keys [logger-name log-level]} loggers]
+          [:tr
+           [:td logger-name]
+           [:td (hf/text-field logger-name log-level)]])]
+       (hf/submit-button "GO")))
+    
+    (defn the-page []
+      (let [loggers (core/get-current-loggers)]
+        (hp/html5
+         [:head
+          (hp/include-css "solo.css")]
+         [:body
+          (loggers-form loggers)])))
+    
+    (defroutes main-routes
+      (GET "/" _ (the-page))
+      (POST "/update-loggers" req
+        (doseq [[logger level] (:params req)]
+          (core/set-log-level! (name logger) level))
+        (redirect "/"))
+      (route/resources "/")
+      (route/not-found "Page not found"))
+    
+    (def app (handler/site main-routes))
+
+I put a `:main solo.jetty` into `project.clj`. So we can do this now:
+
+    solo-project$ lein repl
+    2018-04-14 06:45:27.199:INFO::main: Logging initialized @2975ms
+    nREPL server started on port 41574 on host 127.0.0.1 - nrepl://127.0.0.1:41574
+    REPL-y 0.3.7, nREPL 0.2.12
+    Clojure 1.8.0
+    Java HotSpot(TM) Client VM 1.8.0-ea-b116
+        Docs: (doc function-name-here)
+              (find-doc "part-of-name-here")
+      Source: (source function-name-here)
+     Javadoc: (javadoc java-object-or-class-here)
+        Exit: Control+D or (exit) or (quit)
+     Results: Stored in vars *1, *2, *3, an exception in *e
+    
+    solo.jetty=> (-main)
+    2018-04-14 06:46:03.661:INFO:oejs.Server:nREPL-worker-0: jetty-9.2.21.v20170120
+    2018-04-14 06:46:03.741:INFO:oejs.ServerConnector:nREPL-worker-0: Started ServerConnector@d59b83{HTTP/1.1}{0.0.0.0:3000}
+    2018-04-14 06:46:03.741:INFO:oejs.Server:nREPL-worker-0: Started @39517ms
+    #object[org.eclipse.jetty.server.Server 0x1b62888 "org.eclipse.jetty.server.Server@1b62888"]
+
+Now go to  `http://localhost:3000/`. You should see just the button. Now do:
+
+    solo.jetty=> (solo.core/set-log-level! "foo.bar" "INFO")
+    nil
+    solo.jetty=> 
+
+And reload the page. You should see the logger.
 
 ------------------------------------------------------------------------
 # Step Eight: clojurescript
@@ -1015,6 +1110,7 @@ JBoss/Wildfly/Websphere to tweak your log4j configuration at runtime.
 
 * Gorilla REPL: introduce Gorilla REPL
 
+* https://github.com/metosin/compojure-api
 
 
 
