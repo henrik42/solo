@@ -21,7 +21,6 @@
 (defn the-page []
   (let [loggers (core/get-current-loggers)]
     (hp/html5
-     "foo"
      [:head
       (hp/include-css "solo.css")]
      [:body

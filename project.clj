@@ -9,9 +9,9 @@
                  [compojure "1.6.0"]
                  [hiccup "1.0.5"]]
   :aliases {"make-jumpstart-jsf" ["with-profile" "jumpstart-jsf" "do" ["clean"] "jar"]}
+  :main solo.jetty
   :plugins [[lein-swank "1.4.5"]
             [lein-ring "0.12.4"]]
-  :main solo.jetty
   :ring {:handler solo.web/app
          :nrepl {:start? true
                  :port 9998}}
