@@ -980,6 +980,8 @@ submit (if we were just returning the page-content for the
 POST-request the browser would ask us if we want to re-send the
 POST-request when doing a page-reload after a submit).
 
+__TODO__: fix solo.css to make the table look nicer
+
 So here' the code for reference:
 
     (ns solo.web
@@ -1049,6 +1051,28 @@ Now go to  `http://localhost:3000/`. You should see just the button. Now do:
     solo.jetty=> 
 
 And reload the page. You should see the logger.
+
+There are some things wrong with this solution:
+
+* we cannot create new loggers (just change existing ones)
+
+* when there are a lot of loggers, the list will become long and for
+  very long lists the `POST` request will become too large for
+  processing.
+
+In `web.clj` I've added a few things:
+
+* a drop down list for log-levels
+
+* enter new loggers
+
+* sort loggers
+
+* __TODO__: filter loggers
+
+* __TODO__: paging
+
+* __TODO__: submit only changed entries
 
 ------------------------------------------------------------------------
 # Step Eight: clojurescript

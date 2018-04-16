@@ -1,6 +1,6 @@
 (ns solo.jetty
   (require [ring.adapter.jetty :as jetty]
-           [solo.web2 :as web]))
+           [solo.web :as web]))
 
 (defn -main []
   (jetty/run-jetty
