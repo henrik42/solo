@@ -35,4 +35,4 @@
   (route/resources "/")
   (route/not-found "Page not found"))
 
-(def app (handler/site main-routes))
+(def app (handler/site #'main-routes))
