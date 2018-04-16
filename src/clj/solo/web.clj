@@ -31,7 +31,7 @@
    (hf/submit-button "GO")))
 
 (defn the-page []
-  (let [loggers (core/get-current-loggers)]
+  (let [loggers (sort-by :logger-name (core/get-current-loggers))]
     (hp/html5
      [:head
       (hp/include-css "solo.css")]
