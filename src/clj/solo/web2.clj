@@ -9,6 +9,15 @@
 
 (def log-levels ["DEBUG" "INFO" "WARN" "ERROR" "OFF"])
 
+(defn set-log-level-form []
+  (hf/form-to
+   [:post "/set-log-level"]
+   (hf/label :logger "LOGGER:")
+   (hf/text-field :logger)
+   (hf/label :level "LEVEL:")
+   (hf/drop-down :level log-levels "INFO")
+   (hf/submit-button "SET LOG-LEVEL")))
+
 (defn loggers-form [loggers]
   (hf/form-to
    [:post "/update-loggers"]
@@ -26,14 +35,19 @@
      [:head
       (hp/include-css "solo.css")]
      [:body
+      (set-log-level-form)
       (loggers-form loggers)])))
 
 (defroutes main-routes
   (GET "/" _ (the-page))
+  (POST "/set-log-level" req
+        (let [{:keys [logger level]} (:params req)]
+          (core/set-log-level! logger level)
+          (redirect "/")))
   (POST "/update-loggers" req
-    (doseq [[logger level] (:params req)]
-      (core/set-log-level! (name logger) level))
-    (redirect "/"))
+        (doseq [[logger level] (:params req)]
+          (core/set-log-level! (name logger) level))
+        (redirect "/"))
   (route/resources "/")
   (route/not-found "Page not found"))
 
