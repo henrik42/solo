@@ -1137,9 +1137,46 @@ In `web.clj` I've added a few things:
 
 * __TODO__: submit only changed entries
 
-## Production
+## Options for Production
 
+Let's put _Solo_ to production. We have (at least) two options:
 
+* deploy _Solo_ as a WAR: we build a WAR containing all of _Solo's_
+  dependencies (except log4j) incl. a `web.xml`. This can then be
+  deployed side-by-side with the host-application [1].
+
+  We'll need no jump-starter in this case, since the `web.xml` will
+  register a Ring servlet with the web-container which will then wait
+  for incoming requests.
+
+  If you like, you can use the initialization phase of the web-app to
+  start an nREPL server.
+
+* deploy only _Solo's_ "backend"-JARs (`solo.core` and `solo.nrepl`
+  and their dependencies, maybe `solo.swank` if you like) to the
+  app-server running the host application (as _modules_; see
+  above).
+
+  In this case we need to jump-start `solo.repl` so that we can access
+  it remotely.
+
+  Then we use jetty (in a separate JVM; or you could use any
+  web-server even the one running the _Solo_ backend) to host
+  `solo.web` and use nREPL clients for delegating calls to `solo.core`
+  functions to the nREPL server.
+
+  This second options makes sense if you want to work on _Solo's_
+  web-layer (which we will in Step Eight++) and you may have to change
+  dependencies. In this case, you can do this without re-starting
+  `solo.core` and you need not re-start the app-server which can be
+  time-consuming.
+
+[1] Note: we have to look at classloaders since _Solo_ only works, if
+it accesses the __same__ log4j classes as the host application does.
+
+## WAR Deployment
+
+## Module Deployment and nREPL Access
 
 ------------------------------------------------------------------------
 # Step Eight: clojurescript
