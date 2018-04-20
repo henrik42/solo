@@ -1062,13 +1062,14 @@ There are some things wrong with this solution:
 
 In `web.clj` I've added a few things:
 
-* a drop down list for log-levels
+* a drop down list for log-levels (instead of entering a text)
 
 * enter new loggers
 
 * sort loggers
 
-* __TODO__: filter loggers
+* filter loggers: lets you enter a reg-ex and display only loggers
+  that match that reg-ex
 
 * __TODO__: paging
 
