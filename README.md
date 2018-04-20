@@ -951,7 +951,24 @@ Before we can use Compojure we have to add the dependency
                      [ring/ring-core "1.6.3"]
                      [ring/ring-jetty-adapter "1.6.3"]
                      [compojure "1.6.0"]]
+
+With Compojure we can define routes for HTTP requests (`GET` and
+`POST` in our case) and can delegate to functions to do the real work
+(see below).
+
+    (defroutes main-routes
+      (GET "/" req "hello world")
+      (POST "/set-log-level" req
+        ;; something with req
+        (redirect "/"))
+      (POST "/update-loggers" req
+        ;; something with req
+        (redirect "/"))
+      (route/resources "/")
+      (route/not-found "Page not found"))
     
+    (def app (handler/site #'main-routes))
+
 ## Hiccup
 
 Before we can use Hiccup we have to add the dependency
@@ -964,7 +981,20 @@ Before we can use Hiccup we have to add the dependency
                      [ring/ring-jetty-adapter "1.6.3"]
                      [compojure "1.6.0"]
                      [hiccup "1.0.5"]]
-    
+
+With Hiccup we convert Clojure data structures into HTML markup. This
+is the function which will return the __complete__ __HTML-page__ (see
+above).
+
+    (defn the-page [filter-reg-ex]
+      (let [loggers (get-current-loggers filter-reg-ex)]
+        (hp/html5
+         [:head
+          (hp/include-css "solo.css")]
+         [:body
+          (set-log-level-form filter-reg-ex)
+          (loggers-form loggers filter-reg-ex)])))
+
 ## solo.web
 
 Our first application will have only one page (but it's __not__ a SPA
@@ -974,11 +1004,11 @@ loggers and their log-level (an input field).
 You can change the log-level entries and use a `GO` button to submit
 the data to `(POST "/update-loggers")`.
 
-For the POST-request `solo.web` returns an `(redirect "/")` so that
-you can use the browser's page-reload for updating the page after a
-submit (if we were just returning the page-content for the
-POST-request the browser would ask us if we want to re-send the
-POST-request when doing a page-reload after a submit).
+For POST-requests `solo.web` returns a `(redirect "/")` so that you
+can use the browser's page-reload for updating the page after a submit
+(if we were just returning the page-content for the POST-request the
+browser would ask us if we want to re-send the POST-request when doing
+a page-reload after a submit).
 
 __TODO__: fix solo.css to make the table look nicer
 
@@ -1064,16 +1094,52 @@ In `web.clj` I've added a few things:
 
 * a drop down list for log-levels (instead of entering a text)
 
-* enter new loggers
+        (hf/drop-down logger-name log-levels log-level)
 
-* sort loggers
+* enter new loggers (a separate `form` element). 
 
-* filter loggers: lets you enter a reg-ex and display only loggers
-  that match that reg-ex
+        (defn set-log-level-form [filter-reg-ex]
+          (hf/form-to
+           [:post "/set-log-level"]
+           (hf/hidden-field " FILTER" filter-reg-ex)
+           (hf/label :logger "LOGGER:")
+           (hf/text-field :logger)
+           (hf/label :level "LEVEL:")
+           (hf/drop-down :level log-levels "INFO")
+           (hf/submit-button "SET LOG-LEVEL")))
+        
+* sort loggers and filter loggers: the filter is a reg-ex which will
+  be used to `re-find`-filter the loggers by their names.
 
+        (defn get-current-loggers [filter-reg-ex]
+          (sort-by :logger-name
+                   (filter
+                    #(re-find filter-reg-ex (:logger-name %))
+                    (core/get-current-loggers))))
+
+  The filter can be entered via a textfield which is part of the
+  `loggers-form` for entering the log-levels:
+
+        (defn loggers-form [loggers filter-reg-ex]
+          (hf/form-to
+           [:post "/update-loggers"]
+           [:table
+            [:tr
+             [:th "LOGGER" (hf/text-field " FILTER" filter-reg-ex)]
+             [:th "LEVEL"]]
+            (for [{:keys [logger-name log-level]} loggers]
+              [:tr
+               [:td logger-name]
+               [:td (hf/drop-down logger-name log-levels log-level)]])]
+           (hf/submit-button "GO")))
+  
 * __TODO__: paging
 
 * __TODO__: submit only changed entries
+
+## Production
+
+
 
 ------------------------------------------------------------------------
 # Step Eight: clojurescript
