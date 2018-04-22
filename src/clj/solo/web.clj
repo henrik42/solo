@@ -1,5 +1,6 @@
 (ns solo.web
-  (:use compojure.core)
+  (:use compojure.core
+        [hiccup.middleware :only (wrap-base-url)])
   (:require [clojure.string :as str]
             [solo.core :as core]
             [ring.util.response :use redirect]
@@ -58,6 +59,10 @@
       (java.util.regex.Pattern/compile reg-ex-str)
       (catch Throwable t (java.util.regex.Pattern/compile ".*")))))
 
+(defn make-redirect-url [req]
+  (str (hu/url (format "%s/" (:context req))
+               {:filter (str (req->filter-reg-ex req))})))
+
 (defroutes main-routes
   (GET "/" req (the-page (req->filter-reg-ex req)))
   (POST "/set-log-level" req
@@ -65,14 +70,16 @@
           logger (str/trim logger)]
       (if-not (empty? logger)
         (core/set-log-level! logger level))
-      (redirect (str (hu/url "/" {:filter (req->filter-reg-ex req)})))))
+      (redirect (make-redirect-url req))))
   (POST "/update-loggers" req
     (doseq [[logger level] (:params req)]
       (let [logger-name (name logger)]
         (if-not (= \space (first logger-name))
           (core/set-log-level! logger-name level))))
-    (redirect (str (hu/url "/" {:filter (str (req->filter-reg-ex req))}))))
+    (redirect (make-redirect-url req)))
   (route/resources "/")
   (route/not-found "Page not found"))
 
-(def app (handler/site #'main-routes))
+(def app
+  (-> (handler/site #'main-routes)
+      (wrap-base-url)))

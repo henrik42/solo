@@ -3,19 +3,24 @@
   :resource-paths ["resources"]
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [swank-clojure/swank-clojure "1.4.3"]
+                 [org.clojure/tools.nrepl "0.2.12"]
                  [log4j/log4j "1.2.17"]
                  [ring/ring-core "1.6.3"]
                  [ring/ring-jetty-adapter "1.6.3"]
                  [compojure "1.6.0"]
                  [hiccup "1.0.5"]]
-  :aliases {"make-jumpstart-jsf" ["with-profile" "jumpstart-jsf" "do" ["clean"] "jar"]}
+  :aliases {"make-jumpstart-jsf" ["with-profile" "jumpstart-jsf" "do" ["clean"] "jar"]
+            "make-web-war" ["with-profile" "make-web-war" "ring" "uberwar" "solo-web.war"]}
   :main solo.jetty
   :plugins [[lein-swank "1.4.5"]
             [lein-ring "0.12.4"]]
   :ring {:handler solo.web/app
          :nrepl {:start? true
                  :port 9998}}
-  :profiles {:jumpstart-jsf {:resource-paths ^:replace ["jumpstart/resources"]
+  :profiles {:make-web-war {:ring {:handler solo.webapp/app
+                                   :init solo.webapp/init
+                                   :destroy solo.webapp/destroy}}
+             :jumpstart-jsf {:resource-paths ^:replace ["jumpstart/resources"]
                              :aot :all
                              :main solo.jumpstart.jsf
                              :source-paths ^:replace ["jumpstart/src"]}})
