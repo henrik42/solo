@@ -17,7 +17,7 @@
   :ring {:handler solo.web/app
          :nrepl {:start? true
                  :port 9998}}
-  :profiles {:make-web-war {:ring {:war-exclusions [#"log4j.*jar"]
+  :profiles {:make-web-war {:ring {;;:war-exclusions [#"log4j.*jar"]
                                    :handler solo.webapp/app
                                    :init    solo.webapp/init
                                    :destroy solo.webapp/destroy}}
