@@ -3,6 +3,7 @@
            [solo.web :as web]))
 
 (defn -main []
+  (println "Starting Jetty server ...")
   (jetty/run-jetty
    #'web/app
    {:port 3000

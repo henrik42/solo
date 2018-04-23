@@ -10,14 +10,25 @@
                  [compojure "1.6.0"]
                  [hiccup "1.0.5"]]
   :aliases {"make-jumpstart-jsf" ["with-profile" "jumpstart-jsf" "do" ["clean"] "jar"]
-            "make-web-war" ["with-profile" "make-web-war" "ring" "uberwar" "solo-web.war"]}
+            
+            ;; deployable WAR that can be hosted side-by-side with
+            ;; Java Host Application which contains Solo Web-App &
+            ;; Core & nREPL Server.
+            "make-web-war" ["with-profile" "make-web-war" "ring" "uberwar" "solo-web.war"]
+            
+            ;; executable JAR that runs Jetty with Solo Web-App and
+            ;; connects to remotely running nREPL server with Solo
+            ;; Core.
+            "make-web-jar" ["with-profile" "make-web-jar" "uberjar"]}
+  
   :main solo.jetty
   :plugins [[lein-swank "1.4.5"]
             [lein-ring "0.12.4"]]
   :ring {:handler solo.web/app
          :nrepl {:start? true
                  :port 9998}}
-  :profiles {:make-web-war {:ring {;;:war-exclusions [#"log4j.*jar"]
+  :profiles {:make-web-jar {:main solo.main}
+             :make-web-war {:ring {;;:war-exclusions [#"log4j.*jar"]
                                    :handler solo.webapp/app
                                    :init    solo.webapp/init
                                    :destroy solo.webapp/destroy}}

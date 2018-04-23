@@ -60,7 +60,7 @@
       (catch Throwable t (java.util.regex.Pattern/compile ".*")))))
 
 (defn make-redirect-url [req]
-  (str (hu/url (format "%s/" (:context req))
+  (str (hu/url (str (:context req) "/")
                {:filter (str (req->filter-reg-ex req))})))
 
 (defroutes main-routes
