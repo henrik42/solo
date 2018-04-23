@@ -17,8 +17,9 @@
   :ring {:handler solo.web/app
          :nrepl {:start? true
                  :port 9998}}
-  :profiles {:make-web-war {:ring {:handler solo.webapp/app
-                                   :init solo.webapp/init
+  :profiles {:make-web-war {:ring {:war-exclusions [#"log4j.*jar"]
+                                   :handler solo.webapp/app
+                                   :init    solo.webapp/init
                                    :destroy solo.webapp/destroy}}
              :jumpstart-jsf {:resource-paths ^:replace ["jumpstart/resources"]
                              :aot :all
