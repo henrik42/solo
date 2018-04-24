@@ -3,9 +3,10 @@
         [hiccup.middleware :only (wrap-base-url)])
   (:require [clojure.string :as str]
             [solo.core :as core]
-            [ring.util.response :use redirect]
+            [ring.util.response :as response]
             [compojure.route :as route]
             [compojure.handler :as handler]
+            [ring.middleware.resource :as resource]
             [hiccup.page :as hp]
             [hiccup.util :as hu]
             [hiccup.form :as hf]))
@@ -77,6 +78,13 @@
     (#{"UNKNOWN!" "NOT-SET!"} log-level) false
     :else true))
 
+(defmethod response/resource-data :vfs
+  [^java.net.URL url]
+  (let [conn (.openConnection url)]
+    {:content (.getInputStream conn)
+     :content-length (@#'response/connection-content-length conn)
+     :last-modified (@#'response/connection-last-modified conn)}))
+
 (defroutes main-routes
   (GET "/" req (the-page (req->filter-reg-ex req)))
   (POST "/set-log-level" req
@@ -84,13 +92,13 @@
           logger (str/trim logger)]
       (if (set-log-level? logger level)
         (core/set-log-level! logger level))
-      (redirect (make-redirect-url req))))
+      (response/redirect (make-redirect-url req))))
   (POST "/update-loggers" req
     (doseq [[logger level] (:params req)]
       (let [logger-name (name logger)]
         (if (set-log-level? logger-name level)
           (core/set-log-level! logger-name level))))
-    (redirect (make-redirect-url req)))
+    (response/redirect (make-redirect-url req)))
   (route/resources "/")
   (route/not-found "Page not found"))
 
