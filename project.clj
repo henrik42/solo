@@ -28,7 +28,8 @@
          :nrepl {:start? true
                  :port 9998}}
   :profiles {:make-web-jar {:main solo.main}
-             :make-web-war {:ring {;;:war-exclusions [#"log4j.*jar"]
+             :make-web-war {:resource-paths ^:replace ["resources/public/"]
+                            :ring {:war-exclusions [#"log4j.*jar"]
                                    :handler solo.webapp/app
                                    :init    solo.webapp/init
                                    :destroy solo.webapp/destroy}}

@@ -14,10 +14,11 @@
 
 (defn set-log-level-form [filter-reg-ex]
   (hf/form-to
+   {:id "new-logger"}
    [:post "/set-log-level"]
    (hf/hidden-field " FILTER" filter-reg-ex)
    (hf/label :logger "LOGGER:")
-   (hf/text-field :logger)
+   (hf/text-field {:placeholder "Logger Name"} :logger)
    (hf/label :level "LEVEL:")
    (hf/drop-down :level log-levels "INFO")
    (hf/submit-button "SET LOG-LEVEL")))
@@ -25,9 +26,9 @@
 (defn loggers-form [loggers filter-reg-ex]
   (hf/form-to
    [:post "/update-loggers"]
-   [:table
+   [:table#loggers
     [:tr
-     [:th "LOGGER" (hf/text-field " FILTER" filter-reg-ex)]
+     [:th "LOGGER" (hf/text-field {:placeholder "Filter Reg-Ex"} " FILTER" filter-reg-ex)]
      [:th "LEVEL"]]
     (for [{:keys [logger-name log-level]} loggers]
       [:tr
@@ -51,7 +52,7 @@
   (let [loggers (get-current-loggers filter-reg-ex)]
     (hp/html5
      [:head
-      (hp/include-css "solo.css")]
+      (hp/include-css "/css/solo.css")]
      [:body
       (set-log-level-form filter-reg-ex)
       (loggers-form loggers filter-reg-ex)])))
