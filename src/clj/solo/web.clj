@@ -10,7 +10,7 @@
             [hiccup.util :as hu]
             [hiccup.form :as hf]))
 
-(def log-levels ["DEBUG" "INFO" "WARN" "ERROR" "OFF"])
+(def log-levels #{"UNKNOWN!" "NOT-SET!" "DEBUG" "INFO" "WARN" "ERROR" "OFF"})
 
 (defn set-log-level-form [filter-reg-ex]
   (hf/form-to
@@ -36,10 +36,16 @@
    (hf/submit-button "GO")))
 
 (defn get-current-loggers [filter-reg-ex]
-  (sort-by :logger-name
-           (filter
-            #(re-find filter-reg-ex (:logger-name %))
-            (core/get-current-loggers))))
+  (map
+   (fn [{:keys [logger-name log-level] :as logger}]
+     (cond
+       (= "" log-level) (assoc logger :log-level "NOT-SET!")
+       (not (log-levels log-level)) (assoc logger :log-level "UNKNOWN!")
+       :else logger))
+   (sort-by :logger-name
+            (filter
+             #(re-find filter-reg-ex (:logger-name %))
+             (core/get-current-loggers)))))
 
 (defn the-page [filter-reg-ex]
   (let [loggers (get-current-loggers filter-reg-ex)]
@@ -63,18 +69,25 @@
   (str (hu/url (str (:context req) "/")
                {:filter (str (req->filter-reg-ex req))})))
 
+(defn set-log-level? [logger-name log-level]
+  (cond
+    (empty? logger-name) false
+    (= \space (first logger-name)) false
+    (#{"UNKNOWN!" "NOT-SET!"} log-level) false
+    :else true))
+
 (defroutes main-routes
   (GET "/" req (the-page (req->filter-reg-ex req)))
   (POST "/set-log-level" req
     (let [{:keys [logger level]} (:params req)
           logger (str/trim logger)]
-      (if-not (empty? logger)
+      (if (set-log-level? logger level)
         (core/set-log-level! logger level))
       (redirect (make-redirect-url req))))
   (POST "/update-loggers" req
     (doseq [[logger level] (:params req)]
       (let [logger-name (name logger)]
-        (if-not (= \space (first logger-name))
+        (if (set-log-level? logger-name level)
           (core/set-log-level! logger-name level))))
     (redirect (make-redirect-url req)))
   (route/resources "/")
