@@ -1004,11 +1004,11 @@ loggers and their log-level (an input field).
 You can change the log-level entries and use a `GO` button to submit
 the data to `(POST "/update-loggers")`.
 
-For POST-requests `solo.web` returns a `(redirect "/")` so that you
+For `POST`-requests `solo.web` returns a `(redirect "/")` so that you
 can use the browser's page-reload for updating the page after a submit
-(if we were just returning the page-content for the POST-request the
-browser would ask us if we want to re-send the POST-request when doing
-a page-reload after a submit).
+(if we were just returning the page-content for the `POST`-request the
+browser would ask us if we want to re-send the `POST`-request when
+doing a page-reload after a submit).
 
 __TODO__: fix solo.css to make the table look nicer
 
@@ -1087,16 +1087,16 @@ There are some things wrong with this solution:
 * we cannot create new loggers (just change existing ones)
 
 * when there are a lot of loggers, the list will become long and for
-  very long lists the `POST` request will become too large for
+  very long lists the `POST`-request will become too large for
   processing.
 
-In `web.clj` I've added a few things:
+So I've added a few things to `web.clj`:
 
 * a drop down list for log-levels (instead of entering a text)
 
         (hf/drop-down logger-name log-levels log-level)
 
-* enter new loggers (a separate `form` element). 
+* enter new loggers (in a separate `form` element). 
 
         (defn set-log-level-form [filter-reg-ex]
           (hf/form-to
@@ -1108,8 +1108,8 @@ In `web.clj` I've added a few things:
            (hf/drop-down :level log-levels "INFO")
            (hf/submit-button "SET LOG-LEVEL")))
         
-* sort loggers and filter loggers: the filter is a reg-ex which will
-  be used to `re-find`-filter the loggers by their names.
+* filter and sort loggers: the filter is a reg-ex which is used to
+  `re-find`-filter the loggers by their names.
 
         (defn get-current-loggers [filter-reg-ex]
           (sort-by :logger-name
@@ -1137,9 +1137,9 @@ In `web.clj` I've added a few things:
 
 * __TODO__: submit only changed entries
 
-## Options for Production
+## Options for Deployment
 
-Let's put _Solo_ to production. We have (at least) two options:
+We have (at least) two options:
 
 * deploy _Solo_ as a WAR: we build a WAR containing all of _Solo's_
   dependencies (except log4j) incl. a `web.xml`. This can then be
@@ -1163,18 +1163,56 @@ Let's put _Solo_ to production. We have (at least) two options:
   Then we use jetty (in a separate JVM; or you could use any
   web-server even the one running the _Solo_ backend) to host
   `solo.web` and use nREPL clients for delegating calls to `solo.core`
-  functions to the nREPL server.
+  functions remotely to the nREPL server.
 
   This second options makes sense if you want to work on _Solo's_
-  web-layer (which we will in Step Eight++) and you may have to change
+  web-layer (which we will in step eight++) and you may have to change
   dependencies. In this case, you can do this without re-starting
-  `solo.core` and you need not re-start the app-server which can be
-  time-consuming.
+  `solo.core` (which is more stable in terms of changes that you may
+  make to the code) and you need not re-start the app-server which can
+  be time-consuming.
 
-[1] Note: we have to look at classloaders since _Solo_ only works, if
-it accesses the __same__ log4j classes as the host application does.
+[1] __TODO:__ Note: we have to look at classloaders since _Solo_ only
+works, if it accesses the __same__ log4j classes as the host
+application does.
 
 ## WAR Deployment
+
+In `solo-project/src/clj/solo/webapp.clj` I put the code for our
+_statefull_ web-app. On startup the web-app will start an nREPL server
+on port `7888` and `.close` it when the web-app shuts down. This way
+you can re-deploy the web-app into a running web-server (like Apache
+Tomcat; see below):
+
+    (ns solo.webapp
+      (require [solo.nrepl :as nrepl]
+               [solo.web :as web]))
+    
+    (def app web/app)
+    
+    (def nrepl-server (atom nil))
+    
+    (defn init []
+      (reset! nrepl-server
+              (nrepl/start-server 7888)))
+    
+    (defn destroy []
+      (when @nrepl-server
+        (.close @nrepl-server)
+        (reset! nrepl-server nil)))
+    
+Now build:
+
+    solo-project$ lein make-web-war
+    Created [...]/solo-project/target/solo-web.war
+
+And deploy:
+
+    solo-project$ cp target/solo-web.war /opt/apache-tomcat-8.5.30/webapps/
+
+
+
+
 
 ## Module Deployment and nREPL Access
 
