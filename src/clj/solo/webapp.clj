@@ -1,6 +1,14 @@
 (ns solo.webapp
-  (require [solo.nrepl :as nrepl]
-           [solo.web :as web]))
+  (:require [solo.nrepl :as nrepl]
+            [solo.web :as web]
+            [ring.util.response :as response]))
+
+(defmethod response/resource-data :vfs
+  [^java.net.URL url]
+  (let [conn (.openConnection url)]
+    {:content (.getInputStream conn)
+     :content-length (@#'response/connection-content-length conn)
+     :last-modified (@#'response/connection-last-modified conn)}))
 
 (def app web/app)
 

@@ -78,13 +78,6 @@
     (#{"UNKNOWN!" "NOT-SET!"} log-level) false
     :else true))
 
-(defmethod response/resource-data :vfs
-  [^java.net.URL url]
-  (let [conn (.openConnection url)]
-    {:content (.getInputStream conn)
-     :content-length (@#'response/connection-content-length conn)
-     :last-modified (@#'response/connection-last-modified conn)}))
-
 (defroutes main-routes
   (GET "/" req (the-page (req->filter-reg-ex req)))
   (POST "/set-log-level" req
