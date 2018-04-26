@@ -13,6 +13,49 @@
 
 (def log-levels #{"UNKNOWN!" "NOT-SET!" "DEBUG" "INFO" "WARN" "ERROR" "OFF"})
 
+(defn get-current-loggers [{:keys [filter-reg-ex hide]}]
+  (->> (core/get-current-loggers)
+       (map
+        (fn [{:keys [logger-name log-level] :as logger}]
+          (cond
+            (= "" log-level) (assoc logger :log-level "NOT-SET!")
+            (not (log-levels log-level)) (assoc logger :log-level "UNKNOWN!")
+            :else logger)))
+       (filter 
+        #(and (re-find filter-reg-ex (:logger-name %))
+              (if hide
+                (not= "NOT-SET!" (:log-level %))
+                true)))))
+  
+(defn req->hide [{:keys [request-method params]}]
+  (let [hide-str (if (= request-method :get)
+                   (:hide params)
+                   (params " HIDE"))]
+    (Boolean/valueOf hide-str)))
+
+(defn req->filter-reg-ex [{:keys [request-method params]}]
+  (let [reg-ex-str (if (= request-method :get)
+                      (:filter params)
+                      (params " FILTER"))
+        reg-ex-str (if (empty? reg-ex-str) ".*" reg-ex-str)]
+    (try 
+      (java.util.regex.Pattern/compile reg-ex-str)
+      (catch Throwable t (java.util.regex.Pattern/compile ".*")))))
+
+(defn make-redirect-url [req]
+  (str (hu/url (str (:context req) "/")
+               {:hide (req->hide req)
+                :filter (str (req->filter-reg-ex req))})))
+
+(defn set-log-level? [logger-name log-level]
+  (cond
+    (empty? logger-name) false
+    (= \space (first logger-name)) false
+    (#{"UNKNOWN!" "NOT-SET!"} log-level) false
+    :else true))
+
+;; ################### view #######################################
+
 (defn set-log-level-form [{:keys [filter-reg-ex hide]}]
   (hf/form-to
    {:id "new-logger"}
@@ -43,20 +86,6 @@
        [:td (hf/drop-down logger-name log-levels log-level)]])]
    (hf/submit-button "GO")))
 
-(defn get-current-loggers [{:keys [filter-reg-ex hide]}]
-  (->> (core/get-current-loggers)
-       (map
-        (fn [{:keys [logger-name log-level] :as logger}]
-          (cond
-            (= "" log-level) (assoc logger :log-level "NOT-SET!")
-            (not (log-levels log-level)) (assoc logger :log-level "UNKNOWN!")
-            :else logger)))
-       (filter 
-        #(and (re-find filter-reg-ex (:logger-name %))
-              (if hide
-                (not= "NOT-SET!" (:log-level %))
-                true)))))
-  
 (defn the-page [options]
   (let [loggers (get-current-loggers options)]
     (hp/html5
@@ -66,32 +95,7 @@
       (set-log-level-form options)
       (loggers-form loggers options)])))
 
-(defn req->hide [{:keys [request-method params]}]
-  (let [hide-str (if (= request-method :get)
-                   (:hide params)
-                   (params " HIDE"))]
-    (Boolean/valueOf hide-str)))
-
-(defn req->filter-reg-ex [{:keys [request-method params]}]
-  (let [reg-ex-str (if (= request-method :get)
-                      (:filter params)
-                      (params " FILTER"))
-        reg-ex-str (if (empty? reg-ex-str) ".*" reg-ex-str)]
-    (try 
-      (java.util.regex.Pattern/compile reg-ex-str)
-      (catch Throwable t (java.util.regex.Pattern/compile ".*")))))
-
-(defn make-redirect-url [req]
-  (str (hu/url (str (:context req) "/")
-               {:hide (req->hide req)
-                :filter (str (req->filter-reg-ex req))})))
-
-(defn set-log-level? [logger-name log-level]
-  (cond
-    (empty? logger-name) false
-    (= \space (first logger-name)) false
-    (#{"UNKNOWN!" "NOT-SET!"} log-level) false
-    :else true))
+;; ################### handler #######################################
 
 (defroutes main-routes
   (GET "/" req (the-page
