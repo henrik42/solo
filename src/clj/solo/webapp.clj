@@ -14,12 +14,26 @@
 
 (def nrepl-server (atom nil))
 
-(defn init []
-  (reset! nrepl-server
-          (nrepl/start-server 7888)))
+(defn init
+  "Initialize Servlet. This method should not throw an exception if
+  the nREPL server cannot start. This may happen, when the port is
+  already opened. So we will just keep on going in this case."
 
-(defn destroy []
-  (when @nrepl-server
-    (.close @nrepl-server)
-    (reset! nrepl-server nil)))
+  []
+  (try 
+    (reset! nrepl-server
+            (nrepl/start-server 7888))
+    (catch Throwable t
+      (.println System/err t))))
+
+(defn destroy
+  "Set `nrepl-server` to `nil` and then try to `.close` the running
+  server. If this fails, `nrepl-server` will still be `nil` so that an
+  `init` will try to start a new nREPL server. Hope this makes sense
+  in most cases."
+  
+  []
+  (when-let [server @nrepl-server]
+    (reset! nrepl-server nil)
+    (.close server)))
   
