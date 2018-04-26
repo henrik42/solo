@@ -30,7 +30,7 @@
   :profiles {:make-web-jar {:main solo.main}
              ;; comment-out :war-exclusions if you want to deploy to
              ;; Apache Tomcat for development/testing
-             :make-web-war {:ring {:war-exclusions [#"log4j.*jar"]
+             :make-web-war {:ring {;;:war-exclusions [#"log4j.*jar"]
                                    :handler solo.webapp/app
                                    :init    solo.webapp/init
                                    :destroy solo.webapp/destroy}}

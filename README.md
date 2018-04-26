@@ -136,7 +136,8 @@ in the source forms (via file-io or from a socket or from an in-memory
 AOT-compiled code and sources (see "Step Four" below). Do not confuse
 the two.
 
-[1] I'm using the old log4j 1.2 but you should be able to switch to 2.x http://central.maven.org/maven2/log4j/log4j/1.2.17/log4j-1.2.17.jar  
+[1] I'm using the old log4j 1.2 but you should be able to switch
+to 2.x http://central.maven.org/maven2/log4j/log4j/1.2.17/log4j-1.2.17.jar  
 
 ------------------------------------------------------------------------
 # Step Two: rlwrap, REPL
@@ -854,21 +855,18 @@ have to return text/HTML. We could just concat the HTML markup into a
 We'll put all of the web-app related Clojure sources into the
 namespace `solo.web`.
 
-[1] Jetty  
-[2] http-kit  
-[3] Servlets  
-[4] Ring  
-[5] Compojure  
-[6] Hiccup  
+[1] https://www.eclipse.org/jetty/  
+[2] http://www.http-kit.org/  
+[3] https://en.wikipedia.org/wiki/Java_servlet  
+[4] https://github.com/ring-clojure/ring  
+[5] https://github.com/weavejester/compojure  
+[6] https://github.com/weavejester/hiccup  
 
 ## Ring
 
 Add the dependencies for Ring:
 
-      :dependencies [[org.clojure/clojure "1.8.0"]
-                     [swank-clojure/swank-clojure "1.4.3"]
-                     [log4j/log4j "1.2.17"]
-                     [ring/ring-core "1.6.3"]
+      :dependencies [,,,[ring/ring-core "1.6.3"]
                      [ring/ring-jetty-adapter "1.6.3"]]
 
 Let's run a "Hello World" example. Since we will not use this code in
@@ -907,8 +905,7 @@ _top-level_ Ring handler `solo.web/app` in.
 
 Put this into `project.clj`:
 
-      :plugins [[lein-swank "1.4.5"]
-                [lein-ring "0.12.4"]]
+      :plugins [,,,[lein-ring "0.12.4"]]
       :ring {:handler solo.web/app
              :nrepl {:start? true
                      :port 9998}}
@@ -945,12 +942,7 @@ server at `9998`.
 Before we can use Compojure we have to add the dependency
 `[compojure "1.6.0"]`:
 
-      :dependencies [[org.clojure/clojure "1.8.0"]
-                     [swank-clojure/swank-clojure "1.4.3"]
-                     [log4j/log4j "1.2.17"]
-                     [ring/ring-core "1.6.3"]
-                     [ring/ring-jetty-adapter "1.6.3"]
-                     [compojure "1.6.0"]]
+      :dependencies [,,,[compojure "1.6.0"]]
 
 With Compojure we can define routes for HTTP requests (`GET` and
 `POST` in our case) and can delegate to functions to do the real work
@@ -974,13 +966,7 @@ With Compojure we can define routes for HTTP requests (`GET` and
 Before we can use Hiccup we have to add the dependency
 `[hiccup "1.0.5"]`:
 
-      :dependencies [[org.clojure/clojure "1.8.0"]
-                     [swank-clojure/swank-clojure "1.4.3"]
-                     [log4j/log4j "1.2.17"]
-                     [ring/ring-core "1.6.3"]
-                     [ring/ring-jetty-adapter "1.6.3"]
-                     [compojure "1.6.0"]
-                     [hiccup "1.0.5"]]
+      :dependencies [,,,[hiccup "1.0.5"]]
 
 With Hiccup we convert Clojure data structures into HTML markup. This
 is the function which will return the __complete__ __HTML-page__ (see
@@ -1096,43 +1082,62 @@ So I've added a few things to `web.clj`:
 
         (hf/drop-down logger-name log-levels log-level)
 
+  The set of known log-levels contains two _special_ elements (taken
+  care of in `get-current-loggers`): `"UNKNOWN!"` for cases where we
+  find a log-level in log4j that we don't know and `"NOT-SET!"` for
+  loggers that have no log-level set. These loggers exist because Java
+  classes usually use `static final Logger` so the lookup is done at
+  class-initialization time which causes the logger being created even
+  if there is not log-level configured for the concrete logger.
+
+  When any of these two log-level is selected for any logger, the
+  logger will not have its log-level set (see `set-log-level?`).
+
 * enter new loggers (in a separate `form` element). 
 
         (defn set-log-level-form [filter-reg-ex]
           (hf/form-to
+           {:id "new-logger"}
            [:post "/set-log-level"]
            (hf/hidden-field " FILTER" filter-reg-ex)
            (hf/label :logger "LOGGER:")
-           (hf/text-field :logger)
+           (hf/text-field {:placeholder "Logger Name"} :logger)
            (hf/label :level "LEVEL:")
            (hf/drop-down :level log-levels "INFO")
            (hf/submit-button "SET LOG-LEVEL")))
-        
+                
 * filter and sort loggers: the filter is a reg-ex which is used to
-  `re-find`-filter the loggers by their names.
+  `re-find`-filter the loggers by their names In addition you can
+  select to _hide_ loggers that have log-level `"NOT-SET!"`:
 
         (defn get-current-loggers [filter-reg-ex]
-          (sort-by :logger-name
-                   (filter
-                    #(re-find filter-reg-ex (:logger-name %))
-                    (core/get-current-loggers))))
-
+          (map
+           (fn [{:keys [logger-name log-level] :as logger}]
+             (cond
+               (= "" log-level) (assoc logger :log-level "NOT-SET!")
+               (not (log-levels log-level)) (assoc logger :log-level "UNKNOWN!")
+               :else logger))
+           (sort-by :logger-name
+                    (filter
+                     #(re-find filter-reg-ex (:logger-name %))
+                     (core/get-current-loggers)))))
+        
   The filter can be entered via a textfield which is part of the
   `loggers-form` for entering the log-levels:
 
         (defn loggers-form [loggers filter-reg-ex]
           (hf/form-to
            [:post "/update-loggers"]
-           [:table
+           [:table#loggers
             [:tr
-             [:th "LOGGER" (hf/text-field " FILTER" filter-reg-ex)]
+             [:th "LOGGER" (hf/text-field {:placeholder "Filter Reg-Ex"} " FILTER" filter-reg-ex)]
              [:th "LEVEL"]]
             (for [{:keys [logger-name log-level]} loggers]
               [:tr
                [:td logger-name]
                [:td (hf/drop-down logger-name log-levels log-level)]])]
            (hf/submit-button "GO")))
-  
+          
 * __TODO__: paging
 
 * __TODO__: submit only changed entries
@@ -1141,29 +1146,31 @@ So I've added a few things to `web.clj`:
 
 We have (at least) two options:
 
-* deploy _Solo_ as a WAR: we build a WAR containing all of _Solo's_
+* __WAR deployment__: we build a WAR containing all of _Solo's_
   dependencies (except log4j) incl. a `web.xml`. This can then be
-  deployed side-by-side with the host-application [1].
+  deployed side-by-side with the JEE host-application [1].
 
   We'll need no jump-starter in this case, since the `web.xml` will
-  register a Ring servlet with the web-container which will then wait
-  for incoming requests.
+  register a Ring servlet with the web-container which will
+  initialize/start the servlet and then wait for incoming requests.
 
   If you like, you can use the initialization phase of the web-app to
   start an nREPL server.
 
-* deploy only _Solo's_ "backend"-JARs (`solo.core` and `solo.nrepl`
-  and their dependencies, maybe `solo.swank` if you like) to the
-  app-server running the host application (as _modules_; see
-  above).
+* __Module Deployment__: we deploy only _Solo's_ "backend"-JAR
+  (`solo.core` and `solo.nrepl` and their dependencies, maybe
+  `solo.swank` if you like) as _modules_ (see above) to the app-server
+  running the host application.
 
   In this case we need to jump-start `solo.repl` so that we can access
-  it remotely.
+  it remotely (remember -- it's not a web-app in this case).
 
-  Then we use jetty (in a separate JVM; or you could use any
+  Then we use Jetty (in a __separate__ JVM; or you could use any
   web-server even the one running the _Solo_ backend) to host
-  `solo.web` and use nREPL clients for delegating calls to `solo.core`
-  functions remotely to the nREPL server.
+  `solo.web` and use nREPL clients for delegating calls from
+  `solo-web` to `solo.core` functions remotely to the nREPL server.
+
+  Now we have a distributed application.
 
   This second options makes sense if you want to work on _Solo's_
   web-layer (which we will in step eight++) and you may have to change
@@ -1171,6 +1178,14 @@ We have (at least) two options:
   `solo.core` (which is more stable in terms of changes that you may
   make to the code) and you need not re-start the app-server which can
   be time-consuming.
+
+  This setup will work for development also: you can run `solo.web` in
+  your Leiningen dev JVM and call the _production_ `solo.core` via
+  nREPL -- nice!
+
+There are more options: we can _WAR-deploy_ to the app-server and
+still use a separate JVM running Jetty/`solo.web` and delegate to the
+nREPL-server in the app-server.
 
 [1] __TODO:__ Note: we have to look at classloaders since _Solo_ only
 works, if it accesses the __same__ log4j classes as the host
@@ -1180,13 +1195,34 @@ application does.
 
 In `solo-project/src/clj/solo/webapp.clj` I put the code for our
 _statefull_ web-app. On startup the web-app will start an nREPL server
-on port `7888` and `.close` it when the web-app shuts down. This way
-you can re-deploy the web-app into a running web-server (like Apache
-Tomcat; see below):
+on port `7888` and `.close` it when the web-app shuts down (only if it
+runs as a _real_ web-app in a Servlet-container! Not when you use
+`webapp/app` as a Ring handler while developing. See `:make-web-war `
+in `solo-project/project.clj`). This way you can re-deploy the web-app
+into a running web-server (like JBoss and Apache Tomcat; see below):
+
+__Note:__ If you want to deploy this WAR _stand-alone_ (and not
+_production_, i.e. without a host-application) to a web-server (for
+testing) you have to comment-out the `:war-exclusions` in
+`solo-project/project.clj`. Otherwise the web-app will not start.
+
+    :make-web-war {:ring { ;; :war-exclusions [#"log4j.*jar"]
+
+So here is `solo.webapp`. `response/resource-data :vfs` is here
+because JBoss/Wildfly uses Apache VFS [1] and URIs start with `vfs:/`
+and `ring/util` does not take care of these.
 
     (ns solo.webapp
-      (require [solo.nrepl :as nrepl]
-               [solo.web :as web]))
+      (:require [solo.nrepl :as nrepl]
+                [solo.web :as web]
+                [ring.util.response :as response]))
+    
+    (defmethod response/resource-data :vfs
+      [^java.net.URL url]
+      (let [conn (.openConnection url)]
+        {:content (.getInputStream conn)
+         :content-length (@#'response/connection-content-length conn)
+         :last-modified (@#'response/connection-last-modified conn)}))
     
     (def app web/app)
     
@@ -1200,21 +1236,49 @@ Tomcat; see below):
       (when @nrepl-server
         (.close @nrepl-server)
         (reset! nrepl-server nil)))
-    
+        
 Now build:
 
     solo-project$ lein make-web-war
     Created [...]/solo-project/target/solo-web.war
 
-And deploy:
+And deploy (_stand-alone_ case; see above):
 
     solo-project$ cp target/solo-web.war /opt/apache-tomcat-8.5.30/webapps/
 
+Then go to http://localhost:8080/solo-web/
 
+    lynx -nopause http://localhost:8080/solo-web/
 
+__Note:__
 
+* the _stand-alone_ deployment is for testing only. Since there is no
+  host-application using log4j, there is no sense in setting any
+  log-levels.
+
+* when you deploy the _production-WAR_ you must make sure that the
+  _Solo_ web-app is loaded such that the classloader that loads _Solo_
+  can _see_ the log4j-classes of the host-application.
+
+  This usually means that the host-application must be a JEE
+  application (EAR) containing one ore more web-applications
+  (WAR). The log4j-JAR is included in EAR-`/lib`. _Solo_ is then
+  deployed into the same server and will thus see the same log4j
+  classes.
+
+* For JBoss/Wildfly you can use the admin console to upload
+  `solo-web.war` into JBoss' content repository and _assign_ it to
+  your host-applcation's _server_. (__TODO__: show jboss-cli example).
+
+* For IBM WebSphere: __TODO__
+
+__TODO__: make ports configureable for nREPL server so that we can
+deploy to more than one server on the same host at the same time.
+
+[1] VFS
 
 ## Module Deployment and nREPL Access
+
 
 ------------------------------------------------------------------------
 # Step Eight: clojurescript

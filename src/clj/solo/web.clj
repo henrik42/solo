@@ -27,7 +27,8 @@
         #(and (re-find filter-reg-ex (:logger-name %))
               (if hide
                 (not= "NOT-SET!" (:log-level %))
-                true)))))
+                true)))
+       (sort-by :logger-name)))
 
 (defn set-log-level? [logger-name log-level]
   (cond
