@@ -11,9 +11,9 @@
                  [hiccup "1.0.5"]]
   :aliases {"make-jumpstart-jsf" ["with-profile" "jumpstart-jsf" "do" ["clean"] "jar"]
             
-            ;; deployable WAR that can be hosted side-by-side with
-            ;; Java Host Application which contains Solo Web-App &
-            ;; Core & nREPL Server.
+            ;; deployable WAR that can be deployed side-by-side with
+            ;; JEE Host Application. Contains Solo Web-App & Core &
+            ;; nREPL Server.
             "make-web-war" ["with-profile" "make-web-war" "ring" "uberwar" "solo-web.war"]
             
             ;; executable JAR that runs Jetty with Solo Web-App and
