@@ -16,21 +16,35 @@
 
 (defn get-logger
   "Returns the log4j Logger with the given `logger-name` as a
-  map (`logger->map`). Never returns `nil`."
+  map (`logger->map`). Never returns `nil`. Passing `\"root\"` will
+  access the root logger. "
 
   [logger-name]
-  (-> (Logger/getLogger logger-name) logger->map))
+  (-> (if (= "root" logger-name)
+        (Logger/getRootLogger)
+        (Logger/getLogger logger-name))
+      logger->map))
 
-(defn set-log-level! [logger-name log-level]
-  (-> (Logger/getLogger logger-name) (.setLevel (Level/toLevel log-level))))
+(defn set-log-level!
+  "Sets the log-level. Passing `\"root\"` as `logger-name` will set
+  the root logger's log-level."
+
+  [logger-name log-level]
+  (-> (if (= "root" logger-name)
+        (Logger/getRootLogger)
+        (Logger/getLogger logger-name))
+      (.setLevel (Level/toLevel log-level))))
 
 (defn get-current-loggers
-  "Returns a seq of the current log4 loggers as of `logger->map`."
+  "Returns a seq of the current log4 loggers (incl. the root logger)
+  as of `logger->map`."
   
   []
   (map logger->map
-       (-> (Logger/getRootLogger)
-           .getLoggerRepository
-           .getCurrentLoggers
-           enumeration-seq)))
+       (conj
+        (-> (Logger/getRootLogger)
+            .getLoggerRepository
+            .getCurrentLoggers
+            enumeration-seq)
+        (Logger/getRootLogger))))
 

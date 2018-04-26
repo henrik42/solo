@@ -11,6 +11,8 @@
             [hiccup.util :as hu]
             [hiccup.form :as hf]))
 
+;; ################### model ##########################
+
 (def log-levels #{"UNKNOWN!" "NOT-SET!" "DEBUG" "INFO" "WARN" "ERROR" "OFF"})
 
 (defn get-current-loggers [{:keys [filter-reg-ex hide]}]
@@ -26,7 +28,16 @@
               (if hide
                 (not= "NOT-SET!" (:log-level %))
                 true)))))
-  
+
+(defn set-log-level? [logger-name log-level]
+  (cond
+    (empty? logger-name) false
+    (= \space (first logger-name)) false
+    (#{"UNKNOWN!" "NOT-SET!"} log-level) false
+    :else true))
+
+;; ################### request processing ##########################
+
 (defn req->hide [{:keys [request-method params]}]
   (let [hide-str (if (= request-method :get)
                    (:hide params)
@@ -46,13 +57,6 @@
   (str (hu/url (str (:context req) "/")
                {:hide (req->hide req)
                 :filter (str (req->filter-reg-ex req))})))
-
-(defn set-log-level? [logger-name log-level]
-  (cond
-    (empty? logger-name) false
-    (= \space (first logger-name)) false
-    (#{"UNKNOWN!" "NOT-SET!"} log-level) false
-    :else true))
 
 ;; ################### view #######################################
 
@@ -84,7 +88,7 @@
       [:tr
        [:td logger-name]
        [:td (hf/drop-down logger-name log-levels log-level)]])]
-   (hf/submit-button "GO")))
+   (hf/submit-button "SET LOG-LEVELS")))
 
 (defn the-page [options]
   (let [loggers (get-current-loggers options)]
@@ -95,7 +99,7 @@
       (set-log-level-form options)
       (loggers-form loggers options)])))
 
-;; ################### handler #######################################
+;; ################### handler/controller ##########################
 
 (defroutes main-routes
   (GET "/" req (the-page
