@@ -69,6 +69,6 @@
                     (remote-wrapper conn-fn #'solo.core/set-log-level!))
     (hooke/add-hook #'solo.core/get-current-loggers
                     (remote-wrapper conn-fn #'solo.core/get-current-loggers))
-    (when repl-port (nrepl/start-server repl-port))
+    (when repl-port (nrepl/start-server repl-port "0.0.0.0"))
     (jetty/-main)
     (.println System/out "CTRL-C to quit...")))

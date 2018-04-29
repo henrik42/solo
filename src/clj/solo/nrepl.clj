@@ -2,10 +2,11 @@
   (:require [clojure.tools.nrepl :refer :all]
             [clojure.tools.nrepl.server :as server]))
 
-(defn start-server [& [port]]
+(defn start-server [& [port bind]]
   (let [port (or port 7888)
-        _ (println (format "Starting nREPL server on port %s ..." port))
-        server (server/start-server :port port)]
+        bind (or bind "127.0.0.1")
+        _ (println (format "Starting nREPL server on %s/%s ..." bind port))
+        server (server/start-server :port port :bind bind)]
     (println (format "Started nREPL server on port %s : %s" port (bean server)))
     server))
 
