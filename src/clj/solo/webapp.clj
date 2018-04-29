@@ -4,7 +4,8 @@
             [solo.jetty :as jetty]
             [solo.web :as web]
             [ring.util.response :as response]
-            [robert.hooke :as hooke]))
+            [robert.hooke :as hooke]
+            [clojure.tools.cli :refer [parse-opts]]))
 
 (defmethod response/resource-data :vfs
   [^java.net.URL url]
@@ -40,69 +41,34 @@
     (reset! nrepl-server nil)
     (.close server)))
 
-
-;;(with-open [conn (connect :port 7888)] (-> (client conn 1000) (message {:op :eval :code "(get-current-loggers)"}) response-values))
-
-#_
-(defn remote-hook [f & args]
-  (.println System/out (format "remote: (%s %s)" f args))
-  (apply f args))
-
-;; TODO: build a function that will examine a namespace and
-;; remote-hook all functions there in.
-#_
-(defn foo [logger-name log-level]
-  (clojure.tools.nrepl/code
-   (solo.core/set-log-level! logger-name log-level)))
-
-
-#_
-(nrepl/remote-eval conn "(use 'solo.core) (xxget-current-loggers)")
-
 ;;      nrepl://192.168.0.12:7889
 ;;      telnet://localhost:5000
 ;;      http://your-app-name.heroku.com/repl
 
-#_
-(def conn (nrepl/get-connection))
+(defn remote-wrapper [conn-fn v]
+  (fn [_ & args]
+    (nrepl/remote-eval
+     (conn-fn)
+     (format "(apply %s/%s [%s])"
+             (-> v meta :ns) (-> v meta :name)
+             (apply pr-str args)))))
 
-#_
-(-> (client conn 1000)
-    (message {:op :eval
-                       :code "(use 'solo.core) *ns* (get-current-loggers)"})
-    response-values)
-
-#_
-(hooke/clear-hooks
- #'solo.core/get-logger)
-
-#_
-(add-remote-hook
- #'solo.core/get-logger)
-
-#_
-(hooke/add-hook
- #'solo.core/get-logger
- (fn [f & args]
-   (nrepl/remote-eval
-    conn
-    (format "(apply solo.core/get-logger [%s])" (apply pr-str args)))))
-
-(defn add-remote-hook! [conn v]
-  (hooke/add-hook
-   v
-   (fn [f & args]
-     (nrepl/remote-eval
-      #_ conn
-      (nrepl/get-connection)
-      (format "(apply %s/%s [%s])"
-              (-> v meta :ns) (-> v meta :name)
-              (apply pr-str args))))))
+(def cli-options
+  [["-p" "--repl-port PORT" "start nREPL server on PORT"
+    :parse-fn #(Integer/parseInt %)]
+   ])
   
 (defn -main [& args]
-  (let [conn nil #_ (nrepl/get-connection)]
-    (add-remote-hook! conn #'solo.core/get-logger)
-    (add-remote-hook! conn #'solo.core/set-log-level!)
-    (add-remote-hook! conn #'solo.core/get-current-loggers)
-    ;;(nrepl/start-server 7888)
-    (jetty/-main)))
+  (let [{:keys [errors options arguments summary] :as opt} (parse-opts args cli-options)
+        {:keys [repl-port]} options
+        [host port] arguments
+        conn-fn #(nrepl/get-connection {:port (Integer/parseInt port) :host host})]
+    (hooke/add-hook #'solo.core/get-logger
+                    (remote-wrapper conn-fn #'solo.core/get-logger))
+    (hooke/add-hook #'solo.core/set-log-level!
+                    (remote-wrapper conn-fn #'solo.core/set-log-level!))
+    (hooke/add-hook #'solo.core/get-current-loggers
+                    (remote-wrapper conn-fn #'solo.core/get-current-loggers))
+    (when repl-port (nrepl/start-server repl-port))
+    (jetty/-main)
+    (.println System/out "CTRL-C to quit...")))

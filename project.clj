@@ -9,7 +9,8 @@
                  [ring/ring-jetty-adapter "1.6.3"]
                  [compojure "1.6.0"]
                  [hiccup "1.0.5"]
-                 [robert/hooke "1.3.0"]]
+                 [robert/hooke "1.3.0"]
+                 [org.clojure/tools.cli "0.3.7"]]
   :aliases {"make-jumpstart-jsf" ["with-profile" "jumpstart-jsf" "do" ["clean"] "jar"]
             
             ;; deployable WAR that can be deployed side-by-side with

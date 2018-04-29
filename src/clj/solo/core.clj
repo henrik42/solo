@@ -40,7 +40,6 @@
   as of `logger->map`."
   
   []
-  {:post [(or (.println System/out (format "(get-current-loggers) -> %s" (into [] %))) true)]}
   (map logger->map
        (conj
         (-> (Logger/getRootLogger)
