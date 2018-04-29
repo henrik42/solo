@@ -1142,6 +1142,10 @@ So I've added a few things to `web.clj`:
 
 * __TODO__: submit only changed entries
 
+## Testing
+
+__TODO__: how to test solo.web?
+
 ## Options for Deployment
 
 We have (at least) two options:
@@ -1160,7 +1164,7 @@ We have (at least) two options:
 * __Module Deployment__: we deploy only _Solo's_ "backend"-JAR
   (`solo.core` and `solo.nrepl` and their dependencies, maybe
   `solo.swank` if you like) as _modules_ (see above) to the app-server
-  running the host application.
+  (or web-server; see below) running the host application.
 
   In this case we need to jump-start `solo.repl` so that we can access
   it remotely (remember -- it's not a web-app in this case).
@@ -1183,9 +1187,9 @@ We have (at least) two options:
   your Leiningen dev JVM and call the _production_ `solo.core` via
   nREPL -- nice!
 
-There are more options: we can _WAR-deploy_ to the app-server and
-still use a separate JVM running Jetty/`solo.web` and delegate to the
-nREPL-server in the app-server.
+There are more options: we can _WAR-deploy_ to the app-server (and
+start nREPL server) and still use a separate JVM running
+Jetty/`solo.web` and delegate to the nREPL-server in the app-server.
 
 [1] __TODO:__ Note: we have to look at classloaders since _Solo_ only
 works, if it accesses the __same__ log4j classes as the host
@@ -1202,9 +1206,10 @@ in `solo-project/project.clj`). This way you can re-deploy the web-app
 into a running web-server (like JBoss and Apache Tomcat; see below):
 
 __Note:__ If you want to deploy this WAR _stand-alone_ (and not
-_production_, i.e. without a host-application) to a web-server (for
-testing) you have to comment-out the `:war-exclusions` in
-`solo-project/project.clj`. Otherwise the web-app will not start.
+_production_, i.e. without a JEE host-application) to a web-server
+(for testing) you have to comment-out the `:war-exclusions` in
+`solo-project/project.clj`. Otherwise the web-app will not start since
+it will not find any log4j classes. Like so:
 
     :make-web-war {:ring { ;; :war-exclusions [#"log4j.*jar"]
 
@@ -1253,7 +1258,7 @@ Then go to http://localhost:8080/solo-web/
 __Note:__
 
 * the _stand-alone_ deployment is for testing only. Since there is no
-  host-application using log4j, there is no sense in setting any
+  JEE host-application using log4j, there is no sense in setting any
   log-levels.
 
 * when you deploy the _production-WAR_ you must make sure that the
@@ -1262,22 +1267,62 @@ __Note:__
 
   This usually means that the host-application must be a JEE
   application (EAR) containing one ore more web-applications
-  (WAR). The log4j-JAR is included in EAR-`/lib`. _Solo_ is then
-  deployed into the same server and will thus see the same log4j
+  (WAR). The log4j-JAR should be included in EAR-`/lib`. _Solo_ is
+  then deployed into the same server and will thus see the same log4j
   classes.
+
+  If the log4j-JAR is contained in one of the WARs within the JEE app,
+  you won't be able to set the log-levels for that web-app. In this
+  case you have to use the _module deployment_ (see below).
 
 * For JBoss/Wildfly you can use the admin console to upload
   `solo-web.war` into JBoss' content repository and _assign_ it to
-  your host-applcation's _server_. (__TODO__: show jboss-cli example).
+  your host-applcation's _server_. (__TODO__: show jboss-cli
+  example). Then you can turn _Solo_ on and off just by _disable_ and
+  _enable_ in the admin console (so no need to _unassign_/_assign_ for
+  this). That's really nice.
 
-* For IBM WebSphere: __TODO__
+  __TODO__: take care of agent thread-pool in `destroy`!!!!
 
-__TODO__: make ports configureable for nREPL server so that we can
-deploy to more than one server on the same host at the same time.
+* For IBM WebSphere: __TODO:__ show this for JEE app and plain
+  web-app.
+
+__TODO__: make ports configureable (Apache Configuration!?) for nREPL
+server so that we can deploy to more than one server on the same host
+at the same time.
 
 [1] VFS
 
 ## Module Deployment and nREPL Access
+
+In some cases _Solo_ (i.e. `solo.core` as part of `solo-web.war`) may
+not be able to access the host-application's log4j classes:
+
+* when the log4j JAR is contained in the host-application's WAR rather
+  than in its EAR-`/lib` (although this case should be rare and may be
+  a sign for a broken packaging of the JEE app).
+
+* when you're not targeting a JEE app but just a "simple" web-app.
+
+In these cases you may have a hard time tweaking the web-container's
+classloading so that it loads both -- `solo-web.war` and the
+host-application -- with the __same__ classloader (for IBM Websphere
+this is simple though).
+
+So rather than deploying _Solo_ as a (self-contained, complete)
+web-app we will make some of its namespaces part of the
+host-application. 
+
+You can build an uberjar with `solo.core`, `solo.repl` and Clojure and
+put that as a _module_ into JBoss and bind the module to your profile
+(__TODO__: Apache Tomcat). Then you need a jump-starter (see above) to
+jump-start `solo.repl`.
+
+Then you need to run `solo.web` and _connect_ it to the
+nREPL-server. You can build an executable JAR like this:
+
+    lein make-web-jar
+
 
 
 ------------------------------------------------------------------------
