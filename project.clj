@@ -8,7 +8,8 @@
                  [ring/ring-core "1.6.3"]
                  [ring/ring-jetty-adapter "1.6.3"]
                  [compojure "1.6.0"]
-                 [hiccup "1.0.5"]]
+                 [hiccup "1.0.5"]
+                 [robert/hooke "1.3.0"]]
   :aliases {"make-jumpstart-jsf" ["with-profile" "jumpstart-jsf" "do" ["clean"] "jar"]
             
             ;; deployable WAR that can be deployed side-by-side with
@@ -27,7 +28,7 @@
   :ring {:handler solo.web/app
          :nrepl {:start? true
                  :port 9998}}
-  :profiles {:make-web-jar {:main solo.main}
+  :profiles {:make-web-jar {:main solo.webapp}
              ;; comment-out :war-exclusions if you want to deploy to
              ;; Apache Tomcat for development/testing
              :make-web-war {:ring {:war-exclusions [#"log4j.*jar"]
