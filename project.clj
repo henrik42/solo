@@ -21,7 +21,11 @@
             ;; executable JAR that runs Jetty with Solo Web-App and
             ;; connects to remotely running nREPL server with Solo
             ;; Core.
-            "make-web-jar" ["with-profile" "make-web-jar" "uberjar"]}
+            "make-web-jar" ["with-profile" "make-web-jar" "uberjar"]
+
+            ;; just run solo.webapp/-main - e.g.
+            ;; solo-project$ lein run-web-jar localhost 7888
+            "run-web-jar" ["with-profile" "make-web-jar" "run"]}
   
   :main solo.jetty
   :plugins [[lein-swank "1.4.5"]

@@ -11,10 +11,10 @@
     server))
 
 (defn remote-eval [conn code]
-  (let [{:keys [value err] :as res} (-> (client conn 1000)
-                                        (message {:op :eval
-                                                  :code code})
-                                        (combine-responses))]
+  (let [{:keys [value err]} (-> (client conn 1000)
+                                (message {:op :eval
+                                          :code code})
+                                (combine-responses))]
     (if err (throw (RuntimeException. err))
         (read-string (last value)))))
         
