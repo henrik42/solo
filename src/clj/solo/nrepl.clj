@@ -27,7 +27,7 @@
                                 (message {:op :eval
                                           :code code})
                                 (combine-responses))]
-    (if err (throw (RuntimeException. err))
+    (if err (throw (RuntimeException. (str "REMOTE:" err)))
         (read-string (last value)))))
         
 (defn get-connection [{:keys [host port]}]

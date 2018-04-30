@@ -25,7 +25,7 @@
 
             ;; just run solo.webapp/-main - e.g.
             ;; solo-project$ lein run-web-jar localhost 7888
-            "run-web-jar" ["with-profile" "make-web-jar" "run"]}
+            "run-web-jar" ["with-profile" "make-web-jar" "trampoline" "run"]}
   
   :main solo.jetty
   :plugins [[lein-swank "1.4.5"]
