@@ -2,12 +2,24 @@
   (:require [clojure.tools.nrepl :refer :all]
             [clojure.tools.nrepl.server :as server]))
 
-(defn start-server [& [port bind]]
-  (let [port (or port 7888)
-        bind (or bind "127.0.0.1")
-        _ (println (format "Starting nREPL server on %s/%s ..." bind port))
-        server (server/start-server :port port :bind bind)]
-    (println (format "Started nREPL server on port %s : %s" port (bean server)))
+(defn start-server
+  "Starts an nREPL server on given port/host. Returns the server which
+  can be shut down via `.close`. Throws exception if the server cannot
+  be started.
+
+  Example: (start-server :port 7888 :host \"127.0.0.1\")"
+
+  [& {:keys [port host]
+      :or {port 7888 host "0.0.0.0"}}]
+  (let [params {:port port :host host}
+        _ (.println System/out (str "Starting nREPL server on " params " ..."))
+        server (try
+                 (server/start-server :port port :bind host)
+                 (catch Throwable t
+                   (throw (ex-info
+                           (format "Could not start nREPL server: %s Cause: %s" params t)
+                           params t))))]
+    (.println System/out (str "Started nREPL server on " params "."))
     server))
 
 (defn remote-eval [conn code]
@@ -21,3 +33,8 @@
 (defn get-connection [{:keys [host port]}]
   (connect :port port :host host))
 
+(defn -main
+  "Lets you start an nREPL server."
+
+  [& args]
+  (start-server))

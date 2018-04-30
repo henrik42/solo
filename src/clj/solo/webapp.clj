@@ -2,6 +2,7 @@
   (:gen-class)
   (:require [solo.nrepl :as nrepl]
             [solo.jetty :as jetty]
+            [solo.swank :as swank]
             [solo.web :as web]
             [ring.util.response :as response]
             [robert.hooke :as hooke]
@@ -54,21 +55,35 @@
              (apply pr-str args)))))
 
 (def cli-options
-  [["-p" "--repl-port PORT" "start nREPL server on PORT"
-    :parse-fn #(Integer/parseInt %)]
+  [["-L" "--run-local-core" "execute solo.core locally (do not delegate to remote nREPL server"]
+   
+   ["-n" "--nrepl-port PORT [HOST]" "start nREPL server on PORT"]
+   ;;["-nh" "--nrepl-port HOST" ""]
+
+   ["-j" "--jetty-port PORT [HOST]" "start Jetty server on PORT"]
+
+   ["-sp" "--swank-port PORT [HOST]" "start Swank server on PORT"]
+
    ])
-  
+
+#_
+(parse-opts [#_ "-L" "-n" "4" "foo" ] cli-options)
+
 (defn -main [& args]
   (let [{:keys [errors options arguments summary] :as opt} (parse-opts args cli-options)
-        {:keys [repl-port]} options
-        [host port] arguments
-        conn-fn #(nrepl/get-connection {:port (Integer/parseInt port) :host host})]
+        {:keys [run-local-core
+                nrepl-port nrepl-host
+                jetty-port jetty-host
+                swank-port swank-host]} options
+        [remote-port remote-host] arguments
+        conn-fn #(nrepl/get-connection {:port (Integer/parseInt remote-port) :host remote-host})]
     (hooke/add-hook #'solo.core/get-logger
                     (remote-wrapper conn-fn #'solo.core/get-logger))
     (hooke/add-hook #'solo.core/set-log-level!
                     (remote-wrapper conn-fn #'solo.core/set-log-level!))
     (hooke/add-hook #'solo.core/get-current-loggers
                     (remote-wrapper conn-fn #'solo.core/get-current-loggers))
-    (when repl-port (nrepl/start-server repl-port "0.0.0.0"))
-    (jetty/-main)
-    (.println System/out "CTRL-C to quit...")))
+    (when nrepl-port (nrepl/start-server :port nrepl-port :host nrepl-host))
+    (when swank-port (swank/start-server :port swank-port :host swank-host))
+    (jetty/start-server :port jetty-port :host jetty-host)
+    #_ (.println System/out "CTRL-C to quit...")))

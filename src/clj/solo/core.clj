@@ -47,4 +47,3 @@
             .getCurrentLoggers
             enumeration-seq)
         (Logger/getRootLogger))))
-
