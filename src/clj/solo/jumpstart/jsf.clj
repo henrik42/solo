@@ -1,5 +1,5 @@
 (ns solo.jumpstart.jsf
-  (use [solo.nrepl :as nrepl]))
+  (require [solo.nrepl :as nrepl]))
 
 (defn -init []
   (println "solo.jumpstart.jsf/-init: starting nREPL server")

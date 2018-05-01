@@ -29,7 +29,8 @@
   
   :main solo.jetty
   :plugins [[lein-swank "1.4.5"]
-            [lein-ring "0.12.4"]]
+            [lein-ring "0.12.4"]
+            [lein-codox "0.10.3"]]
   :ring {:handler solo.web/app
          :nrepl {:start? true
                  :port 9998}}

@@ -1,7 +1,7 @@
 (ns solo.core
   "Core business logic.
 
-  Function for accessing log4j loggers."
+  Functions for accessing log4j loggers."
   (:import [org.apache.log4j Logger Level]))
 
 (defn logger->map
@@ -15,11 +15,12 @@
    :log-level (-> log4j-logger .getLevel str)})
 
 (defn get-logger
-  "Returns the log4j Logger with the given `logger-name` as a
+  "Returns the log4j logger with the given `logger-name` as a
   map (`logger->map`). Never returns `nil`. Passing `\"root\"` will
-  access the root logger. "
+  return the root logger. "
 
   [logger-name]
+  {:pre [(string? logger-name)]}
   (-> (if (= "root" logger-name)
         (Logger/getRootLogger)
         (Logger/getLogger logger-name))
@@ -30,14 +31,15 @@
   the root logger's log-level."
 
   [logger-name log-level]
+  {:pre [(string? logger-name)]}
   (-> (if (= "root" logger-name)
         (Logger/getRootLogger)
         (Logger/getLogger logger-name))
       (.setLevel (Level/toLevel log-level))))
 
 (defn get-current-loggers
-  "Returns a seq of the current log4 loggers (incl. the root logger)
-  as of `logger->map`."
+  "Returns a map-seq (as of `logger->map`) of the current log4
+  loggers (incl. the root logger)."
   
   []
   (map logger->map
