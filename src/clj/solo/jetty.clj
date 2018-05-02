@@ -1,13 +1,18 @@
 (ns solo.jetty
+  "Functions around Jetty."
+  
   (require [ring.adapter.jetty :as jetty]
            [solo.web :as web]))
 
 (defn start-server
   "Starts a Jetty server on given port/host serving
   `solo.web/app`. Returns the server which can be shut down via
-  `.close`. Throws exception if the server cannot be started.
+  `(.close <server>)`. Throws exception if the server cannot be
+  started.
 
-  Example: (start-server :port 2001 :host \"127.0.0.1\")"
+  Example:
+
+      (start-server :port 2001 :host \"127.0.0.1\")"
 
   [& {:keys [port host]
       :or {port 3000 host "0.0.0.0"}}]
@@ -27,7 +32,7 @@
     server))
 
 (defn -main
-  "Lets you start a Jetty server."
+  "Main entry point for starting a Jetty server."
 
   [& args]
   (start-server))

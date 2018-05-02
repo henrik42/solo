@@ -1,11 +1,13 @@
 (ns solo.swank
+  "Functions around Swank."
+  
   (require [swank.swank :as swank]))
 
 (defn start-server
-  "Starts a Swank server on given port/host. There can be atmost be
-  one running server at a time. A running server may be shut down
+  "Starts a Swank server on given port/host. There can be atmost one
+  running server at any time. A running server may be shut down
   by `(stop-server)`. Throws exception if the server cannot be
-  started.
+  started. Returns the server.
 
   Example: (start-server :port 2001 :host \"127.0.0.1\")"
 
@@ -22,11 +24,14 @@
     (.println System/out (str "Started nREPL server on " params "."))
     server))
 
-(defn stop-server []
+(defn stop-server
+  "Stops a running Swank server."
+
+  []
   (swank/stop-server))
   
 (defn -main
-  "Lets you start a Swank server."
+  "Main entry point for starting a Swank server."
 
   [& args]
   (let [{:keys [host port] :or {host "0.0.0.0" port 4005}}

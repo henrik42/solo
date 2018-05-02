@@ -1,13 +1,17 @@
 (ns solo.nrepl
+  "Functions around nREPL."
+  
   (:require [clojure.tools.nrepl :refer :all]
             [clojure.tools.nrepl.server :as server]))
 
 (defn start-server
   "Starts an nREPL server on given port/host. Returns the server which
-  can be shut down via `.close`. Throws exception if the server cannot
-  be started.
+  can be shut down via `(.close <server>)`. Throws exception if the
+  server cannot be started.
 
-  Example: (start-server :port 7888 :host \"127.0.0.1\")"
+  Example:
+
+      (start-server :port 7888 :host \"127.0.0.1\")"
 
   [& {:keys [port host]
       :or {port 7888 host "0.0.0.0"}}]
@@ -22,19 +26,32 @@
     (.println System/out (str "Started nREPL server on " params "."))
     server))
 
-(defn remote-eval [conn code]
-  (let [{:keys [value err]} (-> (client conn 1000)
+(defn remote-eval
+  "Evaluates `code` (String) remotely via `nrepl-connection`. Returns
+  value of evaluation. If eval on remote site throws exception, a
+  `RuntimeException` will be thrown (remote exception type and
+  stacktrace will be lost).
+
+  **Note:** `code` may have more than one form. `code` will be eval'ed
+  but only the last value will be returned."
+
+  [nrepl-connection code]
+  (let [{:keys [value err]} (-> (client nrepl-connection 1000)
                                 (message {:op :eval
                                           :code code})
                                 (combine-responses))]
     (if err (throw (RuntimeException. (str "REMOTE:" err)))
         (read-string (last value)))))
         
-(defn get-connection [{:keys [host port]}]
+(defn get-connection
+  "Returns a new connection to an nREPL server. If the connection
+  cannot be established an exception is thrown."
+
+  [{:keys [host port]}]
   (connect :port port :host host))
 
 (defn -main
-  "Lets you start an nREPL server."
+  "Main entry point for starting an nREPL server."
 
   [& args]
   (start-server))

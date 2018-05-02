@@ -17,14 +17,20 @@
             ;; JEE Host Application. Contains Solo Web-App & Core &
             ;; nREPL Server.
             "make-web-war" ["with-profile" "make-web-war" "ring" "uberwar" "solo-web.war"]
+
+            ;; generate HTML documentation into
+            ;; resources/public/generated-doc/. This will be included
+            ;; in JARs/WARs and can be served to end users at runtime
+            ;; through solo.web/app
+            "make-doc" ["with-profile" "make-doc" "do" ["clean"] ["codox"]]
             
             ;; executable JAR that runs Jetty with Solo Web-App and
             ;; connects to remotely running nREPL server with Solo
             ;; Core.
-            "make-web-jar" ["with-profile" "make-web-jar" "uberjar"]
+            "make-web-jar" ["with-profile" "make-web-jar" "do" ["clean"] ["uberjar"]]
 
             ;; just run solo.webapp/-main - e.g.
-            ;; solo-project$ lein run-web-jar localhost 7888
+            ;; solo-project$ lein run-web-jar -j 3000 localhost:7888
             "run-web-jar" ["with-profile" "make-web-jar" "trampoline" "run"]}
   
   :main solo.jetty
@@ -34,7 +40,11 @@
   :ring {:handler solo.web/app
          :nrepl {:start? true
                  :port 9998}}
-  :profiles {:make-web-jar {:main solo.webapp}
+  :codox {:metadata {:doc/format :markdown}
+          :output-path "resources/public/generated-doc/"
+          :--namespaces [solo.web]}
+  :profiles {:make-doc {:clean-targets ["resources/public/generated-doc"]}
+             :make-web-jar {:main solo.webapp}
              ;; comment-out :war-exclusions if you want to deploy to
              ;; Apache Tomcat for development/testing
              :make-web-war {:ring {:war-exclusions [#"log4j.*jar"]

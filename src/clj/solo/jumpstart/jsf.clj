@@ -7,7 +7,9 @@
   (println "solo.jumpstart.jsf/-init: started nREPL server")
   [[]])
 
+;; TODO: jump-start solo.jumpstart -- not solo.jumpstart.jsf
+
 (defn -main [& args]
   (println (str "solo.jumpstart.jsf/-main: " args))
-  (solo.jumpstart.jsf.))
-
+  (-> (Class/forName "solo.jumpstart.jsf")
+      (.getConstructor (make-array Class 0))))
