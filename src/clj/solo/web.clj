@@ -5,11 +5,8 @@
   functions for
 
   * accessing the `solo.core` business backend (*model*)
-
   * reacting to user input (*controller*)
-
-  * creating the presentation (*view*).
-  "
+  * creating the presentation (*view*)"
   
   (:use compojure.core
         [hiccup.middleware :only (wrap-base-url)])
@@ -25,7 +22,11 @@
 
 ;; ################### model ##########################
 
-(def log-levels #{"UNKNOWN!" "NOT-SET!" "DEBUG" "INFO" "WARN" "ERROR" "OFF"})
+(def log-levels
+  "The set of known log-levels (incl. `\"UNKNOWN!\"` and
+  `\"NOT-SET!\"`)."
+
+  #{"UNKNOWN!" "NOT-SET!" "DEBUG" "INFO" "WARN" "ERROR" "OFF"})
 
 (defn get-current-loggers
   "Returns a mapped, filtered and sorted map-set of current log4j
@@ -35,7 +36,6 @@
   follows:
 
   * empty `:log-level` (i.e. `\"\"`) becomes `\"NOT-SET!\"`
-
   * any `:log-level` not contained in `solo.web/log-levels` becomes
     `\"UNKNOWN!\"`
 
@@ -66,11 +66,9 @@
   There are some special cases we take care of:
 
   * loggers with `:logger-name` `\"\"` will not be set
-
   * loggers with `:logger-name` starting with *blank* (i.e. `\" \"`)
     will not be set. This case handles non-logger
     form-params (e.g. filter and hide settings).
-
   * log-levels `\"UNKNOWN!\"` and `\"NOT-SET!\"` will not be set."
 
   [logger-name log-level]
@@ -192,11 +190,8 @@
   "The Ring-handler for all the routes that _Solo_ supports:
 
    * `GET /`: delivers *the page* (`solo.web/the-page`)
-
    * `GET /<resource>`: delivers static resources (CSS, HTML, etc.)
-
    * `POST /set-log-level`: sets the log-level for a logger
-
    * `POST /update-loggers`: sets the log-level for all displayed
      loggers"
   

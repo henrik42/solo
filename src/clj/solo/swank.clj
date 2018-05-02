@@ -9,7 +9,9 @@
   by `(stop-server)`. Throws exception if the server cannot be
   started. Returns the server.
 
-  Example: (start-server :port 2001 :host \"127.0.0.1\")"
+  Example:
+
+      (start-server :port 2001 :host \"127.0.0.1\")"
 
   [& {:keys [port host]
       :or {port 4005 host "0.0.0.0"}}]
