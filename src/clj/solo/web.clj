@@ -1,12 +1,12 @@
 (ns solo.web
-  "A Ring-based web application.
+  "A Ring/Compojure/Hiccup-based web application.
 
-  This namespace contains the main Ring handler `solo.web/app` and
+  This namespace contains the Ring-handler/Compojure-routes and
   functions for
 
-  * accessing the `solo.core` business backend (*model*)
-  * reacting to user input (*controller*)
-  * creating the presentation (*view*)"
+  * accessing the `solo.core` business backend (_model_)
+  * reacting to user input (_controller_)
+  * creating the presentation (_view_)"
   
   (:use compojure.core
         [hiccup.middleware :only (wrap-base-url)])
