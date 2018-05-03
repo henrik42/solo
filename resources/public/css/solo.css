@@ -9,7 +9,7 @@
     background-color: lightblue;
 }
 
-#loggers, #new-logger {
+#loggers, #new-logger, #top-of-page {
     font-family: "Lucida Console", Monaco, monospace;
     font-size: small;
     border-collapse: collapse;

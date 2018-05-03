@@ -119,6 +119,16 @@
 
 ;; ################### view #######################################
 
+(defn top-of-page
+  "Returns a Hiccup-vector for the top-of-page including a link to
+  github and the Codox-generated (HTML) documentation (contained in
+  _Solo_)."
+
+  []
+  [:div#top-of-page "SOLO Web App" " -- "
+   [:a {:href "https://github.com/henrik42/solo"} "github"] " -- "
+   [:a {:href "generated-doc/index.html"} "doc"]])
+
 (defn set-log-level-form
   "Returns a Hiccup-vector for the *set log-level form* which allows
   the user to enter a logger-name and select a log-level.
@@ -131,12 +141,18 @@
   (hf/form-to
    {:id "new-logger"}
    [:post "/set-log-level"]
+   
    (hf/hidden-field " FILTER" filter-reg-ex)
    (hf/hidden-field " HIDE" hide)
+   
    (hf/label :logger "LOGGER:")
    (hf/text-field {:placeholder "Logger Name"} :logger)
+
+   [:span {:style "padding:1em;"}]
    (hf/label :level "LEVEL:")
    (hf/drop-down :level log-levels "INFO")
+   
+   [:span {:style "padding:1em;"}]
    (hf/submit-button "SET LOG-LEVEL")))
 
 (defn loggers-form
@@ -155,11 +171,13 @@
     [:tr
      [:th "LOGGER"
       (hf/text-field
-       {:placeholder "Filter Reg-Ex"}
+       {:placeholder "Filter Reg-Ex"
+        :style "float: right;"}
        " FILTER" filter-reg-ex)]
      [:th "LEVEL"
-      (hf/label :hide "Hide NOT-SET!:")
-      (hf/check-box " HIDE" hide)]]
+      [:span {:style "float: right;"} 
+       (hf/label :hide "Hide NOT-SET!:")
+       (hf/check-box " HIDE" hide)]]]
     (for [{:keys [logger-name log-level]} loggers]
       [:tr
        [:td logger-name]
@@ -181,6 +199,7 @@
      [:head
       (hp/include-css "/css/solo.css")]
      [:body
+      (top-of-page)
       (set-log-level-form options)
       (loggers-form loggers options)])))
 
