@@ -10,9 +10,9 @@
   the JEE _host-application_ (EAR-`/lib`).
 
   When run as a stand-alone app `-main` is the main entry point. In
-  this case the calls to `solo.core` are delegated to a remotely
+  this case the calls to `solo.core` can be delegated to a remotely
   running nREPL-server which then calls `solo.core` for accessing the
-  log4j API (but see `--local-core` in `main`)."
+  log4j API."
   
   (:gen-class)
   (:require [solo.nrepl :as nrepl]
@@ -99,7 +99,8 @@
 (def cli-options
   "CLI options."
   
-  [["-L" "--local-core" "execute solo.core locally (do not delegate to remote nREPL server)"]
+  [["-r" "--remote-core [<host>:]<port>" "intercept/delegate calls to solo.core to remote nREPL server)"
+    :parse-fn #(parse-host:port %)]
    ["-n" "--nrepl [<host>:]<port>" "start nREPL server on <host>:<port> (<host> defaults to \"0.0.0.0\")"
     :parse-fn #(parse-host:port %)]
    ["-j" "--jetty [<host>:]<port>" "start Jetty server on <host>:<port>"
@@ -111,7 +112,7 @@
   "Prints usage info and `(System/exit 1)` exits the JVM."
 
   [msg summary]
-  (.println System/out (format "USAGE: [options] [<host>:<port>]\n%s\n%s" msg summary))
+  (.println System/out (format "USAGE: [options]\n%s\n%s" msg summary))
   (System/exit 1))
 
 (defn -main
@@ -121,7 +122,7 @@
   [& args]
   (let [{:keys [errors options arguments summary] :as opt} (parse-opts args cli-options)
         _ (when errors (usage errors summary))
-        {:keys [run-local-core nrepl jetty swank]} options
+        {:keys [remote-core nrepl jetty swank]} options
         
         {jetty-port :port jetty-host :host :or {jetty-host "0.0.0.0"}} jetty
         _ (when-not jetty-port (usage "Invalid Jetty option" summary))
@@ -132,16 +133,14 @@
         {swank-port :port swank-host :host :or {swank-host "0.0.0.0"}} swank
         _ (when (and swank (not swank-port)) (usage "Invalid Swank option" summary))
         
-        [remote & r] arguments
-        _ (when-not remote (usage "" summary))
-        _ (when r (usage "" summary))
+        {remote-core-port :port remote-core-host :host :or {remote-core-host "127.0.0.1"}} remote-core
+        _ (when (and remote-core (not remote-core-port)) (usage "Invalid remote-core option" summary))
+
+        _ (when (seq arguments) (usage (str "Unexpected arguments" arguments) summary))
         
-        {remote-port :port remote-host :host :or {remote-host "127.0.0.1"}} (parse-host:port remote)
-        _ (when-not (and remote-port remote-host) (usage "Missing/invalid <host>:<port> arguments" summary))
-        
-        conn-fn #(nrepl/get-connection {:port remote-port :host remote-host})]
+        conn-fn #(nrepl/get-connection {:port remote-core-port :host remote-core-host})]
     
-    (when-not run-local-core
+    (when remote-core
       (hooke/add-hook #'solo.core/get-logger
                       (remote-wrapper conn-fn #'solo.core/get-logger))
       (hooke/add-hook #'solo.core/set-log-level!
@@ -151,6 +150,7 @@
     
     (when nrepl-port (nrepl/start-server :port nrepl-port :host nrepl-host))
     (when swank-port (swank/start-server :port swank-port :host swank-host))
+    
     (jetty/start-server :port jetty-port :host jetty-host)
     
     (.println System/out "CTRL-C to quit...")))

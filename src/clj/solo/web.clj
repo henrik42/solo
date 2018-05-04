@@ -120,13 +120,11 @@
 ;; ################### view #######################################
 
 (defn top-of-page
-  "Returns a Hiccup-vector for the top-of-page including a link to
-  github and the Codox-generated (HTML) documentation (contained in
-  _Solo_)."
+  "Returns a Hiccup-vector for the top-of-page including a link to the
+  Codox-generated (HTML) documentation (contained in _Solo_)."
 
   []
   [:div#top-of-page "SOLO Web App" " -- "
-   [:a {:href "https://github.com/henrik42/solo"} "github"] " -- "
    [:a {:href "generated-doc/index.html"} "doc"]])
 
 (defn set-log-level-form
