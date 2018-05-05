@@ -34,12 +34,12 @@
             "make-web-war" ["with-profile" "make-web-war" "ring" "uberwar" "solo-web.war"]
 
             ;; executable uber JAR that runs Jetty with Solo Web-App
-            ;; and connects to remotely running nREPL server with Solo
-            ;; Core.
+            ;; and optionally connects to remotely running nREPL
+            ;; server with Solo Core.
             "make-web-jar" ["with-profile" "make-web-jar" "do" ["clean"] ["uberjar"]]
 
             ;; just run solo.webapp/-main - e.g.
-            ;; solo-project$ lein run-web-jar -j 3000 localhost:7888
+            ;; lein run-web-jar -j 3000 
             "run-web-jar" ["with-profile" "make-web-jar" "trampoline" "run"]}
   
   :ring {:handler solo.web/app
