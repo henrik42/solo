@@ -7,6 +7,14 @@
     padding-top: 12px;
     padding-bottom: 12px;
     background-color: lightblue;
+    box-sizing: border-box;
+}
+
+#top-of-page {
+    border-width: 3px;
+    padding: 8px;
+    background-color: orange;
+    box-sizing: border-box;
 }
 
 #loggers, #new-logger, #top-of-page {
@@ -32,4 +40,3 @@
     background-color: #4CAF50;
     color: white;
 }
-

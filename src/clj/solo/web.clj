@@ -95,13 +95,14 @@
   ring-request-map."
 
   [{:keys [request-method params]}]
-  (let [reg-ex-str (if (= request-method :get)
+  (let [reg-ex-str (or
+                    (if (= request-method :get)
                       (:filter params)
                       (params " FILTER"))
-        reg-ex-str (if (empty? reg-ex-str) ".*" reg-ex-str)]
+                    "")]
     (try 
       (java.util.regex.Pattern/compile reg-ex-str)
-      (catch Throwable t (java.util.regex.Pattern/compile ".*")))))
+      (catch Throwable t (java.util.regex.Pattern/compile "")))))
 
 (defn make-redirect-url
   "Returns an absolute URL to the context-root of the web-app (which
@@ -147,7 +148,7 @@
    (hf/text-field {:placeholder "Logger Name"} :logger)
 
    [:span {:style "padding:1em;"}]
-   (hf/label :level "LEVEL:")
+   (hf/label :level " LEVEL:")
    (hf/drop-down :level log-levels "INFO")
    
    [:span {:style "padding:1em;"}]
@@ -174,7 +175,7 @@
        " FILTER" filter-reg-ex)]
      [:th "LEVEL"
       [:span {:style "float: right;"} 
-       (hf/label :hide "Hide NOT-SET!:")
+       (hf/label :hide " Hide NOT-SET!:")
        (hf/check-box " HIDE" hide)]]]
     (for [{:keys [logger-name log-level]} loggers]
       [:tr
