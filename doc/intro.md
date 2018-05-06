@@ -11,20 +11,23 @@ Log-Level-Einstellungen dieser "Host-Anwendung" zu steuern.
 
 # Verwendung
 
-Einsteigen tut man über `http://<host>:<port>/solo-web/`
+Der Einstieg erfolgt über `http://<host>:<port>/solo-web/`
 
 Die GUI bietet:
 
 * einen Link auf die HTML Dokumentation (ist im WAR enthalten)
-* eine Eingabemöglichkeit für einen Logger-Namen und Log-Level
-* eine Tabelle, in der alle derzeit in log4j registrierten Logger mit
-  ihrem jeweiligen Log-Level angezeigt werden. Über Drop-Down-Elemente
-  kann man den Log-Level setzen.
-* im Tabellen-Kopf die Möglichkeit einen regulären Ausdruck
+* eine Eingabemöglichkeit für einen Logger-Namen und
+  Log-Level. Dadurch kann man zu einem Logger direkt den Log-Level
+  einstellen. Die Verarbeitung erfolgt über den Butten `SET LOG-LEVEL`
+* eine Tabelle, in der alle derzeit in log4j "registrierten" Logger
+  mit ihrem jeweiligen Log-Level angezeigt werden. Über
+  Drop-Down-Elemente kann man den Log-Level setzen.
+* im Tabellen-Kopf die Möglichkeit, einen regulären Ausdruck
   einzugeben, der zum Filern der Logger in der Tabelle benutzt wird.
 * eine Checkbox, mit der man steuern kann, dass Logger, die keinen
   gesetzten Log-Level (`NOT-SET!`) haben, nicht in der Tabelle
-  angezeigt werden.
+  angezeigt werden. Die Verarbeitung aller Einstellungen, die in der
+  Tabelle gemacht werden, erfolgt über den Button `SET LOG-LEVELS`.
 
 # Installation
 
@@ -46,20 +49,20 @@ Workflow:
 In diesem Szenario ist es dann möglich, eine neue Version von Solo
 **einmalig** in das Content-Repo hochzuladen und das dort vorhandene
 WAR damit zu **ersetzen**. Dabei braucht man die Zuodnungen zu den
-Profilen nicht alle "anzufassen".
+Profilen überhaupt nicht "anzufassen".
 
 Im Websphere kann man leider nicht so verfahren. Das Verfahren klappt
-auch nur mit "Enterprise-Anwendungen". Wenn es sich um reine
-Web-Anwendungen handelt (WAR anstatt EAR), kann man auch nicht so
-verfahren. Für diese Fälle gibt es eine Alternative.
+auch nur mit "Enterprise-Anwendungen". Und wenn es sich um reine
+Web-Anwendungen handelt (WAR anstatt EAR, z.B. Tomcat), kann man auch
+nicht so verfahren. Für diese Fälle gibt es eine Alternative.
 
 Anmerkung: auch im Websphere kann man _Solo_ als WAR "neben" die
 Host-Anwendung deployen. Man muss dann nur dafür sorgen, dass _Solo_
 nicht undeployt wird, wenn die Host-Anwendung erneut deployt wird. Man
 muss im Websphere auf die Klassenlader-Einstellungen achten. Falls man
-"alle Web-Anwendungen werden mit demselben Klassenlader geladen"
-wählt, kann es sein, dass die Klassen in _Solo_ mit denen der
-Host-Anwendung kollidieren (z.B. Jetty-Klassen). 
+"alle Web-Anwendungen mit demselben Klassenlader laden" wählt, kann es
+sein, dass die Klassen in _Solo_ mit denen der Host-Anwendung
+kollidieren (z.B. Jetty-Klassen).
 
 ## Deployment als Modul
 
@@ -68,10 +71,10 @@ Bei diesem Deployment-Szenario werden zwei JVMs eingesetzt.
 ### Solo Core-JVM
 
 Der "Kern" von _Solo_ (`solo.core`) und der "Remote-Server"
-(`solo.nrepl`) (und deren Abhängigkeiten inkl. Clojure) werden als JAR
-in den Server deployt und der Host-Anwendung zugeordnet
-(vgl. oben). Dabei kann es sich um einen JEE-Application Server (EAR)
-oder Servlet-Container (z.B. Jetty, Tomcat) handeln.
+(`solo.nrepl`) (und deren Abhängigkeiten inkl. Clojure) werden als
+(_shaded_ bzw _uber_) JAR in den Server deployt und der Host-Anwendung
+zugeordnet (vgl. oben). Dabei kann es sich um einen JEE-Application
+Server (EAR) oder Servlet-Container (z.B. Jetty, Tomcat) handeln.
 
 Die Zuordnung zur "Host-Anwendung" kann im JBoss/Wildfly über zwei
 Wege erfolgen:
@@ -80,7 +83,7 @@ Wege erfolgen:
 * als sog. "Module"
 
 Im Websphere erfolgt die Zuordnung am besten über eine
-"Klassenpfad-Erweiterung".
+"Klassenpfad-Erweiterung" (entspricht dem "Modul" im JBoss).
 
 ### Solo Web-JVM
 
