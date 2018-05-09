@@ -19,7 +19,7 @@
             [lein-ring "0.12.4"]
             [lein-codox "0.10.3"]]
   
-  :aliases {"make-jumpstart-jsf" ["with-profile" "jumpstart-jsf" "do" ["clean"] "jar"]
+  :aliases {"make-jumpstart" ["with-profile" "make-jumpstart" "do" ["clean"] "jar"]
             
             ;; generate HTML documentation into
             ;; resources/public/generated-doc/. This will be included
@@ -38,7 +38,9 @@
             ;; server with Solo Core.
             "make-web-jar" ["with-profile" "make-web-jar" "do" ["clean"] ["uberjar"]]
 
-            ;; just run solo.webapp/-main - e.g.
+            ;; just run solo.webapp/-main. Note: lein ring server-headless
+            ;; just starts Jetty and uses solo.web/app as the handler. solo.webapp/-main
+            ;; does a lot more. Usage:
             ;; lein run-web-jar -j 3000 
             "run-web-jar" ["with-profile" "make-web-jar" "trampoline" "run"]}
   
@@ -50,14 +52,17 @@
           :output-path "resources/public/generated-doc/"}
   
   :profiles {:make-doc {:clean-targets ^{:protect false} ["resources/public/generated-doc"]}
-             :make-web-jar {:main solo.webapp}
+             :make-web-jar {:main solo.webapp
+                            :__aot [solo.webapp solo.jumpstart.servlet_container_initializer]
+                            :__source-paths ["jumpstart/src"]
+                            :__resource-paths ["jumpstart/resources"]}
              ;; comment-out :war-exclusions if you want to deploy to
              ;; Apache Tomcat for development/testing
              :make-web-war {:ring {:war-exclusions [#"log4j.*jar"]
                                    :handler solo.webapp/app
                                    :init    solo.webapp/init
                                    :destroy solo.webapp/destroy}}
-             :jumpstart-jsf {:resource-paths ^:replace ["jumpstart/resources"]
-                             :aot :all
-                             :main solo.jumpstart.jsf
-                             :source-paths ^:replace ["jumpstart/src"]}})
+             :make-jumpstart {:resource-paths ^:replace ["jumpstart/resources"]
+                              :aot :all
+                              :main solo.jumpstart.servlet_container_initializer
+                              :source-paths ^:replace ["jumpstart/src"]}})
