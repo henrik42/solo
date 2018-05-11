@@ -52,7 +52,7 @@
   []
   (try 
     (reset! nrepl-server
-            (nrepl/start-server 7888))
+            (nrepl/start-server :port 7888))
     (catch Throwable t
       (.println System/err t))))
 
@@ -150,7 +150,7 @@
     
     (when nrepl-port (nrepl/start-server :port nrepl-port :host nrepl-host))
     (when swank-port (swank/start-server :port swank-port :host swank-host))
-    
+
     (jetty/start-server :port jetty-port :host jetty-host)
     
     (.println System/out "CTRL-C to quit...")))
