@@ -1,12 +1,11 @@
 (ns solo.web
-  "A Ring/Compojure/Hiccup-based web application.
+  "A Compojure/Hiccup-based Ring-handler.
 
-  This namespace contains the Ring-handler/Compojure-routes and
-  functions for
+  This namespace contains functions for
 
-  * accessing the `solo.core` business backend (_model_)
-  * reacting to user input (_controller_)
-  * creating the presentation (_view_)"
+  * accessing the `solo.core` business backend via Compojure-GET-routes (_model_)
+  * reacting to user input via Compojure-POST-routes (_controller_)
+  * creating the presentation via Hiccup functions (_view_)"
   
   (:use compojure.core
         [hiccup.middleware :only (wrap-base-url)])
@@ -63,7 +62,7 @@
   "Returns `true` if the logger's log-level should be set (and `false`
   otherwise).
 
-  There are some special cases we take care of:
+  There are some special cases to take care of:
 
   * loggers with `:logger-name` `\"\"` will not be set
   * loggers with `:logger-name` starting with *blank* (i.e. `\" \"`)
@@ -232,7 +231,7 @@
   (route/not-found "Page not found"))
 
 (def app
-  "Top-level Ring-handler."
+  "Top-level Ring-handler (_THE APP_)."
   
   (-> (handler/site #'main-routes)
       (wrap-base-url)))

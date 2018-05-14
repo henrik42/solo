@@ -5,5 +5,5 @@
 (defn -onStartup [& args]
   (println "solo.jumpstart.servlet_container_initializer/-onStartup")
   (require 'solo.jumpstart)
-  #_ (eval "(solo.jumpstart/jumstart)"))
+  (eval (read-string "(solo.jumpstart/jumpstart)")))
 

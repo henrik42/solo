@@ -9,6 +9,9 @@ We will build an application (_Solo_ [1]) that lets you control log4j
 [2] log-levels at runtime. _Solo_ has a browser-based frontend
 (ClojureScript/JavaScript) and a backend running in the JVM (Clojure).
 
+Something similar has been done before (in Java):
+`https://github.com/mrsarm/log4jwebtracker`
+
 You can _mix_ _Solo's_ backend with other JVM-applications (I'm
 targeting Java applications running in Wildfly/JBoss and Websphere) so
 that you can change logging configuration at runtime which is a nice
@@ -19,7 +22,7 @@ dynamic control over logging built in).
 This tutorial is ment as a starter for people with little Clojure
 background. It will not explain/teach Clojure (you can find many good
 tutorials on THE NET) but show which libraries and tools are used to
-build and run the application.
+build and run the application and how to put it into production.
 
 [1] https://github.com/henrik42/solo  
 [2] https://logging.apache.org/log4j/1.2/  
@@ -596,7 +599,7 @@ __TODO:__ https://stackoverflow.com/questions/158336/is-there-a-way-to-run-a-met
 [5] https://leiningen.org/  
 
 ------------------------------------------------------------------------
-# Step Six: Leiningen
+# Step Six: Leiningen, Codox
 ------------------------------------------------------------------------
 
 Up to now we have been downloading JARs from Maven Central and Clojars
@@ -793,8 +796,31 @@ And build `solo-project/target/solo-0.1.0-SNAPSHOT.jar`:
 
     solo-project$ lein make-jumpstart-jsf
 
+__Building Documenation from Clojure Sources__
+
+We use Codox [3] to generate HTML documenation from Clojure code and
+`solo-project/doc/intro.md`.
+
+In `project.clj` we add:
+
+    :plugins [,,,[lein-codox "0.10.3"]]
+
+    :aliases {,,,
+        "make-doc" ["with-profile" "make-doc" "do" ["clean"] ["codox"] ]
+
+    :codox {:metadata {:doc/format :markdown}
+            :output-path "resources/public/generated-doc/"}
+
+In this case we use Codox to generate the documenation into
+`resources/public/generated-doc/`. So this is at "development time" --
+__not__ __compile-time__. At compile-time we include the generated
+documentation as _static_ _content_ and package it into the JAR or
+WAR. Later we will deliver the HTML files to end users via _Solo's_
+web GUI.
+
 [1] https://leiningen.org/  
 [2] https://github.com/technomancy/swank-clojure  
+[3] Codox  
 
 ------------------------------------------------------------------------
 # Step Seven: Jetty, http-kit, Ring, Compojure, Hiccup, solo.web
@@ -996,8 +1022,6 @@ can use the browser's page-reload for updating the page after a submit
 browser would ask us if we want to re-send the `POST`-request when
 doing a page-reload after a submit).
 
-__TODO__: fix solo.css to make the table look nicer
-
 So here' the code for reference:
 
     (ns solo.web
@@ -1174,22 +1198,18 @@ We have (at least) two options:
   `solo.web` and use nREPL clients for delegating calls from
   `solo-web` to `solo.core` functions remotely to the nREPL server.
 
-  Now we have a distributed application.
+Now we have a distributed application.
 
-  This second options makes sense if you want to work on _Solo's_
-  web-layer (which we will in step eight++) and you may have to change
-  dependencies. In this case, you can do this without re-starting
-  `solo.core` (which is more stable in terms of changes that you may
-  make to the code) and you need not re-start the app-server which can
-  be time-consuming.
+This second options makes sense if you want to work on _Solo's_
+web-layer (which we will in step eight++) and you may have to change
+dependencies. In this case, you can do this without re-starting
+`solo.core` (which is more stable in terms of changes that you may
+make to the code) and you need not re-start the app-server which can
+be time-consuming.
 
-  This setup will work for development also: you can run `solo.web` in
-  your Leiningen dev JVM and call the _production_ `solo.core` via
-  nREPL -- nice!
-
-There are more options: we can _WAR-deploy_ to the app-server (and
-start nREPL server) and still use a separate JVM running
-Jetty/`solo.web` and delegate to the nREPL-server in the app-server.
+This setup will work for development also: you can run `solo.web` in
+your Leiningen dev JVM and call the _production_ `solo.core` via nREPL
+-- nice!
 
 [1] __TODO:__ Note: we have to look at classloaders since _Solo_ only
 works, if it accesses the __same__ log4j classes as the host
@@ -1199,61 +1219,24 @@ application does.
 
 In `solo-project/src/clj/solo/webapp.clj` I put the code for our
 _statefull_ web-app. On startup the web-app will start an nREPL server
-on port `7888` and `.close` it when the web-app shuts down (only if it
-runs as a _real_ web-app in a Servlet-container! Not when you use
-`webapp/app` as a Ring handler while developing. See `:make-web-war `
-in `solo-project/project.clj`). This way you can re-deploy the web-app
-into a running web-server (like JBoss and Apache Tomcat; see below):
+on port `7888` and `.close` it when the web-app shuts down.
 
-__Note:__ If you want to deploy this WAR _stand-alone_ (and not
-_production_, i.e. without a JEE host-application) to a web-server
-(for testing) you have to comment-out the `:war-exclusions` in
-`solo-project/project.clj`. Otherwise the web-app will not start since
-it will not find any log4j classes. Like so:
-
-    :make-web-war {:ring { ;; :war-exclusions [#"log4j.*jar"]
-
-So here is `solo.webapp`. `response/resource-data :vfs` is here
-because JBoss/Wildfly uses Apache VFS [1] and URIs start with `vfs:/`
-and `ring/util` does not take care of these.
-
-    (ns solo.webapp
-      (:require [solo.nrepl :as nrepl]
-                [solo.web :as web]
-                [ring.util.response :as response]))
-    
-    (defmethod response/resource-data :vfs
-      [^java.net.URL url]
-      (let [conn (.openConnection url)]
-        {:content (.getInputStream conn)
-         :content-length (@#'response/connection-content-length conn)
-         :last-modified (@#'response/connection-last-modified conn)}))
-    
-    (def app web/app)
-    
-    (def nrepl-server (atom nil))
-    
-    (defn init []
-      (reset! nrepl-server
-              (nrepl/start-server 7888)))
-    
-    (defn destroy []
-      (when @nrepl-server
-        (.close @nrepl-server)
-        (reset! nrepl-server nil)))
-        
-Now build:
+Build:
 
     solo-project$ lein make-web-war
-    Created [...]/solo-project/target/solo-web.war
+    Created [...]/solo-project/target/make-web-war+uberjar/solo-web.war
 
-And deploy (_stand-alone_ case; see above):
+Here we use Jetty-Runner to run _Solo_ without a
+host-application. That's why we have to add log4j JAR.
 
-    solo-project$ cp target/solo-web.war /opt/apache-tomcat-8.5.30/webapps/
+    solo-project$ java -Dlog4j.configuration=file:log4j.properties -Dlog4j.debug=true \
+                       -jar lib/jetty-runner-9.4.9.v20180320.jar \
+                       --jar lib/log4j-1.2.17.jar \
+                       target/make-web-war+uberjar/solo-web.war
 
-Then go to http://localhost:8080/solo-web/
+Then go to http://localhost:8080/
 
-    lynx -nopause http://localhost:8080/solo-web/
+    lynx -nopause http://localhost:8080/
 
 __Note:__
 
@@ -1291,7 +1274,8 @@ __TODO__: make ports configureable (Apache Configuration!?) for nREPL
 server so that we can deploy to more than one server on the same host
 at the same time.
 
-[1] VFS
+[1] VFS  
+[2] Jetty-Runner  
 
 ## Module Deployment and nREPL Access
 
@@ -1318,12 +1302,45 @@ put that as a _module_ into JBoss and bind the module to your profile
 (__TODO__: Apache Tomcat). Then you need a jump-starter (see above) to
 jump-start `solo.repl`.
 
-Then you need to run `solo.web` and _connect_ it to the
-nREPL-server. You can build an executable JAR like this:
+Build `solo-module.jar`:
 
-    lein make-web-jar
+    solo-project$ lein make-module-jar && \
+                  cp target/uberjar/solo-0.1.0-SNAPSHOT-standalone.jar solo-module.jar
 
+Build `solo-jumpstart.jar`:
 
+    solo-project$ lein make-jumpstart && \
+                  cp target/provided+make-jumpstart/solo-0.1.0-SNAPSHOT.jar solo-jumpstart.jar
+
+Run:
+
+    solo-project$ java -Dlog4j.configuration=file:log4j.properties -Dlog4j.debug=true \
+                       -jar lib/jetty-runner-9.4.9.v20180320.jar \
+                       ../jetty-and-log4j-example/jetty-log4j-test-webapp/target/jetty-log4j-test-webapp-1.0-SNAPSHOT.war \
+                       --jar solo-jumpstart.jar \
+                       --jar solo-module.jar
+
+    <groupId>org.eclipse.jetty.examples</groupId>
+    <artifactId>jetty-and-log4j-example</artifactId>
+
+Now we need _Solo_ web-app to access _Solo_ core.
+
+Build:
+
+    solo-project$ lein make-web-jar && \
+                  cp target/uberjar/solo-0.1.0-SNAPSHOT-standalone.jar solo-web.jar
+
+Run:
+
+    solo-project$ java -jar solo-web.jar -j 3000 -r 7888
+
+Now you can go to `http://localhost:3000` and talk to _Solo_ web-app
+which will access _Solo_ core via nREPL.
+
+    lynx -nopause http://localhost:3000
+
+And you can go to `http://localhost:8080` and talk to the
+jetty-and-log4j-example app which uses log4j.
 
 ------------------------------------------------------------------------
 # Step Eight: clojurescript

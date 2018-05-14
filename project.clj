@@ -68,13 +68,12 @@
                                            [robert/hooke "1.3.0"]
                                            [org.clojure/tools.cli "0.3.7"]]}
 
-             ;; :provided {:dependencies [[log4j/log4j "1.2.17"]]}
+             :provided {:dependencies [[ring/ring-jetty-adapter "1.6.3"]]}
              
              :make-web-war {:ring {:handler solo.webapp/app
                                    :init    solo.webapp/init
                                    :destroy solo.webapp/destroy}
-                            :dependencies [;; [log4j/log4j "1.2.17"]
-                                           [ring/ring-core "1.6.3"]
+                            :dependencies [[ring/ring-core "1.6.3"]
                                            [ring/ring-jetty-adapter "1.6.3"]
                                            [compojure "1.6.0"]
                                            [hiccup "1.0.5"]
@@ -82,6 +81,5 @@
                                            [org.clojure/tools.cli "0.3.7"]]}
              
              :make-jumpstart {:resource-paths ^:replace ["jumpstart/resources"]
-                              :aot :all
-                              :main solo.jumpstart.servlet_container_initializer
+                              :aot [solo.jumpstart.servlet_container_initializer]
                               :source-paths ^:replace ["jumpstart/src"]}})

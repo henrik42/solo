@@ -15,7 +15,6 @@
   log4j API."
   
   (:require [solo.nrepl :as nrepl]
-            ;;[solo.web :as web]
             [ring.util.response :as response]))
 
 ;; ring.util.response/resource-data does not know how to handle Apache
@@ -28,16 +27,18 @@
      :content-length (@#'response/connection-content-length conn)
      :last-modified (@#'response/connection-last-modified conn)}))
 
-(def app
-  "An alias for `solo.web/app`."
-
-  (atom nil))
-
 (def nrepl-server
   "Atom that holds an nREPL-server (see `init`)."
 
   (atom nil))
 
+(defn load-solo-web!
+  ""
+
+  []
+  (require 'solo.web)
+  (def app (eval (read-string "solo.web/app"))))
+  
 (defn init
   "Initialize Servlet. Synchronously starts nREPL server and sets
   `nrepl-server` atom. This method should not throw an exception if
@@ -45,8 +46,7 @@
   already opened. So we will just keep on going in this case."
 
   []
-  (require 'solo.web)
-  (def app (eval (read-string "solo.web/app")))
+  (load-solo-web!)
   (try 
     (reset! nrepl-server
             (nrepl/start-server :port 7888))
