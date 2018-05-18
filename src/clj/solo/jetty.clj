@@ -32,7 +32,10 @@
     server))
 
 (defn -main
-  "Main entry point for starting a Jetty server."
+  "Main entry point for starting a Jetty server.
+
+  Just calls `(start-server)` without any arguments. This function is
+  just for testing (not a full CLI)."
 
   [& args]
   (start-server))

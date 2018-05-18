@@ -12,31 +12,47 @@
             [lein-ring "0.12.4"]
             [lein-codox "0.10.3"]]
   
-  :aliases {"make-jumpstart" ["with-profile" "+make-jumpstart" "do" ["clean"] "jar"]
-            
-            ;; generate HTML documentation into
+  :aliases {;; generate HTML documentation into
             ;; resources/public/generated-doc/. This will be included
             ;; in JARs/WARs and can be served to end users at runtime
             ;; through solo.web/app --
             ;; http://localhost:3000/generated-doc/index.html
+            ;;
+            ;; Use at development-time -- i.e. **before** build.
+            ;; resources/public/generated-doc/ is comitted into git.
             "make-doc" ["with-profile" "+make-doc" "do" ["clean"] ["codox"]]
-            
-            ;; deployable WAR that can be deployed side-by-side with
-            ;; JEE Host Application. Contains Solo Web-App & Core &
-            ;; nREPL Server (not log4j JAR!)
+
+            ;; build WAR that can be deployed side-by-side with JEE
+            ;; host application. Contains Solo Web-App & Core & nREPL
+            ;; Server (not log4j JAR -- which must come with host
+            ;; application)
             "make-web-war" ["with-profile" "+make-web-war" "ring" "uberwar" "solo-web.war"]
 
+            ;; build JAR that contains Solo's backend --
+            ;; i.e. `solo.core`, `solo.repl` and their dependencies
+            ;; (incl. Clojure JAR but not log4j JAR -- which must come
+            ;; with host application). Also contains a default
+            ;; implementation of `solo.jumpstart` which you may
+            ;; "over-write" in production. Needs `solo-jumpstart.jar`
+            ;; to be jump-started (see make-jumpstart).
+            "make-module-jar" ["with-profile" "+make-module-jar" "do" ["clean"] ["uberjar"]]
+
+            ;; build JAR that uses
+            ;; META-INF/services/javax.servlet.ServletContainerInitializer
+            ;; to load/call (i.e. jump-start)
+            ;; `solo.jumpstart/jumpstart` (see make-module-jar) when
+            ;; host/web application starts.
+            "make-jumpstart" ["with-profile" "+make-jumpstart" "do" ["clean"] "jar"]
+            
             ;; executable uber JAR that runs Jetty with Solo Web-App
             ;; and optionally connects to remotely running nREPL
             ;; server with Solo Core.
             "make-web-jar" ["with-profile" "+make-web-jar" "do" ["clean"] ["uberjar"]]
 
-            "make-module-jar" ["with-profile" "+make-module-jar" "do" ["clean"] ["uberjar"]]
-
-            ;; just run solo.webapp/-main. Note: lein ring server-headless
-            ;; just starts Jetty and uses solo.web/app as the handler. solo.webapp/-main
-            ;; does a lot more. Usage:
-            ;; lein run-web-jar -j 3000 
+            ;; just run solo.main/-main. Note: lein ring
+            ;; server-headless just starts Jetty and uses solo.web/app
+            ;; as the handler. solo.main/-main does a lot more. Usage:
+            ;; lein run-web-jar -j 3000
             "run-web-jar" ["with-profile" "+make-web-jar" "trampoline" "run"]}
   
   :ring {:handler solo.web/app
@@ -54,7 +70,8 @@
                                   [robert/hooke "1.3.0"]
                                   [org.clojure/tools.cli "0.3.7"]]}
              
-             :make-doc {:clean-targets ^{:protect false} ["resources/public/generated-doc"]}
+             :make-doc {:source-paths ["jumpstart/src"]
+                        :clean-targets ^{:protect false} ["resources/public/generated-doc"]}
              
              :make-module-jar {}
              

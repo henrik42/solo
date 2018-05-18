@@ -3,9 +3,9 @@
 
   This namespace contains functions for
 
-  * accessing the `solo.core` business backend via Compojure-GET-routes (_model_)
-  * reacting to user input via Compojure-POST-routes (_controller_)
-  * creating the presentation via Hiccup functions (_view_)"
+  * accessing the `solo.core` business backend via Compojure-GET-routes (*model*)
+  * reacting to user input via Compojure-POST-routes (*controller*)
+  * creating the presentation via Hiccup functions (*view*)"
   
   (:use compojure.core
         [hiccup.middleware :only (wrap-base-url)])
@@ -40,7 +40,7 @@
 
   Filtering is done by `re-find`-matching `filter-reg-ex` against the
   `logger-name`. Sorting is done on `logger-name`. When `hide` is
-  truthly loggers with (mapped) `:log-level` `\"NOT-SET!\"` will be
+  truthly loggers with (mapped) `(= log-level \"NOT-SET!\")` will be
   filtered out."
 
   [{:keys [filter-reg-ex hide]}]
@@ -64,7 +64,7 @@
 
   There are some special cases to take care of:
 
-  * loggers with `:logger-name` `\"\"` will not be set
+  * loggers with `(= logger-name \"\")` will not be set
   * loggers with `:logger-name` starting with *blank* (i.e. `\" \"`)
     will not be set. This case handles non-logger
     form-params (e.g. filter and hide settings).
@@ -80,7 +80,7 @@
 ;; ################### request processing ##########################
 
 (defn req->hide
-  "Extracts and returns the *hide* parameter from the
+  "Extracts and returns the `hide` parameter from the
   ring-request-map."
 
   [{:keys [request-method params]}]
@@ -90,7 +90,7 @@
     (Boolean/valueOf hide-str)))
 
 (defn req->filter-reg-ex
-  "Extracts and returns the *filter-reg-ex* parameter from the
+  "Extracts and returns the `filter-reg-ex` parameter from the
   ring-request-map."
 
   [{:keys [request-method params]}]
@@ -106,7 +106,7 @@
 (defn make-redirect-url
   "Returns an absolute URL to the context-root of the web-app (which
   received the given ring-request) including URL parameter expressions
-  for *hide* and *filter-reg-ex*.
+  for `hide` and `filter-reg-ex`.
 
   The URL does not include protcol and hostname. This URL is used for
   redirecting the browser to the context-root of the application after
@@ -131,7 +131,7 @@
   "Returns a Hiccup-vector for the *set log-level form* which allows
   the user to enter a logger-name and select a log-level.
 
-  `:filter-reg-ex` and `:hide` are put into hidden fields so that they
+  `filter-reg-ex` and `hide` are put into hidden fields so that they
   are submitted with the form and can be picked up with the `POST
   /set-log-level` request."
 
@@ -156,9 +156,9 @@
 (defn loggers-form
   "Returns a Hiccup-vector for the *loggers form* which allows the
   user to select a log-level for each of the `loggers`. Within this
-  form the user may also enter a filter-reg-ex (which will be used to
-  `re-find`-match loggers by their `logger-name`) and check-select to
-  hide loggers with log-level `NOT-SET!`.
+  form the user may also enter a `filter-reg-ex` (which will be used
+  to `re-find`-match loggers by their `:logger-name`) and check-select
+  to hide loggers with `(= log-level NOT-SET!)`.
 
   Submission will `POST /update-loggers`."
   
@@ -206,7 +206,7 @@
 (defroutes main-routes
   "The Ring-handler for all the routes that _Solo_ supports:
 
-   * `GET /`: delivers *the page* (`solo.web/the-page`)
+   * `GET /`: delivers *the (one) page* (`solo.web/the-page`)
    * `GET /<resource>`: delivers static resources (CSS, HTML, etc.)
    * `POST /set-log-level`: sets the log-level for a logger
    * `POST /update-loggers`: sets the log-level for all displayed
@@ -231,7 +231,7 @@
   (route/not-found "Page not found"))
 
 (def app
-  "Top-level Ring-handler (_THE APP_)."
+  "Top-level Ring-handler (*THE APP*)."
   
   (-> (handler/site #'main-routes)
       (wrap-base-url)))

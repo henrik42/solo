@@ -1,4 +1,16 @@
 (ns solo.main
+  "A Jetty-based stand-alone web-application (serves `solo.web/app`).
+
+  Use it for testing when you don't need the host-application that
+  you're usually targeting with _Solo_ (note that you'll have to
+  supply log4j JAR which usually comes with the host-application).
+
+  The second use-case is connecting to a remote _Solo_ via nREPL and
+  delegating/routing calls to `solo.core` to the remote site. The
+  remote site can be a _Solo_ _module_ (possibly running in a JEE
+  app-server) that runs the nREPL server but does not supply a
+  web-interface by itself."
+  
   (:gen-class)
   (:require [solo.nrepl :as nrepl]
             [solo.jetty :as jetty]
@@ -12,7 +24,10 @@
   On invocation of the returned function `conn-fn` is (repeatedly)
   used as a factory for an nREPL connection. `solo.nrepl/remote-eval`
   is then used to evaluate the invocation of `(apply @fn-var args)` on
-  the remote server. Returns the result or throws exception."
+  the remote server. So `fn-var` is **not** de-referenced locally but
+  only used for **naming** the function on the remote site.
+
+  Returns the result or throws exception."
 
   [conn-fn fn-var]
   (fn [_ & args]
@@ -24,7 +39,7 @@
 
 (defn parse-host:port
   "Parses string argument `[<host>:]<port>`. Returns map with `:host`
-  and `:port` for non-nil key-values (plays well with `{:keys [port
+  and `:port` for non-`nil` key-values (plays well with `{:keys [port
   host] :or [host <host-default> port <port-default>]}`
   destructuring)."
 
@@ -54,7 +69,14 @@
 
 (defn -main
   "Starts a Jetty server (and optionally nREPL & Swank) with
-  `solo.web/app`."
+  `solo.web/app`.
+
+  CLI options:
+
+      -r, --remote-core [<host>:]<port>  intercept/delegate calls to solo.core to remote nREPL server)
+      -n, --nrepl [<host>:]<port>        start nREPL server on <host>:<port> (<host> defaults to \"0.0.0.0\")
+      -j, --jetty [<host>:]<port>        start Jetty server on <host>:<port>
+      -s, --swank [<host>:]<port>        start Swank server on <host>:<port>"
 
   [& args]
   (let [{:keys [errors options arguments summary] :as opt} (parse-opts args cli-options)

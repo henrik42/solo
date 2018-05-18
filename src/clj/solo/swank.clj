@@ -16,14 +16,14 @@
   [& {:keys [port host]
       :or {port 4005 host "0.0.0.0"}}]
   (let [params {:port port :host host}
-        _ (.println System/out (str "Starting nREPL server on " params " ..."))
+        _ (.println System/out (str "Starting Swank server on " params " ..."))
         server (try
                  (swank/start-server :port port :host host)
                  (catch Throwable t
                    (throw (ex-info
-                           (format "Could not start nREPL server: %s Cause: %s" params t)
+                           (format "Could not start Swank server: %s Cause: %s" params t)
                            params t))))]
-    (.println System/out (str "Started nREPL server on " params "."))
+    (.println System/out (str "Started Swank server on " params "."))
     server))
 
 (defn stop-server
@@ -33,7 +33,9 @@
   (swank/stop-server))
   
 (defn -main
-  "Main entry point for starting a Swank server."
+  "Main entry point for starting a Swank server.
+
+  This function is just for testing (not a full CLI)."
 
   [& args]
   (let [{:keys [host port] :or {host "0.0.0.0" port 4005}}

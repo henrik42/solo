@@ -27,7 +27,7 @@
     server))
 
 (defn remote-eval
-  "Evaluates `code` (String) remotely via `nrepl-connection`. Returns
+  "Evaluates `<String:code>` remotely via `nrepl-connection`. Returns
   value of evaluation. If eval on remote site throws exception, a
   `RuntimeException` will be thrown (remote exception type and
   stacktrace will be lost).
@@ -51,7 +51,10 @@
   (connect :port port :host host))
 
 (defn -main
-  "Main entry point for starting an nREPL server."
+  "Main entry point for starting an nREPL server.
+
+  Just calls `(start-server)` without any arguments. This function is
+  just for testing (not a full CLI)."
 
   [& args]
   (start-server))
