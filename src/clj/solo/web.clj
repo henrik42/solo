@@ -141,7 +141,7 @@
    [:post "/set-log-level"]
    
    (hf/hidden-field " FILTER" filter-reg-ex)
-   (hf/hidden-field " HIDE" hide)
+   (hf/hidden-field " HIDE" (str hide))
    
    (hf/label :logger "LOGGER:")
    (hf/text-field {:placeholder "Logger Name"} :logger)
