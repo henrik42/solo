@@ -83,25 +83,34 @@ This is the relevant part of the code:
        :log-level (-> log4j-logger .getLevel str)})
     
     (defn get-logger [logger-name]
-      (-> (Logger/getLogger logger-name)
+      (-> (if (= "root" logger-name)
+            (Logger/getRootLogger)
+            (Logger/getLogger logger-name))
           logger->map))
     
     (defn set-log-level! [logger-name log-level]
-      (-> (Logger/getLogger logger-name)
+      (-> (if (= "root" logger-name)
+            (Logger/getRootLogger)
+            (Logger/getLogger logger-name))
           (.setLevel (Level/toLevel log-level))))
     
     (defn get-current-loggers []
       (map logger->map
-           (-> (Logger/getRootLogger)
-               .getLoggerRepository
-               .getCurrentLoggers
-               enumeration-seq)))
-
+           (conj
+            (-> (Logger/getRootLogger)
+                .getLoggerRepository
+                .getCurrentLoggers
+                enumeration-seq)
+            (Logger/getRootLogger))))
+    
 And run it:
 
     solo-project$ java -cp lib/\*:src/clj clojure.main \
       -e "(use 'solo.core) (set-log-level! \"foo\" \"INFO\") (get-current-loggers)"
-    ({:logger-name "foo", :log-level "INFO"})
+
+Output:
+
+    ({:logger-name "root", :log-level "DEBUG"} {:logger-name "foo", :log-level "INFO"})
 
 Instead of running the code from command-line arguments you can
 execute any script file and put the code in there. For example, let's
@@ -114,10 +123,13 @@ put the following code into `solo-project/scripts/script-one.clj`:
 And run:
 
     solo-project$ java -cp lib/\*:src/clj clojure.main scripts/script-one.clj
-    ({:logger-name foo, :log-level INFO})
+
+Output:
+
+    ({:logger-name root, :log-level DEBUG} {:logger-name foo, :log-level INFO})
 
 Note that executing a script only evaluates the script _forms_ but
-does __not__ __print__ their values.
+does __not__ __print__ their (the forms') values.
 
 Try changing the last line to
 
@@ -127,7 +139,11 @@ Now re-run the command from above. It won't print anything. Now run
 this instead:
 
     solo-project$ java -cp lib/\*:src/clj clojure.main -e '(load-file "scripts/script-one.clj")'
-    ({:logger-name "foo", :log-level "INFO"})
+
+Output:
+
+    ({:logger-name "root", :log-level "DEBUG"} {:logger-name "foo", :log-level "INFO"})
+
 
 So `-e` prints the result of the __last__ __evaluated__ _form_.
 
@@ -138,6 +154,51 @@ in the source forms (via file-io or from a socket or from an in-memory
 `String`). _Namespaced_ code is loaded via a classpath lookup for
 AOT-compiled code and sources (see "Step Four" below). Do not confuse
 the two.
+
+Finally we want to use a log4j configuration file for setting up our
+root logger and appenders. You can use this for testing. In
+_production_ (see below) we'll have a _host-application_ which will do
+the log4j set-up.
+
+Try:
+
+    solo-project$ java -cp lib/\*:src/clj clojure.main \
+      -e "(use 'solo.core)" \
+      -e "(-> (org.apache.log4j.Logger/getLogger \"foo\") (.info \"bar\"))"
+
+Output:
+
+    log4j:WARN No appenders could be found for logger (foo).
+    log4j:WARN Please initialize the log4j system properly.
+    log4j:WARN See http://logging.apache.org/log4j/1.2/faq.html#noconfig for more info.
+
+We haven't initialited log4j! So let's do that:
+
+    solo-project$ java -Dlog4j.debug=true -Dlog4j.configuration=file:log4j.properties \
+      -cp lib/\*:src/clj clojure.main \
+      -e "(-> (org.apache.log4j.Logger/getLogger \"foo\") (.info \"bar\"))" \
+      -e "(use 'solo.core) (get-current-loggers)"
+
+Which gives you:
+
+    log4j: Using URL [file:log4j.properties] for automatic log4j configuration.
+    log4j: Reading configuration from URL file:log4j.properties
+    log4j: Parsing for [root] with value=[INFO,con].
+    log4j: Level token is [INFO].
+    log4j: Category root set to INFO
+    log4j: Parsing appender named "con".
+    log4j: Parsing layout options for "con".
+    log4j: Setting property [conversionPattern] to [%d{yyyy-MM-dd HH:mm:ss} %-5p %c{1}:%L - %m%n].
+    log4j: End of parsing for "con".
+    log4j: Setting property [target] to [System.out].
+    log4j: Parsed "con" options.
+    log4j: Finished configuring.
+    2018-05-23 06:28:58 INFO  foo:1 - bar
+    ({:logger-name "root", :log-level "INFO"} {:logger-name "foo", :log-level ""})
+
+__Note:__ `log4j.debug=true` has nothing to do with `DEBUG`
+log-levels! It just means, that log4j prints some `log4j:`
+log-messages to STDOUT when settings up log4j etc.
 
 [1] I'm using the old log4j 1.2 but you should be able to switch
 to 2.x http://central.maven.org/maven2/log4j/log4j/1.2.17/log4j-1.2.17.jar  
@@ -167,9 +228,9 @@ history).
     user=> ^D
 
 If you change `solo/core.clj` after loading the namespace `solo.core`
-you can use `:reload` to see the changes in your REPL. So you need not
-restart your JVM and you do not lose your internal program state
-(i.e. any loggers you my have created):
+you can use `:reload` to see the changes in your REPL. So you __need__
+__not__ restart your JVM and you do not lose your internal program
+state (e.g. any loggers you my have created):
 
     (use 'solo.core :reload)
 
@@ -209,7 +270,7 @@ time, try this:
 
 I'm using host/IP `0.0.0.0` so that you can run this on some Linux
 server in your office network and connect to the Swank server from
-your desktop PC running Emacs/SLIME (if we were using `127.0.0.1` you
+your desktop PC running Emacs/SLIME (if you were using `127.0.0.1` you
 couldn't connect from any remote host).
 
 __WARNING:__ Note that __anyone__ can connect to the JVM from any host
@@ -230,14 +291,30 @@ Finally we can put the code into `src/clj/solo/swank.clj` for re-use:
     (ns solo.swank
       (require [swank.swank :as swank]))
     
+    (defn start-server [& {:keys [port host]
+                           :or {port 4005 host "0.0.0.0"}}]
+      (let [params {:port port :host host}
+            _ (.println System/out (str "Starting Swank server on " params " ..."))
+            server (try
+                     (swank/start-server :port port :host host)
+                     (catch Throwable t
+                       (throw (ex-info
+                               (format "Could not start Swank server: %s Cause: %s" params t)
+                               params t))))]
+        (.println System/out (str "Started Swank server on " params "."))
+        server))
+    
+    (defn stop-server []
+      (swank/stop-server))
+      
     (defn -main [& args]
       (let [{:keys [host port] :or {host "0.0.0.0" port 4005}}
             (map (comp read-string str) args)]
-        (swank/start-server :port port :host host)))
-
+        (start-server :port port :host host)))
+    
 The `-main` function is (by convention) special -- it can be run like
-this (note that it will receive `String`-type arguments when called
-from command-line)
+shown next (note that it will receive `String`-type arguments when
+called from command-line)
 
     solo-project$ rlwrap java -cp lib/\*:src/clj clojure.main -m solo.swank :port 4006
     Connection opened on 0.0.0.0 port 4006.
@@ -265,7 +342,7 @@ between them.
 We want to use _Solo_ within a _host application_ -- i.e. a Java
 application that does not offer changing log4j log-levels at runtime
 out-of-the-box. We want to hook _Solo_ into this application changing
-as little as possible about its configuration.
+as little as possible about the host-application's configuration.
 
 When you're working in a Java-shop you may be using JEE application
 servers (like JBoss, Wildfly, IBM Websphere) or other containers (like
@@ -278,7 +355,7 @@ control over an execution thread ... the host application has to
 _jump-start_ _Solo_ (implicitly).
 
 There are many things going on in typical Java applications that let
-you gain control to have you jump-started:
+you gain control -- i.e. to have you jump-started:
 
 * __Context Dependency Injection__: CDI [1a, 1b] (and SPI [2a, 2b]
   architectures in general) lets you _extend_ the functionality of a
@@ -292,8 +369,8 @@ you gain control to have you jump-started:
   your code.
 
 * __log4j__: log4j [5] lets you name and load `Logger` implementations
-  and you can supply yours. When its class gets loaded you can run
-  your code.
+  and you can supply yours. When the logger's class gets loaded you
+  can run your code.
 
 * __JDK Resource Bundle__: `ResourceBundle` [6] has a class-loading
   mechanism, so if you can make the host-application load a specific
@@ -313,18 +390,19 @@ There are more things you can do:
 * __deploy a JAR__: package a JAR, which contains some/any of the
   artifacts mentioned above.
 
-All of these __frameworks__ (except Spring) have one in common: you
-have to deliver a __named class__ for them to call your code. You
-cannot just deliver Clojure source code and let the framework
-reflectively call `clojure.lang.RT.load(<your-namespace>)`. Some of
-them let you supply annotated classes which are then picked up by the
-framework via classpath scanning.
+All of these __frameworks__ have one in common: you have to deliver a
+__named class__ for them to call your code. You cannot just deliver
+Clojure source code and let the framework reflectively call
+`clojure.lang.RT.load(<your-namespace>)`. Some of them let you supply
+annotated classes which are then picked up by the framework via
+classpath scanning.
+
+__Note__: Spring has a mechanism that lets you use `clojure.RT` to
+execute Clojure __source__ [7].
 
 So we have to use `gen-class` to deliver that class. This class is
-just used for __loading__ your namespace! It need not include the
-Clojure code you want to execute. So we can deliver an _empty_
-compiled namespace, package that in a JAR (or just put it on the
-classpath) and then supply the _real_ code seperatly (see below).
+just used for __loading__ your namespace and __calling__ a `jumpstart`
+function!
 
 But it does not suffice to just deliver the classes for your
 jumpstart-namespace. You also have to deliver the JARs under
@@ -349,51 +427,41 @@ below.
 [4] https://docs.spring.io/spring/docs/current/spring-framework-reference/core.html  
 [5] https://logging.apache.org/log4j/1.2/  
 [6] https://docs.oracle.com/javase/8/docs/api/java/util/ResourceBundle.html  
+[7] Spring Break  
 
-## solo.jumpstart.jsf
+## solo.jumpstart.servlet_container_initializer
 
-Here we jump-start _Solo_ via a Java Server Faces _managed_
-_bean_. You can use this in cases where your Java host application
-uses JSF.
+Here we jump-start _Solo_ via `ServletContainerInitializer`. This
+means we use a web-applications start-up mechanism to have _Solo_
+jump-started.
 
-There are several ways to supply a JSF bean. One is to deliver the
-file/resource `META-INF/faces-config.xml` which contains the bean
-definition with the _named class_. This is
-`jumpstart/resources/META-INF/faces-config.xml`:
+We supply the resource
+`META-INF/services/javax.servlet.ServletContainerInitializer` with
+content:
 
-    <faces-config xmlns="http://java.sun.com/xml/ns/javaee" 
-                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-                  xsi:schemaLocation="http://java.sun.com/xml/ns/javaee 
-                                      http://java.sun.com/xml/ns/javaee/web-facesconfig_1_2.xsd" 
-                  version="1.2"> 
-      <managed-bean>
-        <managed-bean-name>jumpstart</managed-bean-name>
-        <managed-bean-class>solo.jumpstart.jsf</managed-bean-class>
-        <managed-bean-scope>application</managed-bean-scope>
-      </managed-bean>
-    </faces-config>
-    
-JSF will try to load/instanciate the class `solo.jumpstart.jsf` in
-this case. So we have to deliver such a _named class_. In Clojure you
-use `gen-class` and _Ahead-of-Time-Compilation_ (AOT) to create the
-class file `solo/jumpstart/jsf.class`.
+    solo.jumpstart.servlet_container_initializer
 
-For reference -- here's the Clojure code
-`solo-project/jumpstart/src/solo/jumpstart/jsf.clj`:
+In `jumpstart/src/solo/jumpstart/servlet_container_initializer.clj`
+you find the source that we AOT-compile to get the class
+`solo.jumpstart.servlet_container_initializer`:
 
-    (ns solo.jumpstart.jsf
+    (ns solo.jumpstart.servlet_container_initializer
       (:gen-class
-       :init init))
+       :implements [javax.servlet.ServletContainerInitializer]))
     
-    (defn -init []
-      (println "solo.jumpstart.jsf/-init")
-      [[]])
+    (defn -onStartup [& args]
+      (println "solo.jumpstart.servlet_container_initializer/-onStartup")
+      ;; solo.jumpstart is a RUNTIME dependency -- not a COMPILE-TIME! So
+      ;; we won't let the compiler/build know what we are doing.
+      (try 
+        (require 'solo.jumpstart)
+        (eval (read-string "(solo.jumpstart/jumpstart)"))
+        (catch Throwable t
+          (println
+           (str "solo.jumpstart.servlet_container_initializer/-onStartup:"
+                "Load/run (solo.jumpstart/jumpstart) failed : "
+                t)))))
     
-    (defn -main [& args]
-      (println (str "solo.jumpstart.jsf/-main: " args))
-      (solo.jumpstart.jsf.))
-    
-That's not much :) This code does almost __nothing__ (but see below).
 
 For compile & package you can use `/scripts/make-jumpstart-jsf.sh`:
 
