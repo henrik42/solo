@@ -69,6 +69,7 @@
                  :port 9998}}
   
   :codox {:metadata {:doc/format :markdown}
+          :doc-files ["doc/intro.md", "README.md"]
           :output-path "resources/public/generated-doc/"}
   
   :profiles {:dev {:dependencies [[log4j/log4j "1.2.17"]
