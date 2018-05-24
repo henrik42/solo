@@ -125,7 +125,9 @@
 
   []
   [:div#top-of-page "SOLO Web App" " -- "
-   [:a {:href "generated-doc/index.html"} "doc"]])
+   [:a {:href "generated-doc/index.html"} "doc"]
+   " -- "
+   [:a {:href "generated-doc/solo-source.html"} "source"]])
 
 (defn set-log-level-form
   "Returns a Hiccup-vector for the *set log-level form* which allows

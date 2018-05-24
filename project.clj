@@ -10,17 +10,26 @@
   
   :plugins [[lein-swank "1.4.5"]
             [lein-ring "0.12.4"]
-            [lein-codox "0.10.3"]]
+            [lein-codox "0.10.3"]
+            [lein-marginalia "0.9.1"]]
   
-  :aliases {;; generate HTML documentation into
-            ;; resources/public/generated-doc/. This will be included
-            ;; in JARs/WARs and can be served to end users at runtime
-            ;; through solo.web/app --
-            ;; http://localhost:3000/generated-doc/index.html
+  :aliases {;; generate HTML documentation (API and commented source)
+            ;; into resources/public/generated-doc/. This will be
+            ;; included in JARs/WARs and can be served to end users at
+            ;; runtime through solo.web/app --
+            ;; http://localhost:3000/generated-doc/index.html and
+            ;; http://localhost:3000/generated-doc/solo-source.html
             ;;
             ;; Use at development-time -- i.e. **before** build.
             ;; resources/public/generated-doc/ is comitted into git.
-            "make-doc" ["with-profile" "+make-doc" "do" ["clean"] ["codox"]]
+            "make-doc" ["with-profile" "+make-doc" "do"
+                        ["clean"]
+                        ["codox"]
+                        ["marg"
+                         "-d" "resources/public/generated-doc/"
+                         "-f" "solo-source.html"
+                         "src/clj"
+                         "jumpstart/src"]]
 
             ;; build WAR that can be deployed side-by-side with JEE
             ;; host application. Contains Solo Web-App & Core & nREPL
@@ -73,7 +82,7 @@
              :provided {:dependencies [[ring/ring-jetty-adapter "1.6.3"]]}
              
              :web-deps {:dependencies [[ring/ring-core "1.6.3"]
-                                       [ring/ring-jetty-adapter "1.6.3"]
+                                       ;;[ring/ring-jetty-adapter "1.6.3"]
                                        [compojure "1.6.0"]
                                        [hiccup "1.0.5"]
                                        [robert/hooke "1.3.0"]
