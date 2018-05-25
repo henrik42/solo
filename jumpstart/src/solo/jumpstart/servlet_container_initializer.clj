@@ -32,3 +32,8 @@
             "Load/run (solo.jumpstart/jumpstart) failed : "
             t)))))
 
+(defn -main
+  "Calls `(-onStartup)`. Use this for testing."
+
+  [& args]
+  (-onStartup))
