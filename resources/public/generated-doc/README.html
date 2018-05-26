@@ -204,8 +204,8 @@ user=&gt;
 <hr />
 <h1><a href="#step-four-containers-solo-jumpstart" name="step-four-containers-solo-jumpstart"></a>Step Four: Containers, solo.jumpstart</h1>
 <hr />
-<p>We want to use <em>Solo</em> within a <em>host application</em> – i.e. a Java application that does not offer changing log4j log-levels at runtime out-of-the-box. We want to hook <em>Solo</em> into this application changing as little as possible about the host-application’s configuration.</p>
-<p>When you’re working in a Java-shop you may be using JEE application servers (like JBoss, Wildfly, IBM Websphere) or other containers (like Tomcat, Jetty, Spring Boot). Usually the applications that run in these containers will be Java applications with no Clojure included. These applications do not know about Clojure or <em>Solo</em> and they probably have no built-in way of executing arbitrary code/classes. So in order to run <em>Solo</em>, we somehow have to gain control over an execution thread … the host application has to <em>jump-start</em> <em>Solo</em> (implicitly).</p>
+<p>We want to use <em>Solo</em> within a <em>host-application</em> – i.e. a Java application that does not offer changing log4j log-levels at runtime out-of-the-box. We want to hook <em>Solo</em> into this host-application changing as little as possible about the host-application’s configuration.</p>
+<p>When you’re working in a Java-shop you may be using JEE application servers (like JBoss, Wildfly, IBM Websphere) or other containers (like Tomcat, Jetty, Spring Boot). Usually the applications that run in these containers will be Java applications with no Clojure included. These applications do not know about Clojure or <em>Solo</em> and they probably have no built-in way of executing arbitrary code/classes. So in order to run <em>Solo</em>, we somehow have to gain control over an execution thread … the host-application has to <em>jump-start</em> <em>Solo</em> (implicitly).</p>
 <p>There are many things going on in typical Java applications that let you gain control – i.e. to have you jump-started:</p>
 <ul>
   <li>
@@ -232,14 +232,18 @@ user=&gt;
 <p><strong>Note</strong>: Spring has a mechanism that lets you use <code>clojure.RT</code> to execute Clojure <strong>source</strong> [7].</p>
 <p>So we have to use <code>gen-class</code> to deliver that class. This class is just used for <strong>loading</strong> your namespace and <strong>calling</strong> a <code>jumpstart</code> function!</p>
 <p>But it does not suffice to just deliver the classes for your jumpstart-namespace. You also have to deliver the JARs under <code>solo-project/lib/</code> so you can use them (except – probably – log4j). At this point you have to understand how classloaders work and how the mentioned frameworks organize the classloaders they use.</p>
-<p>In many cases your class will be loaded by a classloader that has no access (neither direct nor by delegation to other <em>co-laborating</em> classloaders) to the host application’s classes (incl. log4j). Often the jumpstart-class does not even <em>see</em> the Clojure runtime-classes eventhough you supplied the libs. This usually leads to <code>ClassNotFoundException</code> and then <code>NoClassDefFoundException</code> when loading your jumpstart-namespace. You find examples/solutions for this below.</p>
+<p>In many cases your class will be loaded by a classloader that has no access (neither direct nor by delegation to other <em>co-laborating</em> classloaders) to the host-application’s classes (incl. log4j). Often the jumpstart-class does not even <em>see</em> the Clojure runtime-classes eventhough you supplied the libs. This usually leads to <code>ClassNotFoundException</code> and then <code>NoClassDefFoundException</code> when loading your jumpstart-namespace.</p>
+<p>You find examples/solutions for this below.</p>
 <p>[1a] <a href="https://docs.jboss.org/cdi/spec/1.0/html/">https://docs.jboss.org/cdi/spec/1.0/html/</a> [1b] <a href="https://jaxenter.com/tutorial-introduction-to-cdi-contexts-and-dependency-injection-for-java-ee-jsr-299-104536.html">https://jaxenter.com/tutorial-introduction-to-cdi-contexts-and-dependency-injection-for-java-ee-jsr-299-104536.html</a><br />[2a] <a href="https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html">https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html</a><br />[2b] <a href="https://docs.oracle.com/javase/tutorial/ext/basics/spi.html">https://docs.oracle.com/javase/tutorial/ext/basics/spi.html</a><br />[3] <a href="http://www.oracle.com/technetwork/java/javaee/javaserverfaces-139869.html">http://www.oracle.com/technetwork/java/javaee/javaserverfaces-139869.html</a><br />[4] <a href="https://docs.spring.io/spring/docs/current/spring-framework-reference/core.html">https://docs.spring.io/spring/docs/current/spring-framework-reference/core.html</a><br />[5] <a href="https://logging.apache.org/log4j/1.2/">https://logging.apache.org/log4j/1.2/</a><br />[6] <a href="https://docs.oracle.com/javase/8/docs/api/java/util/ResourceBundle.html">https://docs.oracle.com/javase/8/docs/api/java/util/ResourceBundle.html</a><br />[7] Spring Break </p>
 <h2><a href="#solo-jumpstart-servlet-container-initializer" name="solo-jumpstart-servlet-container-initializer"></a>solo.jumpstart.servlet_container_initializer</h2>
-<p>Here we jump-start <em>Solo</em> via <code>ServletContainerInitializer</code>. This means we use a web-applications start-up mechanism to have <em>Solo</em> jump-started.</p>
+<p>Here we jump-start <em>Solo</em> via <code>ServletContainerInitializer</code> [1]. This means we use a web-application’s start-up mechanism to have <em>Solo</em> jump-started.</p>
 <p>We supply the resource <code>META-INF/services/javax.servlet.ServletContainerInitializer</code> with content:</p>
 <pre><code>solo.jumpstart.servlet_container_initializer
 </code></pre>
-<p>In <code>jumpstart/src/solo/jumpstart/servlet_container_initializer.clj</code> you find the source that we AOT-compile to get the class <code>solo.jumpstart.servlet_container_initializer</code>:</p>
+<p>This makes the servlet-container load this class, create an instance and call <code>onStartup</code> method on this instance.</p>
+<p>In <code>jumpstart/src/solo/jumpstart/servlet_container_initializer.clj</code> you find the source that we AOT-compile/<code>:gen-class</code> to get the class <code>solo.jumpstart.servlet_container_initializer</code>.</p>
+<p>This implementation will just load the namespace <code>solo.jumpstart</code> and call <code>(solo.jumpstart/jumpstart)</code>. So whatever we want to do to bootstrap our application, we can do it there. If we ever add more jump-start mechanisms we won’t need to change <code>solo.jumpstart/jumpstart</code>. </p>
+<p><strong>Note:</strong> depending on the mechanisms <code>solo.jumpstart/jumpstart</code> may be called more than once on start-up. So calling <code>solo.jumpstart/jumpstart</code> repeatedly must not cause any problems. Maybe we should use <code>defonce</code> or an <code>atom</code> to cope with this (TBD).</p>
 <pre><code>(ns solo.jumpstart.servlet_container_initializer
   (:gen-class
    :implements [javax.servlet.ServletContainerInitializer]))
@@ -256,67 +260,76 @@ user=&gt;
        (str "solo.jumpstart.servlet_container_initializer/-onStartup:"
             "Load/run (solo.jumpstart/jumpstart) failed : "
             t)))))
+
+(defn -main [&amp; args]
+  (-onStartup))
 </code></pre>
-<p>For compile &amp; package you can use <code>/scripts/make-jumpstart-jsf.sh</code>:</p>
+<p>For compile &amp; packaging you can use <code>scripts/make-jumpstart-jar.sh</code>:</p>
 <pre><code>#!/bin/bash -ex
 
 mkdir -p classes/
 rm -rf classes/*
-java -cp jumpstart/src/:classes/:lib/clojure-1.8.0.jar clojure.main -e "(compile 'solo.jumpstart.jsf)"
-jar -vcf jumpstart-jsf.jar -C classes/ solo
-jar -vuf jumpstart-jsf.jar -C jumpstart/resources/ META-INF
+java -cp jumpstart/src/:classes/:lib/clojure-1.8.0.jar:lib/javax.servlet-api-3.1.0.jar clojure.main \
+-e "(compile 'solo.jumpstart.servlet_container_initializer)"
+jar -vcf jumpstart.jar -C classes/ solo
+jar -vuf jumpstart.jar -C jumpstart/resources/ META-INF
 </code></pre>
-<p>The JAR <code>jumpstart-jsf.jar</code> should look like this:</p>
-<pre><code>solo-project$ jar -vtf jumpstart-jsf.jar 
-    68 Thu Apr 05 19:04:56 UTC 2018 META-INF/MANIFEST.MF
-     0 Thu Apr 05 19:03:20 UTC 2018 solo/
-     0 Thu Apr 05 19:03:20 UTC 2018 solo/jumpstart/
-  1338 Thu Apr 05 19:03:20 UTC 2018 solo/jumpstart/jsf$fn__5.class
-  1516 Thu Apr 05 19:03:20 UTC 2018 solo/jumpstart/jsf$loading__5569__auto____3.class
-   905 Thu Apr 05 19:03:20 UTC 2018 solo/jumpstart/jsf$_init.class
-  2066 Thu Apr 05 19:03:20 UTC 2018 solo/jumpstart/jsf.class
-  2477 Thu Apr 05 19:03:20 UTC 2018 solo/jumpstart/jsf__init.class
-   565 Thu Apr 05 19:04:24 UTC 2018 META-INF/faces-config.xml
+<p>The JAR <code>jumpstart.jar</code> should look like this:</p>
+<pre><code>solo-project$ jar -vtf jumpstart.jar 
+    68 Fri May 25 06:09:10 UTC 2018 META-INF/MANIFEST.MF
+     0 Fri May 25 06:09:10 UTC 2018 solo/
+     0 Fri May 25 06:09:10 UTC 2018 solo/jumpstart/
+  1204 Fri May 25 06:09:10 UTC 2018 solo/jumpstart/servlet_container_initializer$_main.class
+  1646 Fri May 25 06:09:10 UTC 2018 solo/jumpstart/servlet_container_initializer$loading__5569__auto____3.class
+  2097 Fri May 25 06:09:10 UTC 2018 solo/jumpstart/servlet_container_initializer$_onStartup.class
+  2376 Fri May 25 06:09:10 UTC 2018 solo/jumpstart/servlet_container_initializer.class
+  2106 Fri May 25 06:09:10 UTC 2018 solo/jumpstart/servlet_container_initializer$fn__5.class
+  4193 Fri May 25 06:09:10 UTC 2018 solo/jumpstart/servlet_container_initializer__init.class
+     0 Thu May 24 19:56:04 UTC 2018 META-INF/services/
+    44 Thu May 24 19:56:04 UTC 2018 META-INF/services/javax.servlet.ServletContainerInitializer
 </code></pre>
 <p>And you can run this class:</p>
-<pre><code>solo-project$ java -cp jumpstart-jsf.jar:lib/clojure-1.8.0.jar solo.jumpstart.jsf foo bar
-solo.jumpstart.jsf/-main: ("foo" "bar")
-solo.jumpstart.jsf/-init
+<pre><code>solo-project$ java \
+    -cp jumpstart.jar:lib/clojure-1.8.0.jar:lib/javax.servlet-api-3.1.0.jar \
+    solo.jumpstart.servlet_container_initializer
+solo.jumpstart.servlet_container_initializer/-onStartup
+solo.jumpstart.servlet_container_initializer/-onStartup:Load/run (solo.jumpstart/jumpstart) failed : java.io.FileNotFoundException: Could not locate solo/jumpstart__init.class or solo/jumpstart.clj on classpath.
 </code></pre>
 <p>Some things to note:</p>
 <ul>
   <li>
-  <p>we don’t need <code>-main</code> for jump-starting <em>Solo</em> via JSF. It’s just  there so that <code>gen-class</code> generates the main-entry method <code>public
-  static void main(String[])</code> for us so that we can run it from  command-line.</p></li>
+  <p>We haven’t supplied <code>solo/jumpstart</code> yet. So the jump-start fails  (but the code works :-) )</p></li>
   <li>
-  <p>the generated class file <code>solo/jumpstart/jsf.class</code> does several  things: (1) it bootstraps the Clojure runtime (2) it loads the  namespace <code>solo.jumpstart.jsf</code>. The <strong>method</strong> <code>jsf/main</code> and the  (only) <strong>constructor</strong> <code>jsf()</code> delegate to the functions <code>-main</code> and  <code>-init</code> in namespace <code>solo.jumpstart.jsf</code>.</p></li>
+  <p>We don’t need <code>-main</code> for jump-starting <em>Solo</em> via  <code>ServletContainerInitializer</code> in production. It’s just there so that  <code>gen-class</code> generates the main-entry method <code>public static void
+  main(String[])</code> for us so that we can run it from command-line for  testing.</p></li>
   <li>
-  <p>the classpath above did not include  <code>solo-project/jumpstart/src/</code>. So the compiled namespace  <code>solo.jumpstart.jsf</code> is <strong>included</strong> in the JAR. Still the Clojure  <em>loader</em> will search for the <strong>source</strong> <code>solo/jumpstart/jsf.clj</code>  when loading the namespace and only if it cannot find the source it  will use the compiled version.</p></li>
+  <p>The generated class file  <code>solo/jumpstart/servlet_container_initializer.class</code> bootstraps the  Clojure runtime and then loads the namespace  <code>solo.jumpstart.servlet_container_initializer</code>.</p></li>
+  <li>
+  <p>The classpath above did not include  <code>solo-project/jumpstart/src/</code>. So the compiled namespace  <code>solo.jumpstart.servlet_container_initializer</code> is <strong>included</strong> in  the JAR. Still the Clojure <em>loader</em> will search for the <strong>source</strong>  <code>solo/jumpstart/servlet_container_initializer.clj</code> when loading the  namespace and only if it cannot find the source it will use the  compiled version. So you can <em>over-write</em> the compiled version in  your production runtime if you need.</p></li>
 </ul>
-<p>For <em>production</em> we want to use <code>jumpstart-jsf.jar</code> just for loading Clojure and delegation logic. The <em>real</em> logic that we want to have jump-started should come from a source folder that we put into the classpath and have that loaded.</p>
-<p>So let’s try this: put your jump-start logic into <code>src/clj/solo/jumpstart/jsf.clj</code>:</p>
-<pre><code>(ns solo.jumpstart.jsf
-  (require [solo.swank :as swank]))
+<p>For <em>production</em> we want to use <code>jumpstart.jar</code> just for loading Clojure and delegation logic. The <em>real</em> logic that we want to have jump-started – i.e. <code>(solo.jumpstart/jumpstart)</code> – should come from a source folder that we put into the classpath and have that loaded.</p>
+<p>So let’s try this: put your jump-start logic into <code>src/clj/solo/jumpstart.clj</code>:</p>
+<pre><code>(ns solo.jumpstart
+  (:require [solo.swank :as swank]))
 
-(defn -init []
-  (println "solo.jumpstart.jsf/-init: starting Swank server")
-  (swank/-main)
-  (println "solo.jumpstart.jsf/-init: started Swank server")
-  [[]])
-
-(defn -main [&amp; args]
-  (println (str "solo.jumpstart.jsf/-main: " args))
-  (solo.jumpstart.jsf.))
+(defn jumpstart []
+  (println "solo.jumpstart/jumpstart: starting up:")
+  (swank/start-server)
+  (println "solo.jumpstart/jumpstart: done."))
 </code></pre>
 <p>This time we put <code>src/clj/</code> and all the libs into the classpath:</p>
-<pre><code>solo-project$ java -cp jumpstart-jsf.jar:lib/*:src/clj/ solo.jumpstart.jsf foo bar
-solo.jumpstart.jsf/-main: ("foo" "bar")
-solo.jumpstart.jsf/-init: starting Swank server
+<pre><code>solo-project$ java -cp src/clj/:jumpstart.jar:lib/\* solo.jumpstart.servlet_container_initializer
+
+solo.jumpstart.servlet_container_initializer/-onStartup
+solo.jumpstart/jumpstart: starting up:
+Starting Swank server on {:port 4005, :host "0.0.0.0"} ...
 Connection opened on 0.0.0.0 port 4005.
-solo.jumpstart.jsf/-init: started Swank server
+Started Swank server on {:port 4005, :host "0.0.0.0"}.
+solo.jumpstart/jumpstart: done.
 </code></pre>
 <p>Cool!</p>
 <p>Now we have it: we use the generated <em>named classes</em> just for loading a Clojure namespace and we supply the Clojure source code on the classpath (in a JAR and/or in a file-system folder).</p>
+<p>[1] <a href="https://docs.oracle.com/javaee/7/api/javax/servlet/ServletContainerInitializer.html">https://docs.oracle.com/javaee/7/api/javax/servlet/ServletContainerInitializer.html</a> </p>
 <p><strong>Wildfly/JBoss</strong></p>
 <p>For JBoss and Wildfly (_domain_ <em>mode</em>) you can <em>deploy</em> the JARs (incl. <code>jumpstart-jsf.jar</code>) to the <em>content</em> <em>repository</em> and <em>assign</em> them to the server group of your server (no need to package them into your Java host-application!).</p>
 <p>There is one problem: the module classloader that loads <code>jumpstart-jsf.jar</code> does not <em>see</em> the assigned (module) <code>clojure-1.8.0.jar</code>! So you won’t be able to load <code>solo/jumpstart/jsf.class</code>. You could fix this by tweaking the module’s dependencies.</p>
@@ -542,7 +555,7 @@ Started nREPL server on port 7888 : {:class clojure.tools.nrepl.server.Server, :
 <hr />
 <h1><a href="#step-seven-jetty-http-kit-ring-compojure-hiccup-solo-web" name="step-seven-jetty-http-kit-ring-compojure-hiccup-solo-web"></a>Step Seven: Jetty, http-kit, Ring, Compojure, Hiccup, solo.web</h1>
 <hr />
-<p>By now we have an interactive REPL-access to the application via nREPL-server which we have jump-started via <em>Solo</em>. We can query and modify the log4j loggers of the Java host application at runtime.</p>
+<p>By now we have an interactive REPL-access to the application via nREPL-server which we have jump-started via <em>Solo</em>. We can query and modify the log4j loggers of the Java host-application at runtime.</p>
 <p>It’s time to build our browser-based GUI for <em>Solo</em>.</p>
 <p>First we will build an old-style web-app: it will receive HTTP-GET requests (for <em>queries</em>) and HTTP-POST requests (for <em>modifications</em>) – so called <em>POST-backs</em>.</p>
 <p>For each request the web-app will return a <strong>complete</strong> <strong>HTML-page</strong> which is then rendered by the browser. With each (GET/POST) request the browser will <strong>navigate</strong> (thus it’s not an SPA).</p>
@@ -802,14 +815,14 @@ solo.jetty=&gt;
 <p>We’ll need no jump-starter in this case, since the <code>web.xml</code> will  register a Ring servlet with the web-container which will  initialize/start the servlet and then wait for incoming requests.</p>
 <p>If you like, you can use the initialization phase of the web-app to  start an nREPL server.</p>
 <ul>
-  <li><strong>Module Deployment</strong>: we deploy only <em>Solo’s</em> “backend”-JAR  (<code>solo.core</code> and <code>solo.nrepl</code> and their dependencies, maybe  <code>solo.swank</code> if you like) as <em>modules</em> (see above) to the app-server  (or web-server; see below) running the host application.</li>
+  <li><strong>Module Deployment</strong>: we deploy only <em>Solo’s</em> “backend”-JAR  (<code>solo.core</code> and <code>solo.nrepl</code> and their dependencies, maybe  <code>solo.swank</code> if you like) as <em>modules</em> (see above) to the app-server  (or web-server; see below) running the host-application.</li>
 </ul>
 <p>In this case we need to jump-start <code>solo.repl</code> so that we can access  it remotely (remember – it’s not a web-app in this case).</p>
 <p>Then we use Jetty (in a <strong>separate</strong> JVM; or you could use any  web-server even the one running the <em>Solo</em> backend) to host  <code>solo.web</code> and use nREPL clients for delegating calls from  <code>solo-web</code> to <code>solo.core</code> functions remotely to the nREPL server.</p>
 <p>Now we have a distributed application.</p>
 <p>This second options makes sense if you want to work on <em>Solo’s</em> web-layer (which we will in step eight++) and you may have to change dependencies. In this case, you can do this without re-starting <code>solo.core</code> (which is more stable in terms of changes that you may make to the code) and you need not re-start the app-server which can be time-consuming.</p>
 <p>This setup will work for development also: you can run <code>solo.web</code> in your Leiningen dev JVM and call the <em>production</em> <code>solo.core</code> via nREPL – nice!</p>
-<p>[1] <strong>TODO:</strong> Note: we have to look at classloaders since <em>Solo</em> only works, if it accesses the <strong>same</strong> log4j classes as the host application does.</p>
+<p>[1] <strong>TODO:</strong> Note: we have to look at classloaders since <em>Solo</em> only works, if it accesses the <strong>same</strong> log4j classes as the host-application does.</p>
 <h2><a href="#war-deployment" name="war-deployment"></a>WAR Deployment</h2>
 <p>In <code>solo-project/src/clj/solo/webapp.clj</code> I put the code for our <em>statefull</em> web-app. On startup the web-app will start an nREPL server on port <code>7888</code> and <code>.close</code> it when the web-app shuts down.</p>
 <p>Build:</p>

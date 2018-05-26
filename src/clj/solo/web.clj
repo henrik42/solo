@@ -121,13 +121,17 @@
 
 (defn top-of-page
   "Returns a Hiccup-vector for the top-of-page including a link to the
-  Codox-generated (HTML) documentation (contained in _Solo_)."
+  Codox-generated API (HTML) documentation, the Marginalia-formatted
+  code (both contained in _Solo_) and a link to the _Solo_ github
+  page."
 
   []
   [:div#top-of-page "SOLO Web App" " -- "
    [:a {:href "generated-doc/index.html"} "doc"]
    " -- "
-   [:a {:href "generated-doc/solo-source.html"} "source"]])
+   [:a {:href "generated-doc/solo-source.html"} "source"]
+   " -- "
+   [:a {:href "https://github.com/henrik42/solo/"} "github"]])
 
 (defn set-log-level-form
   "Returns a Hiccup-vector for the *set log-level form* which allows
