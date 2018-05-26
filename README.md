@@ -339,10 +339,11 @@ between them.
 # Step Four: Containers, solo.jumpstart
 ------------------------------------------------------------------------
 
-We want to use _Solo_ within a _host application_ -- i.e. a Java
+We want to use _Solo_ within a _host-application_ -- i.e. a Java
 application that does not offer changing log4j log-levels at runtime
-out-of-the-box. We want to hook _Solo_ into this application changing
-as little as possible about the host-application's configuration.
+out-of-the-box. We want to hook _Solo_ into this host-application
+changing as little as possible about the host-application's
+configuration.
 
 When you're working in a Java-shop you may be using JEE application
 servers (like JBoss, Wildfly, IBM Websphere) or other containers (like
@@ -351,7 +352,7 @@ these containers will be Java applications with no Clojure
 included. These applications do not know about Clojure or _Solo_ and
 they probably have no built-in way of executing arbitrary
 code/classes. So in order to run _Solo_, we somehow have to gain
-control over an execution thread ... the host application has to
+control over an execution thread ... the host-application has to
 _jump-start_ _Solo_ (implicitly).
 
 There are many things going on in typical Java applications that let
@@ -412,12 +413,13 @@ how the mentioned frameworks organize the classloaders they use.
 
 In many cases your class will be loaded by a classloader that has no
 access (neither direct nor by delegation to other _co-laborating_
-classloaders) to the host application's classes (incl. log4j). Often
+classloaders) to the host-application's classes (incl. log4j). Often
 the jumpstart-class does not even _see_ the Clojure runtime-classes
 eventhough you supplied the libs. This usually leads to
 `ClassNotFoundException` and then `NoClassDefFoundException` when
-loading your jumpstart-namespace. You find examples/solutions for this
-below.
+loading your jumpstart-namespace.
+
+You find examples/solutions for this below.
 
 [1a] https://docs.jboss.org/cdi/spec/1.0/html/
 [1b] https://jaxenter.com/tutorial-introduction-to-cdi-contexts-and-dependency-injection-for-java-ee-jsr-299-104536.html  
@@ -431,8 +433,8 @@ below.
 
 ## solo.jumpstart.servlet_container_initializer
 
-Here we jump-start _Solo_ via `ServletContainerInitializer`. This
-means we use a web-applications start-up mechanism to have _Solo_
+Here we jump-start _Solo_ via `ServletContainerInitializer` [1]. This
+means we use a web-application's start-up mechanism to have _Solo_
 jump-started.
 
 We supply the resource
@@ -441,9 +443,24 @@ content:
 
     solo.jumpstart.servlet_container_initializer
 
+This makes the servlet-container load this class, create an instance
+and call `onStartup` method on this instance.
+
 In `jumpstart/src/solo/jumpstart/servlet_container_initializer.clj`
-you find the source that we AOT-compile to get the class
-`solo.jumpstart.servlet_container_initializer`:
+you find the source that we AOT-compile/`:gen-class` to get the class
+`solo.jumpstart.servlet_container_initializer`.
+
+This implementation will just load the namespace `solo.jumpstart` and
+call `(solo.jumpstart/jumpstart)`. So whatever we want to do to
+bootstrap our application, we can do it there. If we ever add more
+jump-start mechanisms we won't need to change
+`solo.jumpstart/jumpstart`. 
+
+__Note:__ depending on the mechanisms `solo.jumpstart/jumpstart` may
+be called more than once on start-up. So calling
+`solo.jumpstart/jumpstart` repeatedly must not cause any
+problems. Maybe we should use `defonce` or an `atom` to cope with this
+(TBD).
 
     (ns solo.jumpstart.servlet_container_initializer
       (:gen-class
@@ -462,90 +479,102 @@ you find the source that we AOT-compile to get the class
                 "Load/run (solo.jumpstart/jumpstart) failed : "
                 t)))))
     
-
-For compile & package you can use `/scripts/make-jumpstart-jsf.sh`:
+    (defn -main [& args]
+      (-onStartup))
+  
+For compile & packaging you can use `scripts/make-jumpstart-jar.sh`:
 
     #!/bin/bash -ex
     
     mkdir -p classes/
     rm -rf classes/*
-    java -cp jumpstart/src/:classes/:lib/clojure-1.8.0.jar clojure.main -e "(compile 'solo.jumpstart.jsf)"
-    jar -vcf jumpstart-jsf.jar -C classes/ solo
-    jar -vuf jumpstart-jsf.jar -C jumpstart/resources/ META-INF
+    java -cp jumpstart/src/:classes/:lib/clojure-1.8.0.jar:lib/javax.servlet-api-3.1.0.jar clojure.main \
+    -e "(compile 'solo.jumpstart.servlet_container_initializer)"
+    jar -vcf jumpstart.jar -C classes/ solo
+    jar -vuf jumpstart.jar -C jumpstart/resources/ META-INF
     
-The JAR `jumpstart-jsf.jar` should look like this:
+The JAR `jumpstart.jar` should look like this:
 
-    solo-project$ jar -vtf jumpstart-jsf.jar 
-        68 Thu Apr 05 19:04:56 UTC 2018 META-INF/MANIFEST.MF
-         0 Thu Apr 05 19:03:20 UTC 2018 solo/
-         0 Thu Apr 05 19:03:20 UTC 2018 solo/jumpstart/
-      1338 Thu Apr 05 19:03:20 UTC 2018 solo/jumpstart/jsf$fn__5.class
-      1516 Thu Apr 05 19:03:20 UTC 2018 solo/jumpstart/jsf$loading__5569__auto____3.class
-       905 Thu Apr 05 19:03:20 UTC 2018 solo/jumpstart/jsf$_init.class
-      2066 Thu Apr 05 19:03:20 UTC 2018 solo/jumpstart/jsf.class
-      2477 Thu Apr 05 19:03:20 UTC 2018 solo/jumpstart/jsf__init.class
-       565 Thu Apr 05 19:04:24 UTC 2018 META-INF/faces-config.xml
-
+    solo-project$ jar -vtf jumpstart.jar 
+        68 Fri May 25 06:09:10 UTC 2018 META-INF/MANIFEST.MF
+         0 Fri May 25 06:09:10 UTC 2018 solo/
+         0 Fri May 25 06:09:10 UTC 2018 solo/jumpstart/
+      1204 Fri May 25 06:09:10 UTC 2018 solo/jumpstart/servlet_container_initializer$_main.class
+      1646 Fri May 25 06:09:10 UTC 2018 solo/jumpstart/servlet_container_initializer$loading__5569__auto____3.class
+      2097 Fri May 25 06:09:10 UTC 2018 solo/jumpstart/servlet_container_initializer$_onStartup.class
+      2376 Fri May 25 06:09:10 UTC 2018 solo/jumpstart/servlet_container_initializer.class
+      2106 Fri May 25 06:09:10 UTC 2018 solo/jumpstart/servlet_container_initializer$fn__5.class
+      4193 Fri May 25 06:09:10 UTC 2018 solo/jumpstart/servlet_container_initializer__init.class
+         0 Thu May 24 19:56:04 UTC 2018 META-INF/services/
+        44 Thu May 24 19:56:04 UTC 2018 META-INF/services/javax.servlet.ServletContainerInitializer
+        
 And you can run this class:
 
-    solo-project$ java -cp jumpstart-jsf.jar:lib/clojure-1.8.0.jar solo.jumpstart.jsf foo bar
-    solo.jumpstart.jsf/-main: ("foo" "bar")
-    solo.jumpstart.jsf/-init
+    solo-project$ java \
+        -cp jumpstart.jar:lib/clojure-1.8.0.jar:lib/javax.servlet-api-3.1.0.jar \
+        solo.jumpstart.servlet_container_initializer
+    solo.jumpstart.servlet_container_initializer/-onStartup
+    solo.jumpstart.servlet_container_initializer/-onStartup:Load/run (solo.jumpstart/jumpstart) failed : java.io.FileNotFoundException: Could not locate solo/jumpstart__init.class or solo/jumpstart.clj on classpath.
 
 Some things to note:
 
-* we don't need `-main` for jump-starting _Solo_ via JSF. It's just
-  there so that `gen-class` generates the main-entry method `public
-  static void main(String[])` for us so that we can run it from
-  command-line.
+* We haven't supplied `solo/jumpstart` yet. So the jump-start fails
+  (but the code works :-) )
 
-* the generated class file `solo/jumpstart/jsf.class` does several
-  things: (1) it bootstraps the Clojure runtime (2) it loads the
-  namespace `solo.jumpstart.jsf`. The __method__ `jsf/main` and the
-  (only) __constructor__ `jsf()` delegate to the functions `-main` and
-  `-init` in namespace `solo.jumpstart.jsf`.
+* We don't need `-main` for jump-starting _Solo_ via
+  `ServletContainerInitializer` in production. It's just there so that
+  `gen-class` generates the main-entry method `public static void
+  main(String[])` for us so that we can run it from command-line for
+  testing.
 
-* the classpath above did not include
+* The generated class file
+  `solo/jumpstart/servlet_container_initializer.class` bootstraps the
+  Clojure runtime and then loads the namespace
+  `solo.jumpstart.servlet_container_initializer`.
+
+* The classpath above did not include
   `solo-project/jumpstart/src/`. So the compiled namespace
-  `solo.jumpstart.jsf` is __included__ in the JAR. Still the Clojure
-  _loader_ will search for the __source__ `solo/jumpstart/jsf.clj`
-  when loading the namespace and only if it cannot find the source it
-  will use the compiled version.
+  `solo.jumpstart.servlet_container_initializer` is __included__ in
+  the JAR. Still the Clojure _loader_ will search for the __source__
+  `solo/jumpstart/servlet_container_initializer.clj` when loading the
+  namespace and only if it cannot find the source it will use the
+  compiled version. So you can _over-write_ the compiled version in
+  your production runtime if you need.
 
-For _production_ we want to use `jumpstart-jsf.jar` just for loading
+For _production_ we want to use `jumpstart.jar` just for loading
 Clojure and delegation logic. The _real_ logic that we want to have
-jump-started should come from a source folder that we put into the
-classpath and have that loaded.
+jump-started -- i.e. `(solo.jumpstart/jumpstart)` -- should come from
+a source folder that we put into the classpath and have that loaded.
 
 So let's try this: put your jump-start logic into
-`src/clj/solo/jumpstart/jsf.clj`:
+`src/clj/solo/jumpstart.clj`:
 
-    (ns solo.jumpstart.jsf
-      (require [solo.swank :as swank]))
+    (ns solo.jumpstart
+      (:require [solo.swank :as swank]))
     
-    (defn -init []
-      (println "solo.jumpstart.jsf/-init: starting Swank server")
-      (swank/-main)
-      (println "solo.jumpstart.jsf/-init: started Swank server")
-      [[]])
-    
-    (defn -main [& args]
-      (println (str "solo.jumpstart.jsf/-main: " args))
-      (solo.jumpstart.jsf.))
-    
+    (defn jumpstart []
+      (println "solo.jumpstart/jumpstart: starting up:")
+      (swank/start-server)
+      (println "solo.jumpstart/jumpstart: done."))
+        
 This time we put `src/clj/` and all the libs into the classpath:
 
-    solo-project$ java -cp jumpstart-jsf.jar:lib/*:src/clj/ solo.jumpstart.jsf foo bar
-    solo.jumpstart.jsf/-main: ("foo" "bar")
-    solo.jumpstart.jsf/-init: starting Swank server
+    solo-project$ java -cp src/clj/:jumpstart.jar:lib/\* solo.jumpstart.servlet_container_initializer
+
+    solo.jumpstart.servlet_container_initializer/-onStartup
+    solo.jumpstart/jumpstart: starting up:
+    Starting Swank server on {:port 4005, :host "0.0.0.0"} ...
     Connection opened on 0.0.0.0 port 4005.
-    solo.jumpstart.jsf/-init: started Swank server
+    Started Swank server on {:port 4005, :host "0.0.0.0"}.
+    solo.jumpstart/jumpstart: done.
     
 Cool!
 
 Now we have it: we use the generated _named classes_ just for loading
 a Clojure namespace and we supply the Clojure source code on the
 classpath (in a JAR and/or in a file-system folder).
+
+[1] https://docs.oracle.com/javaee/7/api/javax/servlet/ServletContainerInitializer.html  
 
 __Wildfly/JBoss__
 
@@ -896,7 +925,7 @@ web GUI.
 
 By now we have an interactive REPL-access to the application via
 nREPL-server which we have jump-started via _Solo_. We can query and
-modify the log4j loggers of the Java host application at runtime.
+modify the log4j loggers of the Java host-application at runtime.
 
 It's time to build our browser-based GUI for _Solo_.
 
@@ -1256,7 +1285,7 @@ We have (at least) two options:
 * __Module Deployment__: we deploy only _Solo's_ "backend"-JAR
   (`solo.core` and `solo.nrepl` and their dependencies, maybe
   `solo.swank` if you like) as _modules_ (see above) to the app-server
-  (or web-server; see below) running the host application.
+  (or web-server; see below) running the host-application.
 
   In this case we need to jump-start `solo.repl` so that we can access
   it remotely (remember -- it's not a web-app in this case).
@@ -1280,8 +1309,8 @@ your Leiningen dev JVM and call the _production_ `solo.core` via nREPL
 -- nice!
 
 [1] __TODO:__ Note: we have to look at classloaders since _Solo_ only
-works, if it accesses the __same__ log4j classes as the host
-application does.
+works, if it accesses the __same__ log4j classes as the
+host-application does.
 
 ## WAR Deployment
 
