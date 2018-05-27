@@ -4,9 +4,10 @@
 
 (deftest a-test
   (testing "Testing solo.core"
-    (is (= [] (get-current-loggers)))
-    (is (= [{:logger-name "foo"
-             :log-level "INFO"}]
+    (is (= [{:logger-name "root", :log-level "DEBUG"}]
+           (get-current-loggers)))
+    (is (= [{:logger-name "root", :log-level "DEBUG"}
+            {:logger-name "foo", :log-level "INFO"}]
            (do ;; mutator!
              (set-log-level! "foo" "INFO")
              (get-current-loggers))))))
