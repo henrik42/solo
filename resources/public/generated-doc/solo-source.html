@@ -2905,12 +2905,25 @@ net.brehaut.ClojureTools = (function (SH) {
             .getLoggerRepository
             .getCurrentLoggers
             enumeration-seq)
-        (Logger/getRootLogger))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#solo.jumpstart" name="solo.jumpstart"><h1 class="project-name">solo.jumpstart</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs">
+        (Logger/getRootLogger))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#solo.jumpstart" name="solo.jumpstart"><h1 class="project-name">solo.jumpstart</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Namespace that will/can be loaded to jump-start server-side code.</p>
+
+<p>  See <code>solo.jumpstart.servlet_container_initializer</code>.</p>
+
+<p>  <strong>Note:</strong> This namespaces requires <code>solo.core</code> so that after being
+    jump-started you may use <code>solo.core</code> via nREPL without the need to
+    require/load <code>solo.core</code> explicitly.</p>
 </td><td class="codes"><pre class="brush: clojure">(ns solo.jumpstart
-  (:require [solo.swank :as swank]))</pre></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(defn jumpstart []
+  (:require [solo.nrepl :as nrepl]
+            [solo.core]))</pre></td></tr><tr><td class="docs"><p>Will/can be called from
+  <code>solo.jumpstart.servlet_container_initializer/-onStartup</code>.</p>
+
+<p>  Can be over-written/redefined in runtime/production
+  environments. This implementation just
+  calls <code>(solo.nrepl/start-server)</code>.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn jumpstart
+  []
   (println &quot;solo.jumpstart/jumpstart: starting up:&quot;)
-  (swank/start-server)
+  (nrepl/start-server)
   (println &quot;solo.jumpstart/jumpstart: done.&quot;))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#solo.nrepl" name="solo.nrepl"><h1 class="project-name">solo.nrepl</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Functions around nREPL.</p>
 </td><td class="codes"><pre class="brush: clojure">(ns solo.nrepl
   (:require [clojure.tools.nrepl :refer :all]
