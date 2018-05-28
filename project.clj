@@ -5,14 +5,14 @@
   :target-path "target/%s/"
 
   :dependencies [[org.clojure/clojure "1.8.0"]
-                 #_ [swank-clojure/swank-clojure "1.4.3"]
-                 #_ [org.clojure/tools.nrepl "0.2.12"]
-                 #_ [log4j/log4j "1.2.17"]
+                 [swank-clojure/swank-clojure "1.4.3"]
+                 [org.clojure/tools.nrepl "0.2.12"]
+                 [log4j/log4j "1.2.17"]
                  [javax.servlet/javax.servlet-api "3.1.0"]]
   
-  :plugins [#_ [lein-swank "1.4.5"]
+  :plugins [[lein-swank "1.4.5"]
             [lein-codox "0.10.3"]
-            #_ [lein-marginalia "0.9.1"]]
+            [lein-marginalia "0.9.1"]]
   
   :aliases {"make-jumpstart" ["with-profile" "+make-jumpstart" "do" ["clean"] "jar"]
 
