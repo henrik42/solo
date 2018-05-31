@@ -1,7 +1,45 @@
 (ns solo.core
   "Core business logic.
 
-  Functions for accessing log4j loggers."
+  Functions for accessing log4j loggers.
+
+  **Note:** according to the log4 documentation the log4j root logger
+    is named `\"root\"`:
+
+      (-> (Logger/getRootLogger) logger->map :logger-name)
+      ;--> \"root\"
+
+  Consequently `get-current-loggers` returns the root logger with
+  `:logger-name` `\"root\"`.
+
+  And if you call `(get-logger \"root\")` you will receive --
+  unsurprisingly -- the root logger.
+
+  But if anyone (i.e. any code which can access the loaded log4j
+  classes) calls `(org.apache.log4j.Logger/getLogger \"root\")` you'll
+  find **two** loggers with `:logger-name` being `\"root\"`
+  in `(get-current-loggers)`.
+
+  As a consequence you cannot set the log-level of a non-root-logger
+  with name `\"root\"`. Calling `(set-log-level! \"root\" ,,,)` will
+  always set the root logger's log-level.
+
+  To make things even worse: JBoss delivers it's own copy of log4j but
+  calling `(-> (Logger/getRootLogger) .getName)` returns `\"\"` (the
+  empty `String`). So this edge-case is taken care of in this
+  namespace (i.e. the root logger will be returned with `:logger-name`
+  `\"root\"` on JBoss also).
+  
+  Note also that calling `(get-logger <String:logger-name>)` (or
+  `org.apache.log4j.Logger/getLogger` really) has side-effects! It
+  _registers_ the logger `<logger-name>` if it hasn't been registered
+  already and calling `(get-current-loggers)` before and afterwards
+  may return different results (depending on wheather the logger
+  `<logger-name>` had already been registered before calling
+  `(get-current-loggers)` the first time).
+
+  So `get-logger` is __impure__ and should maybe better be named
+  `get-logger!`."
   (:import [org.apache.log4j Logger Level]))
 
 (defn logger->map
