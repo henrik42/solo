@@ -2869,18 +2869,75 @@ net.brehaut.ClojureTools = (function (SH) {
 </div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">org.clojure/clojure</td><td class="dotted"><hr /></td><td class="dep-version">1.8.0</td></tr><tr><td class="dep-name">swank-clojure/swank-clojure</td><td class="dotted"><hr /></td><td class="dep-version">1.4.3</td></tr><tr><td class="dep-name">org.clojure/tools.nrepl</td><td class="dotted"><hr /></td><td class="dep-version">0.2.12</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#solo.core">solo.core</a></li><li><a href="#solo.main">solo.main</a></li><li><a href="#solo.jetty">solo.jetty</a></li><li><a href="#solo.web">solo.web</a></li><li><a href="#solo.webapp">solo.webapp</a></li><li><a href="#solo.jumpstart">solo.jumpstart</a></li><li><a href="#solo.nrepl">solo.nrepl</a></li><li><a href="#solo.swank">solo.swank</a></li><li><a href="#solo.jumpstart.servlet_container_initializer">solo.jumpstart.servlet_container_initializer</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#solo.core" name="solo.core"><h1 class="project-name">solo.core</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Core business logic.</p>
 
 <p>  Functions for accessing log4j loggers.</p>
+
+<p>  <strong>Note:</strong> according to the log4 documentation the log4j root logger
+    is named <code>"root"</code>:</p>
+
+<pre><code>  (-&gt; (Logger/getRootLogger)
+      logger-&gt;map
+      :logger-name)
+  ;--&gt; "root"
+</code></pre>
+
+<p>  Consequently <code>(get-current-loggers)</code> returns a map-seq which
+  contains the root logger with <code>:logger-name</code> <code>"root"</code>.</p>
+
+<p>  And when you call <code>(get-logger "root")</code> you will receive --
+  unsurprisingly -- the root logger.</p>
+
+<p>  But if anyone (i.e. any code which can access the loaded log4j
+  classes) calls <code>(org.apache.log4j.Logger/getLogger "root")</code> you'll
+  find <strong>two</strong> loggers with <code>:logger-name</code> being <code>"root"</code>
+  in <code>(get-current-loggers)</code>. The non-root logger is the one that was
+  <em>registered</em> by invoking <code>org.apache.log4j.Logger/getLogger</code> (see
+  below).</p>
+
+<p>  As a consequence you <strong>cannot</strong> set the log-level of a
+  non-root-logger with name <code>"root"</code>. Calling <code>(set-log-level! "root" ,,,)</code>
+  will <strong>always</strong> set the root logger's log-level.</p>
+
+<p>  To make things even worse: JBoss delivers it's own copy of log4j but
+  retrieving the root logger's name via <code>(-&gt; (Logger/getRootLogger) .getName)</code>
+  returns <code>""</code> (the empty <code>String</code>). This
+  edge-case (i.e. bug) is taken care of in <code>logger-&gt;map</code> (i.e. the
+  root logger will be returned with <code>:logger-name</code> <code>"root"</code> on JBoss
+  no matter what).</p>
+
+<p>  Note also that calling <code>(get-logger &lt;String:logger-name&gt;)</code> (or
+  <code>org.apache.log4j.Logger/getLogger</code> really) has side-effects! It
+  <em>registers</em> the logger <code>&lt;logger-name&gt;</code> if it hasn't been registered
+  already and calling <code>(get-current-loggers)</code> before and afterwards
+  may return different results (depending on whether the logger
+  <code>&lt;logger-name&gt;</code> had already been registered before calling
+  <code>(get-current-loggers)</code> the first time).</p>
+
+<p>  So <code>get-logger</code> is <strong>impure</strong> and should maybe better be named
+  <code>get-logger!</code>.</p>
+
+<hr />
 </td><td class="codes"><pre class="brush: clojure">(ns solo.core
-  (:import [org.apache.log4j Logger Level]))</pre></td></tr><tr><td class="docs"><p>Returns a map `{:logger-name &lt;String:logger-name> :log-level
-   &lt;String:log-level>}<code>for the given non-</code>nil<code>log4j</code>Logger`. If the
+  (:import [org.apache.log4j Logger Level]
+           [org.apache.log4j.spi RootLogger]))</pre></td></tr><tr><td class="docs"><p>Returns a map <code>{:logger-name &lt;String:logger-name&gt; :log-level &lt;String:log-level&gt;}</code>
+   for the given non-<code>nil</code> log4j <code>Logger</code>. If the
    logger has no level set, <code>:log-level</code> will be <code>""</code> (empty
    <code>String</code>).</p>
+
+<p>   If <code>log4j-logger</code> is a root logger then <code>:logger-name</code> will always
+   be <code>"root"</code>. This is enforced explicitly to cope with a bug in
+   JBoss.</p>
+
+<hr />
 </td><td class="codes"><pre class="brush: clojure">(defn logger-&gt;map
   [log4j-logger]
   {:pre [(not (nil? log4j-logger))]}
-  {:logger-name (.getName log4j-logger)
+  {:logger-name (if (instance? RootLogger log4j-logger)
+                  &quot;root&quot;
+                  (.getName log4j-logger))
    :log-level (-&gt; log4j-logger .getLevel str)})</pre></td></tr><tr><td class="docs"><p>Returns the log4j logger (as of <code>logger-&gt;map</code>) with the given
   non-<code>nil</code> <code>&lt;String:logger-name&gt;</code>. Never returns <code>nil</code>. Passing
-  <code>"root"</code> returns the root logger. </p>
+  <code>"root"</code> returns the root logger.</p>
+
+<hr />
 </td><td class="codes"><pre class="brush: clojure">(defn get-logger
   [logger-name]
   {:pre [(string? logger-name)]}
@@ -2889,6 +2946,8 @@ net.brehaut.ClojureTools = (function (SH) {
         (Logger/getLogger logger-name))
       logger-&gt;map))</pre></td></tr><tr><td class="docs"><p>Sets the logger's <code>&lt;String:log-level&gt;</code>. Passing <code>"root"</code> as
   <code>&lt;String:logger-name&gt;</code> will set the root logger's log-level.</p>
+
+<hr />
 </td><td class="codes"><pre class="brush: clojure">(defn set-log-level!
   [logger-name log-level]
   {:pre [(string? logger-name)]}
@@ -2897,6 +2956,8 @@ net.brehaut.ClojureTools = (function (SH) {
         (Logger/getLogger logger-name))
       (.setLevel (Level/toLevel log-level))))</pre></td></tr><tr><td class="docs"><p>Returns a map-seq (as of <code>logger-&gt;map</code>) of the current log4
   loggers (incl. the root logger).</p>
+
+<hr />
 </td><td class="codes"><pre class="brush: clojure">(defn get-current-loggers
   []
   (map logger-&gt;map

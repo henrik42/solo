@@ -6,7 +6,9 @@
   **Note:** according to the log4 documentation the log4j root logger
     is named `\"root\"`:
 
-      (-> (Logger/getRootLogger) logger->map :logger-name)
+      (-> (Logger/getRootLogger)
+          logger->map
+          :logger-name)
       ;--> \"root\"
 
   Consequently `(get-current-loggers)` returns a map-seq which
@@ -23,15 +25,15 @@
   below).
 
   As a consequence you __cannot__ set the log-level of a
-  non-root-logger with name `\"root\"`. Calling `(set-log-level!
-  \"root\" ,,,)` will __always__ set the root logger's log-level.
+  non-root-logger with name `\"root\"`. Calling `(set-log-level! \"root\" ,,,)`
+  will __always__ set the root logger's log-level.
 
   To make things even worse: JBoss delivers it's own copy of log4j but
-  retrieving the root logger's name via `(-> (Logger/getRootLogger)
-  .getName)` returns `\"\"` (the empty `String`). This
-  edge-case (i.e. bug) is taken care of in this namespace (i.e. the
+  retrieving the root logger's name via `(-> (Logger/getRootLogger) .getName)`
+  returns `\"\"` (the empty `String`). This
+  edge-case (i.e. bug) is taken care of in `logger->map` (i.e. the
   root logger will be returned with `:logger-name` `\"root\"` on JBoss
-  also).
+  no matter what).
   
   Note also that calling `(get-logger <String:logger-name>)` (or
   `org.apache.log4j.Logger/getLogger` really) has side-effects! It
@@ -42,19 +44,23 @@
   `(get-current-loggers)` the first time).
 
   So `get-logger` is __impure__ and should maybe better be named
-  `get-logger!`."
+  `get-logger!`.
+
+  ---"
   (:import [org.apache.log4j Logger Level]
            [org.apache.log4j.spi RootLogger]))
 
 (defn logger->map
-  "Returns a map `{:logger-name <String:logger-name> :log-level
-   <String:log-level>}` for the given non-`nil` log4j `Logger`. If the
+  "Returns a map `{:logger-name <String:logger-name> :log-level <String:log-level>}`
+   for the given non-`nil` log4j `Logger`. If the
    logger has no level set, `:log-level` will be `\"\"` (empty
    `String`).
 
    If `log4j-logger` is a root logger then `:logger-name` will always
    be `\"root\"`. This is enforced explicitly to cope with a bug in
-   JBoss."
+   JBoss.
+
+   ---"
 
   [log4j-logger]
   {:pre [(not (nil? log4j-logger))]}
@@ -66,7 +72,9 @@
 (defn get-logger
   "Returns the log4j logger (as of `logger->map`) with the given
   non-`nil` `<String:logger-name>`. Never returns `nil`. Passing
-  `\"root\"` returns the root logger. "
+  `\"root\"` returns the root logger.
+
+  ---"
 
   [logger-name]
   {:pre [(string? logger-name)]}
@@ -77,7 +85,9 @@
 
 (defn set-log-level!
   "Sets the logger's `<String:log-level>`. Passing `\"root\"` as
-  `<String:logger-name>` will set the root logger's log-level."
+  `<String:logger-name>` will set the root logger's log-level.
+
+  ---"
 
   [logger-name log-level]
   {:pre [(string? logger-name)]}
@@ -88,7 +98,9 @@
 
 (defn get-current-loggers
   "Returns a map-seq (as of `logger->map`) of the current log4
-  loggers (incl. the root logger)."
+  loggers (incl. the root logger).
+
+  ---"
   
   []
   (map logger->map
