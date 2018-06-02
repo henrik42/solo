@@ -483,12 +483,27 @@ nil
   (nrepl/start-server)
   (println "solo.jumpstart/jumpstart: done."))
 </code></pre>
-<h2><a href="#wildfly-jboss" name="wildfly-jboss"></a>Wildfly/JBoss</h2>
-<p><strong>TBD</strong></p>
-<h2><a href="#websphere" name="websphere"></a>Websphere</h2>
-<p><strong>TBD</strong></p>
-<h2><a href="#tomcat" name="tomcat"></a>Tomcat</h2>
-<p><strong>TBD</strong></p>
+<p>We switched from jump-starting <em>Swank</em> to nREPL. You can jump-start both if you like. But nREPL gives you all options and we’ll be using it for programmatic access rather than talking to <em>Solo</em> through an interactive shell session.</p>
+<p>So you use Jetty-Runner again:</p>
+<pre><code>solo-project$ java \
+              -Dlog4j.debug=true -Dlog4j.configuration=file:log4j.properties \
+              -Dclojure.server.repl="{:server-daemon false :port 5555 :accept clojure.core.server/repl}" \
+              -jar lib/jetty-runner-9.4.9.v20180320.jar \
+              --jar jumpstart.jar \
+              --lib lib/ \
+              --classes src/clj \
+              jetty-log4j-test-webapp-1.0-SNAPSHOT.war
+</code></pre>
+<p>And get log-levels via <em>Netcat</em>. Note that this time we do not need to load namespace <code>solo.core</code> via <code>(use 'solo.core)</code> since we’ve put that into <code>src/clj/solo/jumpstart.clj</code>:</p>
+<pre><code>solo-project$ echo "(solo.core/get-current-loggers)" | nc 127.0.0.1 5555
+</code></pre>
+<p>And ofcourse we can use nREPL client:</p>
+<pre><code>solo-project$ rlwrap java -cp lib/\* clojure.main
+Clojure 1.8.0
+user=&gt; (use 'clojure.tools.nrepl)
+nil
+user=&gt; (with-open [conn (connect :port 7888)] (-&gt; (client conn 1000) (message {:op :eval :code "(solo.core/get-current-loggers)"}) response-values))
+</code></pre>
 <hr />
 <h1><a href="#step-six-leiningen-codox-marginalia" name="step-six-leiningen-codox-marginalia"></a>Step Six: Leiningen, Codox, Marginalia</h1>
 <hr />
