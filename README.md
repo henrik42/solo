@@ -322,8 +322,13 @@ called from command-line)
 If you want the REPL also you can do this (here we're loading
 `swank.clj` as a script):
 
-    solo-project$ rlwrap java -cp lib/\*:src/clj clojure.main -i src/clj/solo/swank.clj -e "(solo.swank/-main)" -r
-    Connection opened on 0.0.0.0 port 4005.
+    solo-project$ rlwrap java -cp lib/\*:src/clj clojure.main \
+                  -i src/clj/solo/swank.clj \
+                  -e "(solo.swank/start-server :port 4006)" \
+                  -r
+    Starting Swank server on {:port 4006, :host "0.0.0.0"} ...
+    Connection opened on 0.0.0.0 port 4006.
+    Started Swank server on {:port 4006, :host "0.0.0.0"}.
     user=> 
 
 Now you can use the __REPL__ __and/or__ __Emacs__ to evaluate code and
@@ -339,11 +344,17 @@ between them.
 # Step Four: Containers, solo.jumpstart
 ------------------------------------------------------------------------
 
-We want to use _Solo_ within a _host-application_ -- i.e. a Java
+We want to use _Solo_ within an _host-application_ -- i.e. a Java
 application that does not offer changing log4j log-levels at runtime
 out-of-the-box. We want to hook _Solo_ into this host-application
 changing as little as possible about the host-application's
 configuration.
+
+Since the host-application does not know about _Solo_ (so it will not
+give us any way of using it), we will start a "server" (we could use
+Swank, but there are more options; see below) that will listen for
+connections and through this server we can control _Solo_ remotely
+from the outside.
 
 When you're working in a Java-shop you may be using JEE application
 servers (like JBoss, Wildfly, IBM Websphere) or other containers (like
@@ -351,7 +362,7 @@ Tomcat, Jetty, Spring Boot). Usually the applications that run in
 these containers will be Java applications with no Clojure
 included. These applications do not know about Clojure or _Solo_ and
 they probably have no built-in way of executing arbitrary
-code/classes. So in order to run _Solo_, we somehow have to gain
+code/classes. So in order to run/use _Solo_, we somehow have to gain
 control over an execution thread ... the host-application has to
 _jump-start_ _Solo_ (implicitly).
 
@@ -407,19 +418,19 @@ function!
 
 But it does not suffice to just deliver the classes for your
 jumpstart-namespace. You also have to deliver the JARs under
-`solo-project/lib/` so you can use them (except -- probably --
-log4j). At this point you have to understand how classloaders work and
+`solo-project/lib/` so you can use them (except -- probably -- log4j
+JAR). At this point you have to understand how classloaders work and
 how the mentioned frameworks organize the classloaders they use.
 
 In many cases your class will be loaded by a classloader that has no
 access (neither direct nor by delegation to other _co-laborating_
-classloaders) to the host-application's classes (incl. log4j). Often
-the jumpstart-class does not even _see_ the Clojure runtime-classes
-eventhough you supplied the libs. This usually leads to
-`ClassNotFoundException` and then `NoClassDefFoundException` when
-loading your jumpstart-namespace.
+classloaders) to the host-application's classes
+(incl. log4j). Sometimes the jumpstart-class does not even _see_ the
+Clojure runtime-classes eventhough you supplied the libs. This usually
+leads to `ClassNotFoundException` and then `NoClassDefFoundException`
+when loading your jumpstart-namespace.
 
-You find examples/solutions for this below.
+You find examples/solutions for some cases below.
 
 [1a] https://docs.jboss.org/cdi/spec/1.0/html/
 [1b] https://jaxenter.com/tutorial-introduction-to-cdi-contexts-and-dependency-injection-for-java-ee-jsr-299-104536.html  
@@ -429,7 +440,7 @@ You find examples/solutions for this below.
 [4] https://docs.spring.io/spring/docs/current/spring-framework-reference/core.html  
 [5] https://logging.apache.org/log4j/1.2/  
 [6] https://docs.oracle.com/javase/8/docs/api/java/util/ResourceBundle.html  
-[7] Spring Break  
+[7] https://github.com/henrik42/spring-break  
 
 ## solo.jumpstart.servlet_container_initializer
 
@@ -443,46 +454,27 @@ content:
 
     solo.jumpstart.servlet_container_initializer
 
-This makes the servlet-container load this class, create an instance
-and call `onStartup` method on this instance.
+This makes the servlet-container load this __named__ __class__ (see
+above), create an instance and call `onStartup` method on this
+instance.
+
+__The simplest thing that can possibly work__
 
 In `jumpstart/src/solo/jumpstart/servlet_container_initializer.clj`
 you find the source that we AOT-compile/`:gen-class` to get the class
 `solo.jumpstart.servlet_container_initializer`.
 
-This implementation will just load the namespace `solo.jumpstart` and
-call `(solo.jumpstart/jumpstart)`. So whatever we want to do to
-bootstrap our application, we can do it there. If we ever add more
-jump-start mechanisms we won't need to change
-`solo.jumpstart/jumpstart`. 
-
-__Note:__ depending on the mechanisms `solo.jumpstart/jumpstart` may
-be called more than once on start-up. So calling
-`solo.jumpstart/jumpstart` repeatedly must not cause any
-problems. Maybe we should use `defonce` or an `atom` to cope with this
-(TBD).
+This first version (not committed to git! So you have to change the
+source code to try this) does not seem to do _anything_ ;-)
 
     (ns solo.jumpstart.servlet_container_initializer
       (:gen-class
        :implements [javax.servlet.ServletContainerInitializer]))
     
-    (defn -onStartup [& args]
-      (println "solo.jumpstart.servlet_container_initializer/-onStartup")
-      ;; solo.jumpstart is a RUNTIME dependency -- not a COMPILE-TIME! So
-      ;; we won't let the compiler/build know what we are doing.
-      (try 
-        (require 'solo.jumpstart)
-        (eval (read-string "(solo.jumpstart/jumpstart)"))
-        (catch Throwable t
-          (println
-           (str "solo.jumpstart.servlet_container_initializer/-onStartup:"
-                "Load/run (solo.jumpstart/jumpstart) failed : "
-                t)))))
+    (defn -main [& _])
     
-    (defn -main [& args]
-      (-onStartup))
-  
-For compile & packaging you can use `scripts/make-jumpstart-jar.sh`:
+For compile & packaging you can use `scripts/make-jumpstart-jar.sh`
+(`compile` is just a function you can call -- any time, any where)
 
     #!/bin/bash -ex
     
@@ -493,33 +485,75 @@ For compile & packaging you can use `scripts/make-jumpstart-jar.sh`:
     jar -vcf jumpstart.jar -C classes/ solo
     jar -vuf jumpstart.jar -C jumpstart/resources/ META-INF
     
-The JAR `jumpstart.jar` should look like this:
+The JAR `jumpstart.jar` should look like this -- including
+`solo/jumpstart/servlet_container_initializer.class`!
 
     solo-project$ jar -vtf jumpstart.jar 
-        68 Fri May 25 06:09:10 UTC 2018 META-INF/MANIFEST.MF
-         0 Fri May 25 06:09:10 UTC 2018 solo/
-         0 Fri May 25 06:09:10 UTC 2018 solo/jumpstart/
-      1204 Fri May 25 06:09:10 UTC 2018 solo/jumpstart/servlet_container_initializer$_main.class
-      1646 Fri May 25 06:09:10 UTC 2018 solo/jumpstart/servlet_container_initializer$loading__5569__auto____3.class
-      2097 Fri May 25 06:09:10 UTC 2018 solo/jumpstart/servlet_container_initializer$_onStartup.class
-      2376 Fri May 25 06:09:10 UTC 2018 solo/jumpstart/servlet_container_initializer.class
-      2106 Fri May 25 06:09:10 UTC 2018 solo/jumpstart/servlet_container_initializer$fn__5.class
-      4193 Fri May 25 06:09:10 UTC 2018 solo/jumpstart/servlet_container_initializer__init.class
-         0 Thu May 24 19:56:04 UTC 2018 META-INF/services/
-        44 Thu May 24 19:56:04 UTC 2018 META-INF/services/javax.servlet.ServletContainerInitializer
-        
-And you can run this class:
+        68 Fri Jun 01 17:40:32 UTC 2018 META-INF/MANIFEST.MF
+         0 Fri Jun 01 17:40:32 UTC 2018 solo/
+         0 Fri Jun 01 17:40:32 UTC 2018 solo/jumpstart/
+       844 Fri Jun 01 17:40:32 UTC 2018 solo/jumpstart/servlet_container_initializer$_main.class
+      1646 Fri Jun 01 17:40:32 UTC 2018 solo/jumpstart/servlet_container_initializer$loading__5569__auto____3.class
+      2376 Fri Jun 01 17:40:32 UTC 2018 solo/jumpstart/servlet_container_initializer.class
+      1494 Fri Jun 01 17:40:32 UTC 2018 solo/jumpstart/servlet_container_initializer$fn__5.class
+      2722 Fri Jun 01 17:40:32 UTC 2018 solo/jumpstart/servlet_container_initializer__init.class
+         0 Mon May 28 06:12:32 UTC 2018 META-INF/services/
+        44 Mon May 28 06:12:32 UTC 2018 META-INF/services/javax.servlet.ServletContainerInitializer
+                
+For this very first test you can run this class via
+`solo.jumpstart.servlet_container_initializer/-main`. We'll use
+Clojure's built-in _Socket Server_ to talk to _Solo_ remotely. All we
+have to do is to define the system property
+`clojure.server.repl`. This will make Clojure start a server (when
+Clojure _bootstraps_) on port 5555 to which you can then connect via
+`nc` (_Netcat_ [2]).
 
     solo-project$ java \
-        -cp jumpstart.jar:lib/clojure-1.8.0.jar:lib/javax.servlet-api-3.1.0.jar \
-        solo.jumpstart.servlet_container_initializer
-    solo.jumpstart.servlet_container_initializer/-onStartup
-    solo.jumpstart.servlet_container_initializer/-onStartup:Load/run (solo.jumpstart/jumpstart) failed : java.io.FileNotFoundException: Could not locate solo/jumpstart__init.class or solo/jumpstart.clj on classpath.
+                  -Dclojure.server.repl="{:server-daemon false :port 5555 :accept clojure.core.server/repl}" \
+                  -cp src/clj/:jumpstart.jar:lib/\* \
+                  solo.jumpstart.servlet_container_initializer
+
+And in a second shell:
+
+    $ nc 127.0.0.1 5555 << EOF
+    (use 'solo.core)
+    (get-current-loggers)
+    EOF
+    
+Running this will give you:
+
+    $ nc 127.0.0.1 5555 << EOF
+    > (use 'solo.core)
+    > (get-current-loggers)
+    > EOF
+    user=> nil
+    user=> ({:logger-name "root", :log-level "DEBUG"})
+
+__Recap__
+
+We have (1) _Solo's_ core logic and (2) a (basically empty) named
+class that bootstraps Clojure and the socket server. This is enough to
+go into production. You clould _deploy_ this to a JEE application
+server and then use _Netcat_ remotely to control your log4j log-levels
+(... and a lot more ...).
+
+[1] https://docs.oracle.com/javaee/7/api/javax/servlet/ServletContainerInitializer.html  
+[2] https://en.wikipedia.org/wiki/Netcat
+
+## Into production, Jetty-Runner
+
+So this is it! All we need to do is to (1) deploy `jumpstart.jar` and
+`clojure-1.8.0.jar` to a web-container (2) tweak the web-application's
+classpath so that it contains `src/clj` (so it sees `solo.core`
+namespace) and to define the system property `clojure.server.repl`.
+
+Ofcourse we could built & package `solo.core` into a JAR also and then
+deply that instead of putting the source onto the classpath.
+
+We can then connect to _Solo_ with _Netcat_ and control log4j
+log-levels.
 
 Some things to note:
-
-* We haven't supplied `solo/jumpstart` yet. So the jump-start fails
-  (but the code works :-) )
 
 * We don't need `-main` for jump-starting _Solo_ via
   `ServletContainerInitializer` in production. It's just there so that
@@ -541,13 +575,74 @@ Some things to note:
   compiled version. So you can _over-write_ the compiled version in
   your production runtime if you need.
 
-For _production_ we want to use `jumpstart.jar` just for loading
-Clojure and delegation logic. The _real_ logic that we want to have
-jump-started -- i.e. `(solo.jumpstart/jumpstart)` -- should come from
-a source folder that we put into the classpath and have that loaded.
+Now let's use Jetty-Runner [1] for a first test involving a
+web-container. For this we need an host-application -- a web-app. I
+simply use `jetty-and-log4j-example` [2]. Checkout and then build with
+Maven:
 
-So let's try this: put your jump-start logic into
-`src/clj/solo/jumpstart.clj`:
+    jetty-log4j-test-webapp$ mvn clean install
+
+Now run (I've put `--lib lib/` in there so that Swank JAR is on the
+classpath too):
+
+    solo-project$ java \
+                  -Dclojure.server.repl="{:server-daemon false :port 5555 :accept clojure.core.server/repl}" \
+                  -jar lib/jetty-runner-9.4.9.v20180320.jar \
+                  --jar jumpstart.jar \
+                  --lib lib/ \
+                  --classes src/clj \
+                  jetty-log4j-test-webapp-1.0-SNAPSHOT.war
+
+Let's try what we've built so far:
+
+    from-zero-to-hero$ rlwrap nc 127.0.0.1 5555 << EOF
+    (use 'solo.core)
+    (use 'solo.swank)
+    (start-server)
+    (get-current-loggers)
+    EOF
+
+You could deploy these JARs to other containers (JBoss/Wildfly,
+Websphere). We'll see these use cases later on when we've re-worked
+the jump-start a little.
+
+[1] https://mvnrepository.com/artifact/org.eclipse.jetty/jetty-runner/9.4.10.v20180503  
+[2] https://github.com/jetty-project/jetty-and-log4j-example/tree/master/jetty-log4j-test-webapp  
+
+## solo.jumpstart/jumpstart
+
+In the end we want to use `jumpstart.jar` just for loading Clojure and
+delegation logic. The _real_ logic that we want to have jump-started
+will come from `(solo.jumpstart/jumpstart)`. This way we can implement
+more jump-start mechanisms and still only have one place where we code
+what should happen when the jump-start occurs. And starting the socket
+server is only one of many things that we can do.
+
+So `src/solo/jumpstart/servlet_container_initializer.clj` becomes a
+_loader_ for `solo.jumpstart/jumpstart`:
+
+    (ns solo.jumpstart.servlet_container_initializer
+      (:gen-class
+       :implements [javax.servlet.ServletContainerInitializer]))
+    
+    (defn -onStartup [& args]
+      (println "solo.jumpstart.servlet_container_initializer/-onStartup")
+      ;; solo.jumpstart is a RUNTIME dependency -- not a COMPILE-TIME! So
+      ;; we won't let the compiler/build know what we are doing.
+      (try 
+        (require 'solo.jumpstart)
+        (eval (read-string "(solo.jumpstart/jumpstart)"))
+        (catch Throwable t
+          (println
+           (str "solo.jumpstart.servlet_container_initializer/-onStartup:"
+                "Load/run (solo.jumpstart/jumpstart) failed : "
+                t)))))
+    
+    (defn -main [& args]
+      (-onStartup))
+    
+Now let's put your jump-start logic into
+`src/clj/solo/jumpstart.clj`. Here we just start Swank:
 
     (ns solo.jumpstart
       (:require [solo.swank :as swank]))
@@ -557,62 +652,95 @@ So let's try this: put your jump-start logic into
       (swank/start-server)
       (println "solo.jumpstart/jumpstart: done."))
         
-This time we put `src/clj/` and all the libs into the classpath:
 
-    solo-project$ java -cp src/clj/:jumpstart.jar:lib/\* solo.jumpstart.servlet_container_initializer
+First build `jumpstart.jar`: `solo-project$ ./scripts/make-jumpstart-jar.s`
 
-    solo.jumpstart.servlet_container_initializer/-onStartup
-    solo.jumpstart/jumpstart: starting up:
-    Starting Swank server on {:port 4005, :host "0.0.0.0"} ...
-    Connection opened on 0.0.0.0 port 4005.
-    Started Swank server on {:port 4005, :host "0.0.0.0"}.
-    solo.jumpstart/jumpstart: done.
+Again we can test with or with no container:
+
+    solo-project$ java \
+                  -Dclojure.server.repl="{:server-daemon false :port 5555 :accept clojure.core.server/repl}" \
+                  -jar lib/jetty-runner-9.4.9.v20180320.jar \
+                  --jar jumpstart.jar \
+                  --lib lib/ \
+                  --classes src/clj \
+                  jetty-log4j-test-webapp-1.0-SNAPSHOT.war
+
+You can now connect
+* via Swank/SLIME
+* via _Netcat_
+* and/or via a browser to `http://localhost:8080`.
+
+When you do this, try submitting the HTML form. You should see a log4j
+warning:
+
+    log4j:WARN No appenders could be found for logger (org.eclipse.jetty.examples.logging.EchoFormServlet).
+    log4j:WARN Please initialize the log4j system properly.
+    log4j:WARN See http://logging.apache.org/log4j/1.2/faq.html#noconfig for more info.
+
+Oops -- we haven't initialized log4j! Let's see ....
+
+    solo-project$ echo "(use 'solo.core) (get-current-loggers)" | nc 127.0.0.1 5555
+    ({:logger-name "root", :log-level "DEBUG"} {:logger-name "org.eclipse.jetty.examples.logging.EchoFormServlet", :log-level ""})
     
-Cool!
+OK. The logger is there but no one can log anything. Now let's try to
+initialize log4j properly:
 
-Now we have it: we use the generated _named classes_ just for loading
-a Clojure namespace and we supply the Clojure source code on the
-classpath (in a JAR and/or in a file-system folder).
+    solo-project$ java \
+                  -Dlog4j.debug=true -Dlog4j.configuration=file:log4j.properties \
+                  -Dclojure.server.repl="{:server-daemon false :port 5555 :accept clojure.core.server/repl}" \
+                  -jar lib/jetty-runner-9.4.9.v20180320.jar \
+                  --jar jumpstart.jar \
+                  --lib lib/ \
+                  --classes src/clj \
+                  jetty-log4j-test-webapp-1.0-SNAPSHOT.war
 
-[1] https://docs.oracle.com/javaee/7/api/javax/servlet/ServletContainerInitializer.html  
+This time when you submit the HTML form you should see something like:
 
-__Wildfly/JBoss__
+    log4j: Using URL [file:log4j.properties] for automatic log4j configuration.
+    log4j: Reading configuration from URL file:log4j.properties
+    log4j: Parsing for [root] with value=[INFO,con].
+    log4j: Level token is [INFO].
+    log4j: Category root set to INFO
+    log4j: Parsing appender named "con".
+    log4j: Parsing layout options for "con".
+    log4j: Setting property [conversionPattern] to [%d{yyyy-MM-dd HH:mm:ss} %-5p %c{1}:%L - %m%n].
+    log4j: End of parsing for "con".
+    log4j: Setting property [target] to [System.out].
+    log4j: Parsed "con" options.
+    log4j: Finished configuring.
+    2018-06-02 07:23:52 INFO  EchoFormServlet:28 - Got request from 127.0.0.1 using Lynx/2.8.8dev.9 libwww-FM/2.14 SSL-MM/1.4.1 GNUTLS/2.12.14
+    2018-06-02 07:23:52 INFO  EchoFormServlet:62 - [form] description = ""
+    2018-06-02 07:23:52 INFO  EchoFormServlet:62 - [form] title = ""
+    
+Now let's try to set the log-level:
 
-For JBoss and Wildfly (_domain_ _mode_) you can _deploy_ the JARs
-(incl. `jumpstart-jsf.jar`) to the _content_ _repository_ and _assign_
-them to the server group of your server (no need to package them into
-your Java host-application!).
+    solo-project$ echo '(set-log-level! "org.eclipse.jetty.examples.logging.EchoFormServlet" "OFF")' |\
+                  nc 127.0.0.1 5555
 
-There is one problem: the module classloader that loads
-`jumpstart-jsf.jar` does not _see_ the assigned (module)
-`clojure-1.8.0.jar`! So you won't be able to load
-`solo/jumpstart/jsf.class`. You could fix this by tweaking the
-module's dependencies.
+When you submit the HTML form again you should see no log-message for
+`EchoFormServlet`.
 
-Instead I usually just create a _global_ _module_ at
-`<jboss-root>/module/jumpstart-jsf/main/module.xml`:
+## Wildfly/JBoss
 
-__TODO__
+__TBD__
 
-So Clojure and the jumpstarter both are loaded by the same module
-classloader.
+## Websphere
 
-Now you have to configure the global module for your profile:
+__TBD__
 
-__TODO: Jump-start telnet server, only clojure jar needed__
+## Tomcat
 
-__TODO: start swank via telnet REPL, swankjar needed__
-
-__TODO: jump-start swank__
+__TBD__
 
 ------------------------------------------------------------------------
 # Step Five: nREPL
 ------------------------------------------------------------------------
 
-If you want to connect __remotely__ via a __REPL__ to a Clojure
-runtime you can use nREPL [1]. nREPL is a generic remote service
-(server and client) into a runnng Clojure runtime and is used for
-connecting REPLs, IDE integration and programmatic client calls.
+If you want to connect __remotely__ via a __REPL__ (not the simple
+socket server from above) to a Clojure runtime you can use nREPL
+[1]. nREPL is a generic remote service (server and client) into a
+runnng Clojure runtime and is used for connecting REPLs, IDE
+integration and programmatic client calls.
 
 Download [2] it to `solo-project/lib/tools.nrepl-0.2.13.jar`:
 
@@ -623,19 +751,19 @@ that the socket is opened on `0.0.0.0` -- see above!).
 
     solo-project$ rlwrap java -cp lib/\*:src/clj clojure.main -e "(use 'clojure.tools.nrepl.server) (start-server :port 7888)" -r
     #clojure.tools.nrepl.server.Server{:server-socket ... "ServerSocket[addr=/0:0:0:0:0:0:0:0,localport=7888]"] ...
-    user=> (use 'solo.core)                     
+    user=> (use 'solo.core)
     nil
 
 Now you can connect from another running Clojure JVM (note that we do
-not add `src/clj` to the classpath), connect to the nREPL server and
-remote-eval some code:
+not add `src/clj` to the classpath -- so we do not need _Solo's_ code
+to connect), connect to the nREPL server and remote-eval some code:
 
     solo-project$ rlwrap java -cp lib/\* clojure.main
     Clojure 1.8.0
     user=> (use 'clojure.tools.nrepl)
     nil
     user=> (with-open [conn (connect :port 7888)] (-> (client conn 1000) (message {:op :eval :code "(get-current-loggers)"}) response-values))
-    [()]
+    ;--> [({:logger-name "root", :log-level "DEBUG"})]
 
 Now set the log-level in the nREPL-server JVM:
 
@@ -647,7 +775,8 @@ And again in the nREPL-client JVM:
     user=> (with-open [conn (connect :port 7888)]
       (-> (client conn 1000) (message {:op :eval :code "(get-current-loggers)"})
       response-values))
-    [({:logger-name "foo", :log-level "INFO"})]
+      
+    [({:logger-name "root", :log-level "DEBUG"} {:logger-name "foo", :log-level "INFO"})]
 
 Since we will be using nREPL for _Solo_ from now on, we use a separate
 namespace `solo.nrepl` in `solo/nrepl.clj` to put the related code
@@ -662,41 +791,43 @@ ways to connect to an nREPL server:
 
 * __Leiningen__ [5]: a build tool (see next step)
 
-__Wildfly/JBoss__
-
-Now we want to jump-start the nREPL server (just as we started the
-Swank server in step four above) so we have remote access to the
-application.
-
-Here again we cannot load the nREPL namespace because the classloader
-does not see the JAR/classes. One solution would be to also put the
-`tools.nrepl-0.2.13.jar` into the __global__ __module__ instead of
-__assigning__ it.
-
-An alternative is to use the thread __context__ __classloader__ (CCL)
-that is active when `solo/jumpstart/jsf.class` is loaded to load
-nREPL. The CCL _sees_ all (assigned and global) modules and all
-application JARs/EJBs.
-
-__TODO: Geht das?__ Kann man damit nREPL laden und dann auch auf die
-Anwendungsklassen zugreifen. Man muss vorsichtig sein, weil eben
-clojure selbst über einen anderen classloader geladen wird als der
-ganze Rest.
-
-__TODO:__ Wie verhält es sich mit Swank? Werden dort auch alle Klassen gesehen.
-
-__Websphere__
-
-__TODO:__ https://stackoverflow.com/questions/158336/is-there-a-way-to-run-a-method-class-only-on-tomcat-wildfly-glassfish-startup
-
 [1] https://github.com/clojure/tools.nrepl  
 [2] http://central.maven.org/maven2/org/clojure/tools.nrepl/0.2.13/tools.nrepl-0.2.13.jar  
 [3] http://doc.ccw-ide.org/  
 [4] https://cider.readthedocs.io/en/latest/  
 [5] https://leiningen.org/  
 
+## Jump-start nREPL
+
+Now we want to jump-start the nREPL server (just as we started the
+Swank server in step four above) so we have remote access to the
+application.
+
+So let's change `src/clj/solo/jumpstart.clj` to:
+
+    (ns solo.jumpstart
+      (:require [solo.nrepl :as nrepl]
+                [solo.core]))
+    
+    (defn jumpstart []
+      (println "solo.jumpstart/jumpstart: starting up:")
+      (nrepl/start-server)
+      (println "solo.jumpstart/jumpstart: done."))
+
+## Wildfly/JBoss
+
+__TBD__
+
+## Websphere
+
+__TBD__
+
+## Tomcat
+
+__TBD__
+
 ------------------------------------------------------------------------
-# Step Six: Leiningen, Codox
+# Step Six: Leiningen, Codox, Marginalia
 ------------------------------------------------------------------------
 
 Up to now we have been downloading JARs from Maven Central and Clojars
@@ -708,9 +839,7 @@ resolution. We want to use it to setup a project (_scafolding_), to
 build, run and test the code. Finally we use it to package, release
 and deploy our application.
 
-First you have to install Leiningen.
-
-__TODO:__ Show install
+First you have to install Leiningen (see [1]).
 
 Now we use `lein new` to setup a project. We execute this __in__
 directory `solo-project/` (use branch `step-five` to see these
@@ -755,13 +884,14 @@ And we fix our first tests in `solo-project/test/solo/core_test.clj`:
     
     (deftest a-test
       (testing "Testing solo.core"
-        (is (= [] (get-current-loggers)))
-        (is (= [{:logger-name "foo"
-                 :log-level "INFO"}]
+        (is (= [{:logger-name "root", :log-level "DEBUG"}]
+               (get-current-loggers)))
+        (is (= [{:logger-name "root", :log-level "DEBUG"}
+                {:logger-name "foo", :log-level "INFO"}]
                (do ;; mutator!
                  (set-log-level! "foo" "INFO")
                  (get-current-loggers))))))
-        
+            
 And test:
 
     solo-project$ lein test
@@ -772,8 +902,9 @@ And test:
 
 __Dependencies__
 
-Instead of supplying the JARs ourselves we can use Leiningen to do
-that for us. Change `solo-project/project.clj` to:
+Instead of supplying the JARs ourselves via `:resource-paths` we can
+use Leiningen to do that for us via `:dependencies`. Change
+`solo-project/project.clj` to:
 
     (defproject solo "0.1.0-SNAPSHOT"
       :source-paths ["src/clj"]
@@ -784,9 +915,9 @@ And run the tests again:
 
     lein test
 
-This will __download__ the JARs to `~/.m2/repo/` (your default local
-_Maven_ _Repository_ -- eventhough we're not using Maven!) so you'll
-need an internet connection for this to work.
+Leiningen will __download__ the JARs to `~/.m2/repo/` (your default
+local _Maven_ _Repository_ -- eventhough we're not using Maven!) so
+you'll need an internet connection for this to work.
 
 __Using Leiningen__
 
@@ -815,7 +946,7 @@ for us.
         user=> (set-log-level! "foo" "INFO")
         nil
         user=> (get-current-loggers)
-        ({:logger-name "foo", :log-level "INFO"})
+        ({:logger-name "root", :log-level "DEBUG"} {:logger-name "foo", :log-level "INFO"})
         
 * __rlwrap/nREPL client__: since Leiningen has nREPL server &
   __client__ built-in, you can use `repl :connect` to start a REPL
@@ -838,6 +969,8 @@ for us.
         
         user=> (.println System/out "foo")
         nil
+        user=> (get-current-loggers)
+        ({:logger-name "root", :log-level "DEBUG"} {:logger-name "foo", :log-level "INFO"})
 
 * __Swank plugin__: `lein-swank` [2] is a (deprecated) Leiningen
   plugin (for development) that you can put into `project.clj`:
@@ -845,10 +978,9 @@ for us.
         (defproject solo "0.1.0-SNAPSHOT"
           :source-paths ["src/clj"]
           :dependencies [[org.clojure/clojure "1.8.0"]
-                         [swank-clojure/swank-clojure "1.4.3"]
                          [log4j/log4j "1.2.17"]]
           :plugins [[lein-swank "1.4.5"] ])
-
+        
   Now you can run the `swank` task:
 
         solo-project$ lein swank 4005 0.0.0.0
@@ -856,8 +988,17 @@ for us.
         Connection opened on 0.0.0.0 port 4005.
 
 * __solo.swank__: Since we want to "use Swank in production" (as part
-  of our application without Leiningen and the Swank plugin), we use
-  the `run` task to execute `-main` function in
+  of our application without Leiningen and the Swank plugin), we add
+  `[swank-clojure/swank-clojure "1.4.3"]` to the `:dependencies`:
+
+        (defproject solo "0.1.0-SNAPSHOT"
+          :source-paths ["src/clj"]
+          :dependencies [[org.clojure/clojure "1.8.0"]
+                         [log4j/log4j "1.2.17"]
+                         [swank-clojure/swank-clojure "1.4.3"]]
+          :plugins [[lein-swank "1.4.5"] ])
+        
+  Now we use the `run` task to execute `-main` function in
   `solo-project/src/clj/solo/swank.clj` which start the swank server
   -- like this:
 
@@ -865,59 +1006,107 @@ for us.
 
 * __solo.nrepl__: And the same thing for nREPL server:
 
-        solo-project$ lein run -m solo.nrepl/start-server 
-        Starting nREPL server on port 7888 ...
-        Started nREPL server on port 7888 : {:class clojure.tools.nrepl.server.Server, :empty false}
-
-__TODO__ fix server-tostring
+        solo-project$ lein run -m solo.nrepl
+        Starting nREPL server on {:port 7888, :host "0.0.0.0"} ...
+        Started nREPL server on {:port 7888, :host "0.0.0.0"}.
 
 __Leiningen Build__
 
-You can use Leiningen to build the `jumpstart-jsf.jar` (instead of
-`solo-project/scripts/make-jumpstart-jsf.sh`). Add the `:aliases` and
-`:profiles` entries to `project.clj`:
+I'll encapsulate the builds (`make-jumpstart` and `make-doc`) of
+several target artifacts in `:alias` and `:profile` entries. The
+`project.clj` now looks something like this:
 
     (defproject solo "0.1.0-SNAPSHOT"
+      
       :source-paths ["src/clj"]
+      :resource-paths ["resources"]
+      :target-path "target/%s/"
+    
       :dependencies [[org.clojure/clojure "1.8.0"]
                      [swank-clojure/swank-clojure "1.4.3"]
-                     [log4j/log4j "1.2.17"]]
-      :plugins [ [lein-swank "1.4.5"] ]
-      :aliases {"make-jumpstart-jsf" ["with-profile" "jumpstart-jsf" "do" ["clean"] "jar"]}
-      :profiles {:jumpstart-jsf {:resource-paths ^:replace ["jumpstart/resources"]
-                                 :aot :all
-                                 :main solo.jumpstart.jsf
-                                 :source-paths ^:replace ["jumpstart/src"]}})
+                     [org.clojure/tools.nrepl "0.2.12"]
+                     [log4j/log4j "1.2.17"]
+                     [javax.servlet/javax.servlet-api "3.1.0"]]
+      
+      :plugins [[lein-swank "1.4.5"]
+                [lein-codox "0.10.3"]
+                [lein-marginalia "0.9.1"]]
+      
+      :aliases {"make-jumpstart" ["with-profile" "+make-jumpstart" "do" ["clean"] "jar"]
     
-And build `solo-project/target/solo-0.1.0-SNAPSHOT.jar`:
+                "make-doc" ["with-profile" "+make-doc" "do"
+                            ["clean"]
+                            ["codox"]
+                            ["marg"
+                             "-d" "resources/public/generated-doc/"
+                             "-f" "solo-source.html"
+                             "src/clj"
+                             "jumpstart/src"]]}
+      
+      :codox {:metadata {:doc/format :markdown}
+              :doc-files ["doc/intro.md", "README.md"]
+              :output-path "resources/public/generated-doc/"}
+      
+      :profiles {:make-jumpstart {:resource-paths ^:replace ["jumpstart/resources"]
+                                  :aot [solo.jumpstart.servlet_container_initializer]
+                                  :source-paths ^:replace ["jumpstart/src"]}
+                 
+                 :make-doc {:source-paths ["jumpstart/src"]
+                            :clean-targets ^{:protect false} ["resources/public/generated-doc"]}})
+    
+__Building jumpstart.jar__
 
-    solo-project$ lein make-jumpstart-jsf
+You can use Leiningen to build the `jumpstart.jar` (instead of
+`solo-project/scripts/make-jumpstart-jar.sh`).
 
-__Building Documenation from Clojure Sources__
+And build:
 
-We use Codox [3] to generate HTML documenation from Clojure code and
-`solo-project/doc/intro.md`.
+    solo-project$ lein make-jumpstart && \
+                  cp target/make-jumpstart/solo-0.1.0-SNAPSHOT.jar ./jumpstart.jar
 
-In `project.clj` we add:
+__Building Documenation from Clojure Sources and Markdown__
 
-    :plugins [,,,[lein-codox "0.10.3"]]
+We use Codox [3] to generate API documenation (HTML) from Clojure
+source code, `solo-project/doc/intro.md` and
+`solo-project/README.md`.
 
-    :aliases {,,,
-        "make-doc" ["with-profile" "make-doc" "do" ["clean"] ["codox"] ]
+We use Marginalia [4] to convert Clojure source into one big HTML with
+a two-column layout with comments/doc-strings and Clojure code.
 
-    :codox {:metadata {:doc/format :markdown}
-            :output-path "resources/public/generated-doc/"}
-
-In this case we use Codox to generate the documenation into
+In this case we generate the documenation into
 `resources/public/generated-doc/`. So this is at "development time" --
 __not__ __compile-time__. At compile-time we include the generated
 documentation as _static_ _content_ and package it into the JAR or
 WAR. Later we will deliver the HTML files to end users via _Solo's_
 web GUI.
 
+So after running `lein make-doc` you will usually commit the generated
+files into your git repo.
+
+__Building solo-module.jar__
+
+Now we have to build the JAR, that contains _Solo's_ core logic and
+all the classes that are needed to run _Solo's_ backend. This is not a
+web-application. Its just the backend that we will talk to via nREPL
+client.
+
+    solo-project$ lein make-module-jar && \
+                  cp target/uberjar/solo-0.1.0-SNAPSHOT-standalone.jar ./solo-module.jar
+
+This build/`project.clj` is a little trickier (not shown here) than
+the ones above. We have to make sure, that we __exclude__ log4j and
+the servlet API from `solo-module.jar`. Rather than __excluding__ JARs
+when build this target, I rather __include__ __explicitly__ only the
+ones that I really need.
+
+Again you may deploy `solo-module.jar` and `jumpstart.jar` to an
+application server (see above) and use `lein repl :connect` to talk to
+_Solo_.
+
 [1] https://leiningen.org/  
 [2] https://github.com/technomancy/swank-clojure  
-[3] Codox  
+[3] https://github.com/weavejester/codox  
+[4] https://github.com/gdeer81/marginalia  
 
 ------------------------------------------------------------------------
 # Step Seven: Jetty, http-kit, Ring, Compojure, Hiccup, solo.web
@@ -1372,7 +1561,6 @@ server so that we can deploy to more than one server on the same host
 at the same time.
 
 [1] VFS  
-[2] Jetty-Runner  
 
 ## Module Deployment and nREPL Access
 
