@@ -72,7 +72,8 @@
           :doc-files ["doc/intro.md", "README.md"]
           :output-path "resources/public/generated-doc/"}
   
-  :profiles {:dev {:dependencies [[log4j/log4j "1.2.17"]
+  :profiles {:repl {:main solo.jetty }
+             :dev {:dependencies [[log4j/log4j "1.2.17"]
                                   [ring/ring-core "1.6.3"]
                                   [ring/ring-jetty-adapter "1.6.3"]
                                   [compojure "1.6.0"]
@@ -96,7 +97,8 @@
              
              :make-web-jar {:main solo.main
                             :aot [solo.main]
-                            :dependencies [[log4j/log4j "1.2.17"]]}
+                            :dependencies [[ring/ring-jetty-adapter "1.6.3"]
+                                           [log4j/log4j "1.2.17"]]}
 
              :make-web-war {:ring {:handler solo.webapp/app
                                    :init    solo.webapp/init
