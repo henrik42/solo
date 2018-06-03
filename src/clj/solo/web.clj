@@ -138,8 +138,8 @@
   the user to enter a logger-name and select a log-level.
 
   `filter-reg-ex` and `hide` are put into hidden fields so that they
-  are submitted with the form and can be picked up with the `POST
-  /set-log-level` request."
+  are submitted with the form and can be picked up with the `POST /set-log-level`
+  request."
 
   [{:keys [filter-reg-ex hide]}]
   (hf/form-to

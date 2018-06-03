@@ -3208,8 +3208,8 @@ form-params (e.g. filter and hide settings).</li>
   the user to enter a logger-name and select a log-level.</p>
 
 <p>  <code>filter-reg-ex</code> and <code>hide</code> are put into hidden fields so that they
-  are submitted with the form and can be picked up with the `POST
-  /set-log-level` request.</p>
+  are submitted with the form and can be picked up with the <code>POST /set-log-level</code>
+  request.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn set-log-level-form
   [{:keys [filter-reg-ex hide]}]
   (hf/form-to
