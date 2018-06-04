@@ -541,8 +541,8 @@ So this is it! All we need to do is to (1) deploy `jumpstart.jar` and
 classpath so that it contains `src/clj` (so it sees `solo.core`
 namespace) and to define the system property `clojure.server.repl`.
 
-Of course we could built & package `solo.core` into a JAR also and
-then deply that instead of putting the source onto the classpath.
+Of course we could build & package `solo.core` into a JAR also and
+then deploy that instead of putting the source onto the classpath.
 
 We can then connect to _Solo_ with _Netcat_ and control log4j
 log-levels.
@@ -663,7 +663,7 @@ You can now connect
 
 * via Swank/SLIME
 * via _Netcat_
-* and/or via a browser to `http://localhost:8080`.
+* and/or via a browser to `http://localhost:8080`
 
 When you do this, try submitting the HTML form. You should see a log4j
 warning:
