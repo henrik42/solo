@@ -108,7 +108,7 @@
         ;; In JBoss `getCurrentLoggers` includes the root
         ;; logger. That's a bug! We filter it out and add it
         ;; explicitly.
-        (filter #(instance? RootLogger %)
+        (remove #(instance? RootLogger %)
                 (-> (Logger/getRootLogger)
                     .getLoggerRepository
                     .getCurrentLoggers
