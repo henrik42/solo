@@ -296,7 +296,7 @@ user=&gt; ({:logger-name "root", :log-level "DEBUG"})
 <p>[1] <a href="https://docs.oracle.com/javaee/7/api/javax/servlet/ServletContainerInitializer.html">https://docs.oracle.com/javaee/7/api/javax/servlet/ServletContainerInitializer.html</a><br />[2] <a href="https://en.wikipedia.org/wiki/Netcat">https://en.wikipedia.org/wiki/Netcat</a></p>
 <h2><a href="#jetty-runner" name="jetty-runner"></a>Jetty-Runner</h2>
 <p>So this is it! All we need to do is to (1) deploy <code>jumpstart.jar</code> and <code>clojure-1.8.0.jar</code> to a web-container (2) tweak the web-application’s classpath so that it contains <code>src/clj</code> (so it sees <code>solo.core</code> namespace) and to define the system property <code>clojure.server.repl</code>.</p>
-<p>Of course we could built &amp; package <code>solo.core</code> into a JAR also and then deply that instead of putting the source onto the classpath.</p>
+<p>Of course we could build &amp; package <code>solo.core</code> into a JAR also and then deploy that instead of putting the source onto the classpath.</p>
 <p>We can then connect to <em>Solo</em> with <em>Netcat</em> and control log4j log-levels.</p>
 <p>Some things to note:</p>
 <ul>
@@ -376,7 +376,7 @@ EOF
 <ul>
   <li>via Swank/SLIME</li>
   <li>via <em>Netcat</em></li>
-  <li>and/or via a browser to <code>http://localhost:8080</code>.</li>
+  <li>and/or via a browser to <code>http://localhost:8080</code></li>
 </ul>
 <p>When you do this, try submitting the HTML form. You should see a log4j warning:</p>
 <pre><code>log4j:WARN No appenders could be found for logger (org.eclipse.jetty.examples.logging.EchoFormServlet).
