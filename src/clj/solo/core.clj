@@ -105,8 +105,12 @@
   []
   (map logger->map
        (conj
-        (-> (Logger/getRootLogger)
-            .getLoggerRepository
-            .getCurrentLoggers
-            enumeration-seq)
+        ;; In JBoss `getCurrentLoggers` includes the root
+        ;; logger. That's a bug! We filter it out and add it
+        ;; explicitly.
+        (filter #(instance? RootLogger %)
+                (-> (Logger/getRootLogger)
+                    .getLoggerRepository
+                    .getCurrentLoggers
+                    enumeration-seq))
         (Logger/getRootLogger))))

@@ -229,7 +229,12 @@
       (response/redirect (make-redirect-url req))))
   (POST "/update-loggers" req
     (doseq [[logger level] (:params req)]
-      (let [logger-name (name logger)]
+      (let [logger-name (name logger)
+            ;; edge-case: when there is more than one logger with the
+            ;; same name (like `root`), we'll receive a vector of
+            ;; levels instead of just a single string. So in this case
+            ;; we just take the first.
+            level (if (string? level) level (first level))]
         (if (set-log-level? logger-name level)
           (core/set-log-level! logger-name level))))
     (response/redirect (make-redirect-url req)))
