@@ -2,11 +2,11 @@
   "Functions around Jetty."
   
   (require [ring.adapter.jetty :as jetty]
-           [solo.web :as web]))
+           [solo.web.spa :as spa]))
 
 (defn start-server
   "Starts a Jetty server on given port/host serving
-  `solo.web/app`. Returns the server which can be shut down via
+  `solo.web.spa/app`. Returns the server which can be shut down via
   `(.close <server>)`. Throws exception if the server cannot be
   started.
 
@@ -20,7 +20,7 @@
         _ (.println System/out (str "Starting Jetty server on " params " ..."))
         server (try 
                  (jetty/run-jetty
-                  #'web/app
+                  #'spa/app
                   {:port port
                    :host host
                    :join? false})

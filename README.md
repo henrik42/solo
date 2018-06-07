@@ -968,9 +968,9 @@ for us.
 * __rlwrap/nREPL client__: since Leiningen has nREPL server &
   __client__ built-in, you can use `repl :connect` to start a REPL
   that is connected remotely to the nREPL server port 7888 from above
-  (so you're running two Leiningen JVMs for this). Note that you don't
-  even need the git workspace (i.e. `project.clj`) for this -- you
-  just need Leiningen.
+  (so you're running two Leiningen JVMs at the same time for
+  this). Note that you don't even need the git workspace
+  (i.e. `project.clj`) for this -- you just need Leiningen.
 
         $ rlwrap lein repl :connect 7888
         Connecting to nREPL at 127.0.0.1:7888
@@ -1079,7 +1079,7 @@ You can use Leiningen to build the `jumpstart.jar` (instead of
 And build:
 
     solo-project$ lein make-jumpstart && \
-                  cp target/make-jumpstart/solo-0.1.0-SNAPSHOT.jar ./jumpstart.jar
+                  cp target/provided+make-jumpstart/solo-0.1.0-SNAPSHOT.jar ./jumpstart.jar
 
 __Building Documentation from Clojure Sources and Markdown__
 
@@ -1427,49 +1427,62 @@ So I've added a few things to `web.clj`:
 
 * enter new loggers (in a separate `form` element). 
 
-        (defn set-log-level-form [filter-reg-ex]
+        (defn set-log-level-form [{:keys [filter-reg-ex hide]}]
           (hf/form-to
            {:id "new-logger"}
            [:post "/set-log-level"]
            (hf/hidden-field " FILTER" filter-reg-ex)
+           (hf/hidden-field " HIDE" (str hide))
            (hf/label :logger "LOGGER:")
            (hf/text-field {:placeholder "Logger Name"} :logger)
-           (hf/label :level "LEVEL:")
+           [:span {:style "padding:1em;"}]
+           (hf/label :level " LEVEL:")
            (hf/drop-down :level log-levels "INFO")
+           [:span {:style "padding:1em;"}]
            (hf/submit-button "SET LOG-LEVEL")))
                 
 * filter and sort loggers: the filter is a reg-ex which is used to
-  `re-find`-filter the loggers by their names In addition you can
+  `re-find`-filter the loggers by their names. In addition you can
   select to _hide_ loggers that have log-level `"NOT-SET!"`:
 
-        (defn get-current-loggers [filter-reg-ex]
-          (map
-           (fn [{:keys [logger-name log-level] :as logger}]
-             (cond
-               (= "" log-level) (assoc logger :log-level "NOT-SET!")
-               (not (log-levels log-level)) (assoc logger :log-level "UNKNOWN!")
-               :else logger))
-           (sort-by :logger-name
-                    (filter
-                     #(re-find filter-reg-ex (:logger-name %))
-                     (core/get-current-loggers)))))
-        
+        (defn get-current-loggers [{:keys [filter-reg-ex hide]}]
+          (->> (core/get-current-loggers)
+               (map
+                (fn [{:keys [logger-name log-level] :as logger}]
+                  (cond
+                    (= "" log-level) (assoc logger :log-level "NOT-SET!")
+                    (not (log-levels log-level)) (assoc logger :log-level "UNKNOWN!")
+                    :else logger)))
+               (filter 
+                #(and (re-find filter-reg-ex (:logger-name %))
+                      (if hide
+                        (not= "NOT-SET!" (:log-level %))
+                        true)))
+               (sort-by :logger-name)))
+                
   The filter can be entered via a textfield which is part of the
   `loggers-form` for entering the log-levels:
 
-        (defn loggers-form [loggers filter-reg-ex]
+        (defn loggers-form [loggers {:keys [filter-reg-ex hide]}]
           (hf/form-to
            [:post "/update-loggers"]
            [:table#loggers
             [:tr
-             [:th "LOGGER" (hf/text-field {:placeholder "Filter Reg-Ex"} " FILTER" filter-reg-ex)]
-             [:th "LEVEL"]]
+             [:th "LOGGER"
+              (hf/text-field
+               {:placeholder "Filter Reg-Ex"
+                :style "float: right;"}
+               " FILTER" filter-reg-ex)]
+             [:th "LEVEL"
+              [:span {:style "float: right;"} 
+               (hf/label :hide " Hide NOT-SET!:")
+               (hf/check-box " HIDE" hide)]]]
             (for [{:keys [logger-name log-level]} loggers]
               [:tr
                [:td logger-name]
                [:td (hf/drop-down logger-name log-levels log-level)]])]
-           (hf/submit-button "GO")))
-          
+           (hf/submit-button "SET LOG-LEVELS")))
+                  
 * __TODO__: paging
 
 * __TODO__: submit only changed entries
@@ -1558,11 +1571,11 @@ __Note:__
 
   This usually means that the host-application must be a JEE
   application (EAR) containing one ore more web-applications
-  (WAR). The log4j-JAR should be included in EAR-`/lib`. _Solo_ is
+  (WAR). The log4j JAR should be included in EAR-`/lib`. _Solo_ is
   then deployed into the same server and will thus see the same log4j
   classes.
 
-  If the log4j-JAR is contained in one of the WARs within the JEE app,
+  If the log4j JAR is contained in one of the WARs within the JEE app,
   you won't be able to set the log-levels for that web-app. In this
   case you have to use the _module deployment_ (see below).
 
@@ -1648,12 +1661,231 @@ jetty-and-log4j-example app which uses log4j.
 # Step Eight: clojurescript
 ------------------------------------------------------------------------
 
-__TODO:__ introduce clojurescript, compiler, use clojurescript for
-accessing backend (GET-reads, POST-writes). Hiccup in clojurescript?
+For client side logic I use ClojureScript/CLJS [1]. CLJS is a
+compiled/transpiled language which is very similar to Clojure. CLJS is
+compiled to JavaScript/JS, the compiler is written in Clojure.
 
-* solo.rest:
+Until now `solo.web` uses no client-side scripting. All client
+interaction with the backend is based on HTML-`form`
+_POST-backs_. While we're introducing client-side scripting we'll
+re-structure the logic a little:
 
-* solo.client.rest
+* We publish web-services (`/ws/get-current-loggers` and
+  `/ws/set-log-level`) on the server-side: these will use JSON
+  (**TODO:** what about EDN?) as message format. That makes it easy to
+  use these web-services from the browser/CLJS.
+
+* We consume (i.e. _use_) these web-services on the client-side: we'll
+  use CLJS to (1) retrieve the loggers via `/ws/get-current-loggers`,
+  (2) do the filtering/hiding/sorting and to render the data to the
+  DOM. For mutation we'll call `/ws/set-log-level`.
+
+So we move most of the MVC-logic away from the server and put it into
+the client. Not only will the client do the rendering (which it has
+done before already) but also do _smart_ things like __create__ the
+markup/DOM and do filtering etc. The backend is just a thin
+(technical) proxy for the bare _core_ _logic_ (`solo.core`).
+
+[1] ClojureScript
+
+## solo.spa, solo.web.spa
+
+Before we look into the CLJS sources let's have a look at the build.
+
+__Build__
+
+We put the CLJS sources into `src/cljs/solo/spa.cljs`. You can compile
+these sources with:
+
+    solo-project$ lein make-spa
+
+This will run the CLJS compiler which produces JavaScript code into
+`resources/public/js/compiled/`. You should see something like this:
+
+    Compiling ClojureScript...
+    Compiling ["resources/public/js/compiled/solo-spa.js"] from ["src/cljs"]...
+    Successfully compiled ["resources/public/js/compiled/solo-spa.js"] in 1.84 seconds.
+
+The compile/build is configured with some `project.clj`
+entries. `:cljsbuild` defines the build(s).
+
+      :aliases {,,, "make-spa" ["with-profile" "+spa" "trampoline" "cljsbuild" "once"]}
+
+      :profiles {,,,
+                 :spa {:plugins [[lein-cljsbuild "1.1.7" :exclusions [[org.clojure/clojure] ]]]
+                       
+                       :clean-targets ^{:protect false} ["resources/public/js/compiled"
+                                                         :target-path]
+    
+                       :dependencies [[org.clojure/clojurescript "1.10.238"]
+                                      [prismatic/dommy "1.1.0"]]}}
+                                      
+      :cljsbuild {:builds
+                  [{:id "dev"
+                    :source-paths ["src/cljs"]
+    
+                    :compiler {:main solo.spa
+                               :asset-path "js/compiled/out"
+                               :output-to "resources/public/js/compiled/solo-spa.js"
+                               :output-dir "resources/public/js/compiled/out"
+                               :source-map-timestamp true}}]}
+
+The _main_ entry point is
+`resources/public/js/compiled/solo-spa.js`. It should look like this:
+
+    var CLOSURE_UNCOMPILED_DEFINES = {};
+    var CLOSURE_NO_DEPS = true;
+    if(typeof goog == "undefined")
+      document.write('<script src="js/compiled/out/goog/base.js"></script>');
+    document.write('<script src="js/compiled/out/goog/deps.js"></script>');
+    document.write('<script src="js/compiled/out/cljs_deps.js"></script>');
+    document.write('<script>if (typeof goog == "undefined")
+      console.warn("ClojureScript could not load :main, did you forget to specify :asset-path?");</script>');
+    document.write('<script>goog.require("process.env");</script>');
+    document.write('<script>goog.require("solo.spa");</script>');
+
+It's a _loader_ script that will pull in all libraries that CLJS
+depends on and in the end it will _load_ (i.e. `require`) namespace
+`solo.spa`.
+
+Note that it uses `document.write` (so it really _writes_ _into_ the
+hosting HTML page while it is loading) to make the browser load the
+JavaScript sources. It does __not__ some API to dynamically load JS
+sources. This makes it difficult to load these JavaScript sources
+after the hosting HTML page has been loaded initially.
+
+__Hosting HTML Page__
+
+We want to run `solo.spa` in the browser. In order to load the
+compiled JS into the browser we need a _hosting_ HTML page that
+contains a `<script>` element that references the JS file
+`resources/public/js/compiled/solo-spa.js`.
+
+You could use a static `index.html` file and load that via `file://`
+URL. Instead we will create the HTML page __dynamically__ via _Solo's_
+server side. In `src/clj/solo/web/spa.clj` you find the web-app that
+we'll use for the SPA. It delivers
+
+* the hosting HTML page at `/spa`: look into `solo.web.spa/the-page`
+
+        [:script {:src "out/solo-spa.js" :type "text/javascript"}]
+
+* the compiled JS files at `/out`
+
+        (route/resources "/out" {:root "public/js/compiled"})
+
+* the web-services at `/ws`
+
+All other requests will be delegated to `solo.web/app`. So that you
+can still use _Solo's_ CSS files in your SPA and you can even _switch_
+to the plain HTML version of _Solo_.
+
+All this routing is condensed into this (have I mentioned that Clojure
+source is so _dense_ that it first hurts when you come from other
+programming languages like -- say -- Java?!)
+
+    (defroutes main-routes
+      (GET "/spa" _ (the-page))
+      (route/resources "/out" {:root "public/js/compiled"})
+      web/app)
+
+__Running Solo SPA__
+
+You can run the SPA just the way you ran _Solo_ before. I changed
+`src/clj/solo/jetty.clj` so that Jetty now serves the new web-app
+`solo.web.spa/app`.
+
+    solo-project$ lein run-web-jar -j 3000
+
+__Development__
+
+While using _Solo_ SPA you can change the Clojure backend and the CLJS
+front-end anytime.
+
+You just need to run the CLJS compiler (__incremental__ __build__!)
+whenever the CLJS sources change and you need nREPL or Swank to talk
+to the backend. Like this:
+
+    solo-project$ lein make-spa-auto
+
+This runs this alias:
+
+    "make-spa-auto" ["with-profile" "+spa" "trampoline" "cljsbuild" "auto"]
+
+And then run _Solo_:
+
+    solo-project$ lein run-web-jar -j 3000 -s 4005
+
+Now you have two running JVMs.
+
+When you change the CLJS source you have to _reload_ the page in the
+browser after the CLJS compiler has written the updated file. The
+reload will not (__yet__!) be done for you.
+
+__Browser REPL__
+
+There is one piece missing: we'd like to have a REPL in the browser
+(just the way we have a REPL in Clojure/JVM) so that we can interact
+directly with the JavaScript/CLJS environment and the DOM.
+
+There are REPLs that run completly in the browser. Here we will use a
+REPL that reads its input through a Clojure/JVM prompt, compiles the
+code on-the-fly and then hands over the compiled CLJS to the browser
+and executes it there.
+
+Since we cannot connect to a server-socket in the browser we make the
+browser repeatedly __pull__ the compiled CLJS from the Clojure/JVM --
+_long_ _polling_.
+
+You run this _long_ _polling_ like this in your CLJS. When this
+namespace is loaded it will start a browser REPL and connect to the
+given URL and _long_ _poll_ that URL:
+
+    (:require [clojure.browser.repl :as repl])
+    (defonce conn (repl/connect "http://localhost:9000/repl"))
+
+Then you need to start the server-side of the browser REPL:
+
+    solo-project$ lein run-brepl
+
+This runs this:
+
+    "run-brepl" ["with-profile" "+spa" "trampoline" "cljsbuild" "repl-listen"]
+
+The CLJS plugin will try to open a browser window. You can close
+that. Then go to http://localhost:3000/spa
+
+Open the development tools in our browser and go to the "networking"
+section. You should see many `GET` requests like this
+
+    http://localhost:3000/spa
+    http://localhost:3000/css/solo.css
+    http://localhost:3000/out/solo-spa.js
+    http://localhost:3000/js/compiled/out/goog/base.js
+    [...]
+    http://localhost:3000/js/compiled/out/solo/spa.js
+    http://localhost:9000/repl?xpc=[...]
+    http://localhost:9000/
+
+After `http://localhost:9000/` you should see the prompt in the
+browser REPL JVM:
+
+    solo-project$ lein run-brepl
+    Running ClojureScript REPL, listening on port 9000.
+    ClojureScript 1.10.238
+    cljs.user=>
+
+Now do this. You should see a pop-up in your browser:
+
+    cljs.user=> (js/alert "don't panic!")
+    nil
+    cljs.user=> 
+
+You have a REPL in your browser.
+
+## solo.rest, solo.client.rest
+
+## solo.client
 
 ------------------------------------------------------------------------
 # Step Nine: bREPL

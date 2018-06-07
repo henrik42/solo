@@ -62,7 +62,15 @@
             ;; server-headless just starts Jetty and uses solo.web/app
             ;; as the handler. solo.main/-main does a lot more. Usage:
             ;; lein run-web-jar -j 3000
-            "run-web-jar" ["with-profile" "+make-web-jar" "trampoline" "run"]}
+            "run-web-jar" ["with-profile" "+make-web-jar" "trampoline" "run"]
+
+            "make-spa" ["with-profile" "+spa" "trampoline" "cljsbuild" "once"]
+            
+            "make-spa-auto" ["with-profile" "+spa" "trampoline" "cljsbuild" "auto"]
+
+            "run-brepl" ["with-profile" "+spa" "trampoline" "cljsbuild" "repl-listen"]
+
+            }
   
   :ring {:handler solo.web/app
          :nrepl {:start? true
@@ -71,8 +79,19 @@
   :codox {:metadata {:doc/format :markdown}
           :doc-files ["doc/intro.md", "README.md"]
           :output-path "resources/public/generated-doc/"}
-  
+
+  :cljsbuild {:builds
+              [{:id "dev"
+                :source-paths ["src/cljs"]
+
+                :compiler {:main solo.spa
+                           :asset-path "js/compiled/out"
+                           :output-to "resources/public/js/compiled/solo-spa.js"
+                           :output-dir "resources/public/js/compiled/out"
+                           :source-map-timestamp true}}]}
+
   :profiles {:repl {:main solo.jetty }
+             
              :dev {:dependencies [[log4j/log4j "1.2.17"]
                                   [ring/ring-core "1.6.3"]
                                   [ring/ring-jetty-adapter "1.6.3"]
@@ -81,6 +100,14 @@
                                   [robert/hooke "1.3.0"]
                                   [org.clojure/tools.cli "0.3.7"]]}
 
+             :spa {:plugins [[lein-cljsbuild "1.1.7" :exclusions [[org.clojure/clojure]]]]
+                   
+                   :clean-targets ^{:protect false} ["resources/public/js/compiled"
+                                                     :target-path]
+
+                   :dependencies [[org.clojure/clojurescript "1.10.238"]
+                                  [prismatic/dommy "1.1.0"]]}
+             
              :provided {:dependencies [[ring/ring-jetty-adapter "1.6.3"]]}
              
              :web-deps {:dependencies [[ring/ring-core "1.6.3"]
