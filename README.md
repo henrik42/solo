@@ -1677,14 +1677,14 @@ re-structure the logic a little:
 
 * We consume (i.e. _use_) these web-services on the client-side: we'll
   use CLJS to (1) retrieve the loggers via `/ws/get-current-loggers`,
-  (2) do the filtering/hiding/sorting and to render the data to the
-  DOM. For mutation we'll call `/ws/set-log-level`.
+  (2) do the filtering/sorting and (3) render the data to the DOM. For
+  mutation we'll (4) call `/ws/set-log-level`.
 
 So we move most of the MVC-logic away from the server and put it into
 the client. Not only will the client do the rendering (which it has
 done before already) but also do _smart_ things like __create__ the
-markup/DOM and do filtering etc. The backend is just a thin
-(technical) proxy for the bare _core_ _logic_ (`solo.core`).
+markup/DOM and do filtering etc. The backend becomes just a thin
+(technical) proxy/adapter and the bare _core_ _logic_ (`solo.core`).
 
 [1] ClojureScript
 
@@ -1730,8 +1730,9 @@ entries. `:cljsbuild` defines the build(s).
                                :output-dir "resources/public/js/compiled/out"
                                :source-map-timestamp true}}]}
 
-The _main_ entry point is
-`resources/public/js/compiled/solo-spa.js`. It should look like this:
+The _main_ entry point is `solo-spa.js` (cf. `:output-to
+"resources/public/js/compiled/solo-spa.js"`). It should look like
+this:
 
     var CLOSURE_UNCOMPILED_DEFINES = {};
     var CLOSURE_NO_DEPS = true;
@@ -1744,15 +1745,23 @@ The _main_ entry point is
     document.write('<script>goog.require("process.env");</script>');
     document.write('<script>goog.require("solo.spa");</script>');
 
-It's a _loader_ script that will pull in all libraries that CLJS
-depends on and in the end it will _load_ (i.e. `require`) namespace
-`solo.spa`.
+It's a _loader_ script that will pull in all libraries that CLJS and
+`solo.spa` depend on and in the end it will _load_ (i.e. `require`)
+namespace `solo.spa` (cf. `:main solo.spa`).
 
-Note that it uses `document.write` (so it really _writes_ _into_ the
-hosting HTML page while it is loading) to make the browser load the
-JavaScript sources. It does __not__ some API to dynamically load JS
-sources. This makes it difficult to load these JavaScript sources
-after the hosting HTML page has been loaded initially.
+Note that the _loader_ uses `document.write` (so it really _writes_
+_into_ the hosting HTML page while it is loading) to make the
+__browser__ load the JavaScript sources. It does __not__ use a JS API
+to dynamically load JS sources. This makes it difficult to load these
+JavaScript sources after the hosting HTML page has been loaded
+initially.
+
+Many more files are written to `resources/public/js/compiled/out/`
+(cf. `:output-dir "resources/public/js/compiled/out/*"`). CLJS uses
+the Google Closure compiler [1], so that explains why there are so
+many JS files generated.
+
+[1] Google Closure Compiler
 
 __Hosting HTML Page__
 
@@ -1762,11 +1771,12 @@ contains a `<script>` element that references the JS file
 `resources/public/js/compiled/solo-spa.js`.
 
 You could use a static `index.html` file and load that via `file://`
-URL. Instead we will create the HTML page __dynamically__ via _Solo's_
-server side. In `src/clj/solo/web/spa.clj` you find the web-app that
-we'll use for the SPA. It delivers
+or `http://` URL. Instead we will create the HTML page __dynamically__
+via _Solo's_ server side. In `src/clj/solo/web/spa.clj` you find the
+web-app that we'll use for the SPA. It delivers
 
-* the hosting HTML page at `/spa`: look into `solo.web.spa/the-page`
+* the hosting HTML page at `/spa`: this loads the JS main module, look
+  into `solo.web.spa/the-page`
 
         [:script {:src "out/solo-spa.js" :type "text/javascript"}]
 
@@ -1775,6 +1785,26 @@ we'll use for the SPA. It delivers
         (route/resources "/out" {:root "public/js/compiled"})
 
 * the web-services at `/ws`
+
+__Note:__ Getting the (relative) URLs right can be tricky. We load the
+hosting page at `/spa` and the load-module `solo-spa.js` via relative
+URL at `/out/solo-spa.js`.
+
+`/out` is served via `(route/resources "/out" {:root
+"public/js/compiled"})`. `route/resources` works through the
+classpath/classloader. And since we have `:resource-paths
+["resources"]` the base-offset/`:root` is
+`resources/public/js/compiled`. So `/out/solo-spa.js` effectivly
+points to `resources/public/js/compiled/solo-spa.js`.
+
+From there we load the _assets_ via relative URL `:asset-path
+"js/compiled/out"`. For example relative URL
+`src="js/compiled/out/goog/base.js"` becomes URL
+`out/js/compiled/out/goog/base.js` which in turn effectivly points to
+`resources/public/js/compiled/js/compiled/out/goog/base.js`.
+
+
+
 
 All other requests will be delegated to `solo.web/app`. So that you
 can still use _Solo's_ CSS files in your SPA and you can even _switch_

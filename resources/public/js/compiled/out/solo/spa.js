@@ -10,4 +10,4 @@ solo.spa.conn = clojure.browser.repl.connect.call(null,"http://localhost:9000/re
 cljs.core.enable_console_print_BANG_.call(null);
 cljs.core.println.call(null,"It works! solo.spa");
 
-//# sourceMappingURL=spa.js.map?rel=1528377639020
+//# sourceMappingURL=spa.js.map?rel=1528438376045

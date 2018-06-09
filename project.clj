@@ -106,7 +106,8 @@
                                                      :target-path]
 
                    :dependencies [[org.clojure/clojurescript "1.10.238"]
-                                  [prismatic/dommy "1.1.0"]]}
+                                  [prismatic/dommy "1.1.0"]
+                                  [hipo "0.5.2"]]}
              
              :provided {:dependencies [[ring/ring-jetty-adapter "1.6.3"]]}
              
