@@ -1662,8 +1662,9 @@ jetty-and-log4j-example app which uses log4j.
 ------------------------------------------------------------------------
 
 For client side logic I use ClojureScript/CLJS [1]. CLJS is a
-compiled/transpiled language which is very similar to Clojure. CLJS is
-compiled to JavaScript/JS, the compiler is written in Clojure.
+compiled/transpiled language [2] which is very similar to
+Clojure. CLJS is compiled to JavaScript/JS, the compiler is written in
+Clojure.
 
 Until now `solo.web` uses no client-side scripting. All client
 interaction with the backend is based on HTML-`form`
@@ -1686,7 +1687,8 @@ done before already) but also do _smart_ things like __create__ the
 markup/DOM and do filtering etc. The backend becomes just a thin
 (technical) proxy/adapter and the bare _core_ _logic_ (`solo.core`).
 
-[1] ClojureScript
+[1] https://clojurescript.org/
+[2] https://github.com/clojure/clojurescript
 
 ## solo.spa, solo.web.spa
 
@@ -1707,7 +1709,7 @@ This will run the CLJS compiler which produces JavaScript code into
     Successfully compiled ["resources/public/js/compiled/solo-spa.js"] in 1.84 seconds.
 
 The compile/build is configured with some `project.clj`
-entries. `:cljsbuild` defines the build(s).
+entries. `:cljsbuild` defines the build(s) [2]:
 
       :aliases {,,, "make-spa" ["with-profile" "+spa" "trampoline" "cljsbuild" "once"]}
 
@@ -1737,31 +1739,39 @@ this:
     var CLOSURE_UNCOMPILED_DEFINES = {};
     var CLOSURE_NO_DEPS = true;
     if(typeof goog == "undefined")
-      document.write('<script src="js/compiled/out/goog/base.js"></script>');
-    document.write('<script src="js/compiled/out/goog/deps.js"></script>');
-    document.write('<script src="js/compiled/out/cljs_deps.js"></script>');
+        document.write('<script src="out/assets/goog/base.js"></script>');
+    document.write('<script src="out/assets/goog/deps.js"></script>');
+    document.write('<script src="out/assets/cljs_deps.js"></script>');
     document.write('<script>if (typeof goog == "undefined")
       console.warn("ClojureScript could not load :main, did you forget to specify :asset-path?");</script>');
     document.write('<script>goog.require("process.env");</script>');
     document.write('<script>goog.require("solo.spa");</script>');
-
+    
 It's a _loader_ script that will pull in all libraries that CLJS and
 `solo.spa` depend on and in the end it will _load_ (i.e. `require`)
-namespace `solo.spa` (cf. `:main solo.spa`).
+namespace `solo.spa` (cf. `:main solo.spa`) -- it's __not__ a function
+call that "starts your program", it is just the "loading of your
+namespace" that has to start-up whatever you want to have started.
 
-Note that the _loader_ uses `document.write` (so it really _writes_
-_into_ the hosting HTML page while it is loading) to make the
-__browser__ load the JavaScript sources. It does __not__ use a JS API
-to dynamically load JS sources. This makes it difficult to load these
-JavaScript sources after the hosting HTML page has been loaded
-initially.
+Note that the _loader_ uses `document.write` (so it really __writes__
+`script` __elements__ into the hosting HTML page while it is loading)
+to make the __browser__ load the JavaScript sources. It does __not__
+use a JS API to dynamically load JS sources (except for the last two
+lines that call `require` function). And some of the referenced JS
+scrip-files do also use `document.write`. This makes it difficult to
+load these JavaScript sources after the hosting HTML page has been
+loaded initially, because writing to the document after the inital
+load has completed will wipe-out the current document and do a new
+page-load so you'll lose the loading document which is usually not
+what you're trying to do.
 
 Many more files are written to `resources/public/js/compiled/out/`
 (cf. `:output-dir "resources/public/js/compiled/out/*"`). CLJS uses
-the Google Closure compiler [1], so that explains why there are so
-many JS files generated.
+the Google Closure compiler [1], so that makes for some of the
+generated JS files.
 
-[1] Google Closure Compiler
+[1] https://developers.google.com/closure/compiler/
+[2] https://github.com/clojure/clojurescript-site/blob/master/content/reference/compiler-options.adoc
 
 __Hosting HTML Page__
 
@@ -1786,29 +1796,25 @@ web-app that we'll use for the SPA. It delivers
 
 * the web-services at `/ws`
 
-__Note:__ Getting the (relative) URLs right can be tricky. We load the
-hosting page at `/spa` and the load-module `solo-spa.js` via relative
-URL at `/out/solo-spa.js`.
-
-`/out` is served via `(route/resources "/out" {:root
-"public/js/compiled"})`. `route/resources` works through the
+__Note:__ Getting the (relative) URLs right can be a little tricky. We
+load the hosting page at `/spa` and the load-module `solo-spa.js` via
+relative URL at `out/solo-spa.js` which gives us the URL
+`/out/solo-spa.js`. `/out` is served via `(route/resources "/out"
+{:root "public/js/compiled"})`. `route/resources` works through the
 classpath/classloader. And since we have `:resource-paths
 ["resources"]` the base-offset/`:root` is
 `resources/public/js/compiled`. So `/out/solo-spa.js` effectivly
-points to `resources/public/js/compiled/solo-spa.js`.
+points to `resources/public/js/compiled/solo-spa.js`. Now the
+`src`-URLs in `solo-spa.js` are loaded relative to the containing
+page. The URLs will all have to prefix `:asset-path
+"out/assets"`. Again `out` maps to `resources/public/js/compiled`. So
+for example `src="out/assets/goog/base.js"` effectivly points to
+`resources/public/js/compiled/assets/goog/base.js`.
 
-From there we load the _assets_ via relative URL `:asset-path
-"js/compiled/out"`. For example relative URL
-`src="js/compiled/out/goog/base.js"` becomes URL
-`out/js/compiled/out/goog/base.js` which in turn effectivly points to
-`resources/public/js/compiled/js/compiled/out/goog/base.js`.
-
-
-
-
-All other requests will be delegated to `solo.web/app`. So that you
-can still use _Solo's_ CSS files in your SPA and you can even _switch_
-to the plain HTML version of _Solo_.
+All other requests will be delegated to `solo.web/app`. So you can
+still use _Solo's_ CSS files in your SPA and you can even _switch_ to
+the plain HTML version of _Solo_ just by using a different URL to
+start.
 
 All this routing is condensed into this (have I mentioned that Clojure
 source is so _dense_ that it first hurts when you come from other
@@ -1838,11 +1844,12 @@ to the backend. Like this:
 
     solo-project$ lein make-spa-auto
 
-This runs this alias:
+This runs the following alias. It will start an auto-compile that will
+just sit there and wait and compile any CLJS source that changes.
 
     "make-spa-auto" ["with-profile" "+spa" "trampoline" "cljsbuild" "auto"]
 
-And then run _Solo_:
+And then in a second shell run _Solo_:
 
     solo-project$ lein run-web-jar -j 3000 -s 4005
 
@@ -1850,22 +1857,30 @@ Now you have two running JVMs.
 
 When you change the CLJS source you have to _reload_ the page in the
 browser after the CLJS compiler has written the updated file. The
-reload will not (__yet__!) be done for you.
+reload will not (__yet__!) be done for you. Since the reload will wipe
+the current page/document you will lose any state that your
+application may have reached (but see below!).
 
-__Browser REPL__
+## solo.rest, solo.client.rest
+
+## solo.client
+
+------------------------------------------------------------------------
+# Step Nine: bREPL
+------------------------------------------------------------------------
 
 There is one piece missing: we'd like to have a REPL in the browser
 (just the way we have a REPL in Clojure/JVM) so that we can interact
 directly with the JavaScript/CLJS environment and the DOM.
 
-There are REPLs that run completly in the browser. Here we will use a
-REPL that reads its input through a Clojure/JVM prompt, compiles the
-code on-the-fly and then hands over the compiled CLJS to the browser
-and executes it there.
+There are REPLs that run completly in the browser ("self hosted CLJS
+REPL"). Here we will use a REPL that reads its input through a
+Clojure/JVM prompt, compiles the code on-the-fly and then hands over
+the compiled CLJS to the browser and executes it there.
 
 Since we cannot connect to a server-socket in the browser we make the
 browser repeatedly __pull__ the compiled CLJS from the Clojure/JVM --
-_long_ _polling_.
+it's called _long_ _polling_.
 
 You run this _long_ _polling_ like this in your CLJS. When this
 namespace is loaded it will start a browser REPL and connect to the
@@ -1876,7 +1891,7 @@ given URL and _long_ _poll_ that URL:
 
 Then you need to start the server-side of the browser REPL:
 
-    solo-project$ lein run-brepl
+    solo-project$ rlwrap lein run-brepl
 
 This runs this:
 
@@ -1891,39 +1906,29 @@ section. You should see many `GET` requests like this
     http://localhost:3000/spa
     http://localhost:3000/css/solo.css
     http://localhost:3000/out/solo-spa.js
-    http://localhost:3000/js/compiled/out/goog/base.js
+    http://localhost:3000/out/assets/goog/base.js
     [...]
-    http://localhost:3000/js/compiled/out/solo/spa.js
+    http://localhost:3000/out/assets/solo/spa.js
     http://localhost:9000/repl?xpc=[...]
     http://localhost:9000/
 
 After `http://localhost:9000/` you should see the prompt in the
-browser REPL JVM:
+browser REPL JVM (if it does not show up try hitting ENTER once).
 
-    solo-project$ lein run-brepl
+    solo-project$ rlwrap lein run-brepl
     Running ClojureScript REPL, listening on port 9000.
     ClojureScript 1.10.238
     cljs.user=>
 
-Now do this. You should see a pop-up in your browser:
+Now try the following. You should see a pop-up in your browser:
 
-    cljs.user=> (js/alert "don't panic!")
+    cljs.user=> (js/alert "Don't panic!")
     nil
     cljs.user=> 
 
 You have a REPL in your browser.
 
-## solo.rest, solo.client.rest
-
-## solo.client
-
-------------------------------------------------------------------------
-# Step Nine: bREPL
-------------------------------------------------------------------------
-
-__TODO__: the REPL in the browser
-
-* testing clojurescript?
+__TODO:__ testing clojurescript?
 
 ------------------------------------------------------------------------
 # Step Ten: figwheel
