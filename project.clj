@@ -64,7 +64,7 @@
             ;; lein run-web-jar -j 3000
             "run-web-jar" ["with-profile" "+make-web-jar" "trampoline" "run"]
 
-            "make-spa" ["with-profile" "+spa" "trampoline" "cljsbuild" "once"]
+            "make-spa" ["with-profile" "+spa" "do" ["clean"] ["trampoline" "cljsbuild" "once"]]
             
             "make-spa-auto" ["with-profile" "+spa" "trampoline" "cljsbuild" "auto"]
 
@@ -85,9 +85,9 @@
                 :source-paths ["src/cljs"]
 
                 :compiler {:main solo.spa
-                           :asset-path "js/compiled/out"
+                           :asset-path "out/assets"
                            :output-to "resources/public/js/compiled/solo-spa.js"
-                           :output-dir "resources/public/js/compiled/out"
+                           :output-dir "resources/public/js/compiled/assets"
                            :source-map-timestamp true}}]}
 
   :profiles {:repl {:main solo.jetty }
