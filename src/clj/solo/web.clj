@@ -77,6 +77,14 @@
     (#{"UNKNOWN!" "NOT-SET!"} log-level) false
     :else true))
 
+(defn set-log-level!
+  "Sets the log-level for the given logger if `(set-log-level? logger
+  level)` returns `true`. Otherwise a no-op. Returns `nil`."
+
+  [logger level]
+  (if (set-log-level? logger level)
+    (core/set-log-level! logger level)))
+  
 ;; ################### request processing ##########################
 
 (defn req->hide
@@ -224,8 +232,7 @@
   (POST "/set-log-level" req
     (let [{:keys [logger level]} (:params req)
           logger (str/trim logger)]
-      (if (set-log-level? logger level)
-        (core/set-log-level! logger level))
+      (set-log-level! logger level)
       (response/redirect (make-redirect-url req))))
   (POST "/update-loggers" req
     (doseq [[logger level] (:params req)]

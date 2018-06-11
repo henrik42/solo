@@ -64,10 +64,15 @@
             ;; lein run-web-jar -j 3000
             "run-web-jar" ["with-profile" "+make-web-jar" "trampoline" "run"]
 
+            ;; run CLJS compiler once
             "make-spa" ["with-profile" "+spa" "do" ["clean"] ["trampoline" "cljsbuild" "once"]]
-            
+
+            ;; run CLJS compiler in incremental mode, compile files as
+            ;; soon as they change
             "make-spa-auto" ["with-profile" "+spa" "trampoline" "cljsbuild" "auto"]
 
+            ;; run JVM/Clojure REPL connected to browser REPL via long
+            ;; polling from the browser
             "run-brepl" ["with-profile" "+spa" "trampoline" "cljsbuild" "repl-listen"]
 
             }
@@ -94,24 +99,17 @@
              
              :dev {:dependencies [[log4j/log4j "1.2.17"]
                                   [ring/ring-core "1.6.3"]
+                                  [ring/ring-json "0.4.0"]
                                   [ring/ring-jetty-adapter "1.6.3"]
                                   [compojure "1.6.0"]
                                   [hiccup "1.0.5"]
                                   [robert/hooke "1.3.0"]
                                   [org.clojure/tools.cli "0.3.7"]]}
 
-             :spa {:plugins [[lein-cljsbuild "1.1.7" :exclusions [[org.clojure/clojure]]]]
-                   
-                   :clean-targets ^{:protect false} ["resources/public/js/compiled"
-                                                     :target-path]
-
-                   :dependencies [[org.clojure/clojurescript "1.10.238"]
-                                  [prismatic/dommy "1.1.0"]
-                                  [hipo "0.5.2"]]}
-             
              :provided {:dependencies [[ring/ring-jetty-adapter "1.6.3"]]}
              
              :web-deps {:dependencies [[ring/ring-core "1.6.3"]
+                                       ;; [ring/ring-json "0.4.0"]
                                        ;;[ring/ring-jetty-adapter "1.6.3"]
                                        [compojure "1.6.0"]
                                        [hiccup "1.0.5"]
@@ -134,4 +132,15 @@
              
              :make-jumpstart {:resource-paths ^:replace ["jumpstart/resources"]
                               :aot [solo.jumpstart.servlet_container_initializer]
-                              :source-paths ^:replace ["jumpstart/src"]}})
+                              :source-paths ^:replace ["jumpstart/src"]}
+
+             :spa {:plugins [[lein-cljsbuild "1.1.7" :exclusions [[org.clojure/clojure]]]]
+                                
+                   :clean-targets ^{:protect false} ["resources/public/js/compiled"
+                                                     :target-path]
+
+                   :dependencies [[org.clojure/clojurescript "1.10.238"]
+                                  [prismatic/dommy "1.1.0"]
+                                  [hipo "0.5.2"]]}})
+             
+
