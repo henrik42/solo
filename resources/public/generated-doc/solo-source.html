@@ -2866,7 +2866,7 @@ net.brehaut.ClojureTools = (function (SH) {
   };
 })(SyntaxHighlighter);
 </script><title>solo -- Marginalia</title></head><body><table><tr><td class="docs"><div class="header"><h1 class="project-name">solo</h1><h2 class="project-version">0.1.0-SNAPSHOT</h2><br />
-</div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">org.clojure/clojure</td><td class="dotted"><hr /></td><td class="dep-version">1.8.0</td></tr><tr><td class="dep-name">swank-clojure/swank-clojure</td><td class="dotted"><hr /></td><td class="dep-version">1.4.3</td></tr><tr><td class="dep-name">org.clojure/tools.nrepl</td><td class="dotted"><hr /></td><td class="dep-version">0.2.12</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#solo.core">solo.core</a></li><li><a href="#solo.main">solo.main</a></li><li><a href="#solo.jetty">solo.jetty</a></li><li><a href="#solo.web">solo.web</a></li><li><a href="#solo.webapp">solo.webapp</a></li><li><a href="#solo.jumpstart">solo.jumpstart</a></li><li><a href="#solo.nrepl">solo.nrepl</a></li><li><a href="#solo.swank">solo.swank</a></li><li><a href="#solo.jumpstart.servlet_container_initializer">solo.jumpstart.servlet_container_initializer</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#solo.core" name="solo.core"><h1 class="project-name">solo.core</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Core business logic.</p>
+</div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">org.clojure/clojure</td><td class="dotted"><hr /></td><td class="dep-version">1.8.0</td></tr><tr><td class="dep-name">swank-clojure/swank-clojure</td><td class="dotted"><hr /></td><td class="dep-version">1.4.3</td></tr><tr><td class="dep-name">org.clojure/tools.nrepl</td><td class="dotted"><hr /></td><td class="dep-version">0.2.12</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#solo.core">solo.core</a></li><li><a href="#solo.web.spa">solo.web.spa</a></li><li><a href="#solo.main">solo.main</a></li><li><a href="#solo.jetty">solo.jetty</a></li><li><a href="#solo.web">solo.web</a></li><li><a href="#solo.webapp">solo.webapp</a></li><li><a href="#solo.jumpstart">solo.jumpstart</a></li><li><a href="#solo.nrepl">solo.nrepl</a></li><li><a href="#solo.swank">solo.swank</a></li><li><a href="#solo.jumpstart.servlet_container_initializer">solo.jumpstart.servlet_container_initializer</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#solo.core" name="solo.core"><h1 class="project-name">solo.core</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Core business logic.</p>
 
 <p>  Functions for accessing log4j loggers.</p>
 
@@ -2962,11 +2962,56 @@ net.brehaut.ClojureTools = (function (SH) {
   []
   (map logger-&gt;map
        (conj
-        (-&gt; (Logger/getRootLogger)
-            .getLoggerRepository
-            .getCurrentLoggers
-            enumeration-seq)
-        (Logger/getRootLogger))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#solo.main" name="solo.main"><h1 class="project-name">solo.main</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>A Jetty-based stand-alone web-application (serves <code>solo.web/app</code>).</p>
+        ;; In JBoss `getCurrentLoggers` includes the root
+        ;; logger. That's a bug! We filter it out and add it
+        ;; explicitly.
+        (remove #(instance? RootLogger %)
+                (-&gt; (Logger/getRootLogger)
+                    .getLoggerRepository
+                    .getCurrentLoggers
+                    enumeration-seq))
+        (Logger/getRootLogger))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#solo.web.spa" name="solo.web.spa"><h1 class="project-name">solo.web.spa</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(ns solo.web.spa
+  (:use compojure.core
+        [hiccup.middleware :only (wrap-base-url)])
+  (:require [ring.middleware.json :as json]
+            [hiccup.form :as hf]
+            [hiccup.page :as hp]
+            [compojure.handler :as handler]
+            [compojure.route :as route]
+            [solo.web :as web]))</pre></td></tr><tr><td class="docs"><h6>############# model ####################</h6>
+</td><td class="codes"></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defn get-current-loggers []
+  {:body {:loggers
+          (web/get-current-loggers {:filter-reg-ex # :hide false})}
+   :headers {&quot;Cache-Control&quot; &quot;no-cache&quot;}})</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defn set-log-level! [logger level]
+  (web/set-log-level! logger level)
+  {})</pre></td></tr><tr><td class="docs"><h6>############# view ####################</h6>
+</td><td class="codes"></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defn the-page []
+  (hp/html5
+   [:head
+    (hp/include-css &quot;/css/solo.css&quot;)]
+   [:body
+    [:div#main]
+    [:script {:src &quot;out/solo-spa.js&quot; :type &quot;text/javascript&quot;}]]))</pre></td></tr><tr><td class="docs"><h6>############# handler/controller ####################</h6>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>curl http://localhost:3000/ws/get-current-loggers
+curl -X POST http://localhost:3000/ws/set-log-level/foo/info</p>
+</td><td class="codes"></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defroutes ws-routes
+  (GET  &quot;/ws/get-current-loggers&quot; _ (get-current-loggers))
+  (POST &quot;/ws/set-log-level/:logger/:level&quot; [logger level] (set-log-level! logger level)))</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defroutes main-routes
+  (GET &quot;/spa&quot; _ (the-page))
+  (route/resources &quot;/out&quot; {:root &quot;public/js/compiled&quot;})
+  (-&gt; ws-routes
+      (json/wrap-json-body)
+      (json/wrap-json-params)
+      (json/wrap-json-response))
+  web/app)</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(def app
+  (-&gt; (handler/site #'main-routes)))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#solo.main" name="solo.main"><h1 class="project-name">solo.main</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>A Jetty-based stand-alone web-application (serves <code>solo.web/app</code>).</p>
 
 <p>  Use it for testing when you don't need the host-application that
   you're usually targeting with <em>Solo</em> (note that you'll have to
@@ -3059,8 +3104,8 @@ net.brehaut.ClojureTools = (function (SH) {
     (.println System/out &quot;CTRL-C to quit...&quot;)))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#solo.jetty" name="solo.jetty"><h1 class="project-name">solo.jetty</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Functions around Jetty.</p>
 </td><td class="codes"><pre class="brush: clojure">(ns solo.jetty
   (require [ring.adapter.jetty :as jetty]
-           [solo.web :as web]))</pre></td></tr><tr><td class="docs"><p>Starts a Jetty server on given port/host serving
-  <code>solo.web/app</code>. Returns the server which can be shut down via
+           [solo.web.spa :as web]))</pre></td></tr><tr><td class="docs"><p>Starts a Jetty server on given port/host serving
+  <code>solo.web.spa/app</code>. Returns the server which can be shut down via
   <code>(.close &lt;server&gt;)</code>. Throws exception if the server cannot be
   started.</p>
 
@@ -3162,7 +3207,12 @@ form-params (e.g. filter and hide settings).</li>
     (empty? logger-name) false
     (= \space (first logger-name)) false
     (#{&quot;UNKNOWN!&quot; &quot;NOT-SET!&quot;} log-level) false
-    :else true))</pre></td></tr><tr><td class="docs"><h6>############# request processing ####################</h6>
+    :else true))</pre></td></tr><tr><td class="docs"><p>Sets the log-level for the given logger if `(set-log-level? logger
+  level)<code>returns</code>true<code>. Otherwise a no-op. Returns</code>nil`.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn set-log-level!
+  [logger level]
+  (if (set-log-level? logger level)
+    (core/set-log-level! logger level)))</pre></td></tr><tr><td class="docs"><h6>############# request processing ####################</h6>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Extracts and returns the <code>hide</code> parameter from the
   ring-request-map.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn req-&gt;hide
@@ -3282,12 +3332,16 @@ form-params (e.g. filter and hide settings).</li>
   (POST &quot;/set-log-level&quot; req
     (let [{:keys [logger level]} (:params req)
           logger (str/trim logger)]
-      (if (set-log-level? logger level)
-        (core/set-log-level! logger level))
+      (set-log-level! logger level)
       (response/redirect (make-redirect-url req))))
   (POST &quot;/update-loggers&quot; req
     (doseq [[logger level] (:params req)]
-      (let [logger-name (name logger)]
+      (let [logger-name (name logger)
+            ;; edge-case: when there is more than one logger with the
+            ;; same name (like `root`), we'll receive a vector of
+            ;; levels instead of just a single string. So in this case
+            ;; we just take the first.
+            level (if (string? level) level (first level))]
         (if (set-log-level? logger-name level)
           (core/set-log-level! logger-name level))))
     (response/redirect (make-redirect-url req)))
@@ -3476,7 +3530,7 @@ VFS URLs which we find in JBoss/Wildfly.</p>
             t)))))</pre></td></tr><tr><td class="docs"><p>Calls <code>(-onStartup)</code>. Use this for testing.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn -main
   [&amp; args]
-  (-onStartup))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr></table><div class="footer">Generated by <a href="https://github.com/gdeer81/marginalia">Marginalia</a>.&nbsp;&nbsp;Syntax highlighting provided by Alex Gorbatchev's <a href="http://alexgorbatchev.com/SyntaxHighlighter/">SyntaxHighlighter</a><div id="floating-toc"><ul><li class="floating-toc-li" id="floating-toc_solo.core">solo.core</li><li class="floating-toc-li" id="floating-toc_solo.main">solo.main</li><li class="floating-toc-li" id="floating-toc_solo.jetty">solo.jetty</li><li class="floating-toc-li" id="floating-toc_solo.web">solo.web</li><li class="floating-toc-li" id="floating-toc_solo.webapp">solo.webapp</li><li class="floating-toc-li" id="floating-toc_solo.jumpstart">solo.jumpstart</li><li class="floating-toc-li" id="floating-toc_solo.nrepl">solo.nrepl</li><li class="floating-toc-li" id="floating-toc_solo.swank">solo.swank</li><li class="floating-toc-li" id="floating-toc_solo.jumpstart.servlet_container_initializer">solo.jumpstart.servlet_container_initializer</li></ul></div></div><script type="text/javascript">SyntaxHighlighter.defaults['gutter'] = false;
+  (-onStartup))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr></table><div class="footer">Generated by <a href="https://github.com/gdeer81/marginalia">Marginalia</a>.&nbsp;&nbsp;Syntax highlighting provided by Alex Gorbatchev's <a href="http://alexgorbatchev.com/SyntaxHighlighter/">SyntaxHighlighter</a><div id="floating-toc"><ul><li class="floating-toc-li" id="floating-toc_solo.core">solo.core</li><li class="floating-toc-li" id="floating-toc_solo.web.spa">solo.web.spa</li><li class="floating-toc-li" id="floating-toc_solo.main">solo.main</li><li class="floating-toc-li" id="floating-toc_solo.jetty">solo.jetty</li><li class="floating-toc-li" id="floating-toc_solo.web">solo.web</li><li class="floating-toc-li" id="floating-toc_solo.webapp">solo.webapp</li><li class="floating-toc-li" id="floating-toc_solo.jumpstart">solo.jumpstart</li><li class="floating-toc-li" id="floating-toc_solo.nrepl">solo.nrepl</li><li class="floating-toc-li" id="floating-toc_solo.swank">solo.swank</li><li class="floating-toc-li" id="floating-toc_solo.jumpstart.servlet_container_initializer">solo.jumpstart.servlet_container_initializer</li></ul></div></div><script type="text/javascript">SyntaxHighlighter.defaults['gutter'] = false;
 SyntaxHighlighter.all();
 
 // hackity hack

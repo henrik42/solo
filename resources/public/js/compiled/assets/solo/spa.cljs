@@ -13,6 +13,15 @@
 
 ;; ----------------------------------------------------------------------
 
+(def app-state
+  {:loggers [{:logger-name "foo" :log-level "DEBUG"}]
+   :hide false})
+
+(def log-levels #{"UNKNOWN!" "NOT-SET!" "DEBUG" "INFO" "WARN" "ERROR" "OFF"})
+
+(defn make-options [xs x]
+  (map (fn [o] [:option {:selected (= x o)} o]) xs))
+
 ;; ################### view ##########################
 
 (defn top-of-page []
@@ -36,7 +45,7 @@
    
    ;; TODO: build options
    [:select {;;:name "level",
-             :id "level"} '([:option {:selected false} "WARN"])]
+             :id "level"} (make-options log-levels "INFO")]
    
    [:span {:style "padding:1em;"}]
    [:input {:type "submit", :value "SET LOG-LEVEL"}]])
@@ -56,14 +65,14 @@
        [:label {:for "hide"} " Hide NOT-SET!:"]
        [:input {:type "checkbox",
                 :id "hide",
-                :value "true",
-                :checked true}]]]]
-    #_ (for [{:keys [logger-name log-level]} loggers]
+                 ;;:value "true",
+                :checked (:hide app-state)}]]]]
+    (for [{:keys [logger-name log-level]} (:loggers app-state)]
       [:tr
        [:td logger-name]
-       [:td (hf/drop-down logger-name log-levels log-level)]])
-    [:input {:type "submit", :value "SET LOG-LEVELS"}]]])
+       [:td [:select {:id "level"} (make-options log-levels log-level)]]])
 
+    [:input {:type "submit", :value "REFRESH"}]]])
 
 ;; ################### controller ##########################
 
@@ -79,6 +88,8 @@
                              (set-log-level-form)
                              (loggers-form)]
                             nil)]
-    (-> js/document (.getElementById "main") (.replaceWith root))))
+    (-> js/document
+        (.getElementById "main")
+        (.replaceWith root))))
 
 (main)

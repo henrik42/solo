@@ -82,6 +82,7 @@
                  :port 9998}}
   
   :codox {:metadata {:doc/format :markdown}
+          :themes [:rdash]
           :doc-files ["doc/intro.md", "README.md"]
           :output-path "resources/public/generated-doc/"}
 
@@ -116,7 +117,8 @@
                                        [robert/hooke "1.3.0"]
                                        [org.clojure/tools.cli "0.3.7"]]}
              
-             :make-doc {:source-paths ["jumpstart/src"]
+             :make-doc {:source-paths ["jumpstart/src" "src/cljs"]
+                        :dependencies [[codox-theme-rdash "0.1.2"]]
                         :clean-targets ^{:protect false} ["resources/public/generated-doc"]}
              
              :make-module-jar {}
