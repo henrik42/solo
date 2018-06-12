@@ -2,7 +2,7 @@
   "Functions around Jetty."
   
   (require [ring.adapter.jetty :as jetty]
-           [solo.web.spa :as spa]))
+           [solo.web.spa :as web]))
 
 (defn start-server
   "Starts a Jetty server on given port/host serving
@@ -20,7 +20,7 @@
         _ (.println System/out (str "Starting Jetty server on " params " ..."))
         server (try 
                  (jetty/run-jetty
-                  #'spa/app
+                  #'web/app
                   {:port port
                    :host host
                    :join? false})

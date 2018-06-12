@@ -21,42 +21,13 @@
 
 ;; ################### view ##########################
 
-(defn set-log-level-form []
-  [:div 
-   (hf/label :logger "LOGGER:")
-   (hf/text-field {:placeholder "Logger Name"} :logger)
-
-   [:span {:style "padding:1em;"}]
-   (hf/label :level " LEVEL:")
-   (hf/drop-down :level web/log-levels "INFO")
-   
-   [:span {:style "padding:1em;"}]
-   (hf/submit-button "SET LOG-LEVEL")])
-
-(defn loggers-form []
-  [:span
-   [:table#loggers
-    [:tr
-     [:th "LOGGER"
-      (hf/text-field
-       {:placeholder "Filter Reg-Ex"
-        :style "float: right;"}
-       :filter)]
-     [:th "LEVEL"
-      [:span {:style "float: right;"} 
-       (hf/label :hide " Hide NOT-SET!:")
-       (hf/check-box :hide)]]]
-    [:tr "hook"]]
-   (hf/submit-button "RELOAD")])
-
 (defn the-page []
   (hp/html5
    [:head
     (hp/include-css "/css/solo.css")]
    [:body
-    [:script {:src "out/solo-spa.js" :type "text/javascript"}]
-    (set-log-level-form)
-    (loggers-form)]))
+    [:div#main]
+    [:script {:src "out/solo-spa.js" :type "text/javascript"}]]))
 
 ;; ################### handler/controller ##########################
 

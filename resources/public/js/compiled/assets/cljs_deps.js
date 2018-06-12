@@ -11,4 +11,10 @@ goog.addDependency("../cljs/repl.js", ['cljs.repl'], ['cljs.core', 'cljs.spec.al
 goog.addDependency("../clojure/browser/repl.js", ['clojure.browser.repl'], ['goog.dom', 'goog.userAgent.product', 'goog.json', 'cljs.core', 'goog.object', 'clojure.browser.net', 'cljs.repl', 'goog.array', 'clojure.browser.event']);
 goog.addDependency("../dommy/utils.js", ['dommy.utils'], ['cljs.core']);
 goog.addDependency("../dommy/core.js", ['dommy.core'], ['cljs.core', 'dommy.utils', 'clojure.string']);
-goog.addDependency("../solo/spa.js", ['solo.spa'], ['clojure.browser.repl', 'cljs.core', 'dommy.core']);
+goog.addDependency("../hipo/hiccup.js", ['hipo.hiccup'], ['cljs.core', 'clojure.string']);
+goog.addDependency("../hipo/attribute.js", ['hipo.attribute'], ['hipo.hiccup', 'cljs.core']);
+goog.addDependency("../clojure/set.js", ['clojure.set'], ['cljs.core']);
+goog.addDependency("../hipo/dom.js", ['hipo.dom'], ['cljs.core']);
+goog.addDependency("../hipo/interceptor.js", ['hipo.interceptor'], ['cljs.core']);
+goog.addDependency("../hipo/interpreter.js", ['hipo.interpreter'], ['hipo.hiccup', 'cljs.core', 'hipo.attribute', 'clojure.set', 'hipo.dom', 'hipo.interceptor']);
+goog.addDependency("../solo/spa.js", ['solo.spa'], ['clojure.browser.repl', 'cljs.core', 'dommy.core', 'hipo.interpreter']);
