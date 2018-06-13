@@ -1671,24 +1671,28 @@ interaction with the backend is based on HTML-`form`
 _POST-backs_. While we're introducing client-side scripting we'll
 re-structure the logic a little:
 
-* We publish web-services (`/ws/get-current-loggers` and
-  `/ws/set-log-level`) on the server-side: these will use JSON
-  (**TODO:** what about EDN?) as message format. That makes it easy to
-  use these web-services from the browser/CLJS.
+* In `src/clj/solo/web/spa.clj` we publish web-services
+  (`/ws/get-current-loggers` and `/ws/set-log-level`) on the
+  server-side. These will use JSON [JSON] (**TODO:** what about EDN?)
+  as message format. That makes it easy to use these web-services from
+  the browser/CLJS.
 
-* We consume (i.e. _use_) these web-services on the client-side: we'll
-  use CLJS to (1) retrieve the loggers via `/ws/get-current-loggers`,
-  (2) do the filtering/sorting and (3) render the data to the DOM. For
-  mutation we'll (4) call `/ws/set-log-level`.
+* In `src/cljs/solo/spa.cljs` we consume/use these web-services on the
+  client-side. We'll use CLJS to (1) retrieve the loggers via
+  `/ws/get-current-loggers`, (2) do the filtering/sorting and (3)
+  render the data to the DOM. For mutation we'll (4) call
+  `/ws/set-log-level`.
 
 So we move most of the MVC-logic away from the server and put it into
-the client. Not only will the client do the rendering (which it has
-done before already) but also do _smart_ things like __create__ the
-markup/DOM and do filtering etc. The backend becomes just a thin
-(technical) proxy/adapter and the bare _core_ _logic_ (`solo.core`).
+the client. Not only will the client (`solo.spa`) do the rendering
+(which it has done before already) but also do _smart_ things like
+__create__ the markup/DOM and do filtering etc. The backend
+(`solo.web.spa`) becomes just a thin (technical) proxy/adapter for the
+bare _core_ _logic_ (`solo.core`).
 
-[1] https://clojurescript.org/
-[2] https://github.com/clojure/clojurescript
+[1] https://clojurescript.org/  
+[2] https://github.com/clojure/clojurescript  
+[JSON] JSON URL  
 
 ## solo.spa, solo.web.spa
 
@@ -1700,6 +1704,13 @@ We put the CLJS sources into `src/cljs/solo/spa.cljs`. You can compile
 these sources with:
 
     solo-project$ lein make-spa
+
+__Note:__ The Clojure/ClojureScript compile support mixed source
+formats via reader conditionals [mixed source] (not used in
+_Solo_). So you can put source into `*.cljx` files and let both
+compilers compile these sources. Thus you have _single_ _source_ and
+you can use these namespace from Clojure and ClojureScript. No code
+duplication!
 
 This will run the CLJS compiler which produces JavaScript code into
 `resources/public/js/compiled/`. You should see something like this:
@@ -1757,33 +1768,37 @@ Note that the _loader_ uses `document.write` (so it really __writes__
 `script` __elements__ into the hosting HTML page while it is loading)
 to make the __browser__ load the JavaScript sources. It does __not__
 use a JS API to dynamically load JS sources (except for the last two
-lines that call `require` function). And some of the referenced JS
-scrip-files do also use `document.write`. This makes it difficult to
-load these JavaScript sources after the hosting HTML page has been
-loaded initially, because writing to the document after the inital
-load has completed will wipe-out the current document and do a new
-page-load so you'll lose the loading document which is usually not
-what you're trying to do.
+lines that call `require`). And some of the referenced JS scrip-files
+do also use `document.write`. This makes it difficult to load these
+JavaScript sources after the hosting HTML page has been loaded
+initially, because writing to the document __after__ the inital load
+has completed will wipe-out the current document and do a new
+page-load so you'll lose the loaded document (DOM and any __state__
+that may exist in your CLJS namespaces!) which is usually not what you
+want.
 
 Many more files are written to `resources/public/js/compiled/out/`
 (cf. `:output-dir "resources/public/js/compiled/out/*"`). CLJS uses
-the Google Closure compiler [1], so that makes for some of the
+the Google Closure compiler [1], so that makes up for some of the
 generated JS files.
 
-[1] https://developers.google.com/closure/compiler/
-[2] https://github.com/clojure/clojurescript-site/blob/master/content/reference/compiler-options.adoc
+[1] https://developers.google.com/closure/compiler/  
+[2] https://github.com/clojure/clojurescript-site/blob/master/content/reference/compiler-options.adoc  
+[mixed source] URL for using cljx  
 
 __Hosting HTML Page__
 
 We want to run `solo.spa` in the browser. In order to load the
-compiled JS into the browser we need a _hosting_ HTML page that
+compiled JS into the browser we'll use a _hosting_ HTML page that
 contains a `<script>` element that references the JS file
 `resources/public/js/compiled/solo-spa.js`.
 
 You could use a static `index.html` file and load that via `file://`
 or `http://` URL. Instead we will create the HTML page __dynamically__
 via _Solo's_ server side. In `src/clj/solo/web/spa.clj` you find the
-web-app that we'll use for the SPA. It delivers
+web-app that we'll use for the SPA.
+
+It delivers
 
 * the hosting HTML page at `/spa`: this loads the JS main module, look
   into `solo.web.spa/the-page`
@@ -1825,6 +1840,13 @@ programming languages like -- say -- Java?!)
       (route/resources "/out" {:root "public/js/compiled"})
       web/app)
 
+__Note:__ Instead of introducing a __seperate__ route
+`(route/resources "/out" {:root "public/js/compiled"})` for `/out` we
+could just have used `(route/resources "/")` from
+`solo.web/main-routes` to which `solo.web.spa/main-routes`
+delegates. In this case we would have to use another `:asset-path` to
+account for the different base-offset/`:root`.
+
 __Running Solo SPA__
 
 You can run the SPA just the way you ran _Solo_ before. I changed
@@ -1836,11 +1858,13 @@ You can run the SPA just the way you ran _Solo_ before. I changed
 __Development__
 
 While using _Solo_ SPA you can change the Clojure backend and the CLJS
-front-end anytime.
+front-end __anytime__.
 
 You just need to run the CLJS compiler (__incremental__ __build__!)
 whenever the CLJS sources change and you need nREPL or Swank to talk
-to the backend. Like this:
+to the backend.
+
+You run the __incremental__ __build__ like this:
 
     solo-project$ lein make-spa-auto
 
@@ -1851,7 +1875,7 @@ just sit there and wait and compile any CLJS source that changes.
 
 And then in a second shell run _Solo_:
 
-    solo-project$ lein run-web-jar -j 3000 -s 4005
+    solo-project$ lein run-web-jar -j 3000 -s 4005 -n 7888
 
 Now you have two running JVMs.
 
@@ -1860,13 +1884,6 @@ browser after the CLJS compiler has written the updated file. The
 reload will not (__yet__!) be done for you. Since the reload will wipe
 the current page/document you will lose any state that your
 application may have reached (but see below!).
-
-## solo.rest, solo.client.rest
-
-
-
-
-## solo.client
 
 ------------------------------------------------------------------------
 # Step Nine: bREPL
