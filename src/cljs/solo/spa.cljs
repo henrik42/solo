@@ -20,7 +20,6 @@
 
 (def app-state (atom {}))
 
-
 (defn log [& xs]
   (.log js/console (apply str "LOG:" xs)))
 
@@ -73,7 +72,7 @@
              :id "level"} (make-options log-levels "INFO")]
    
    [:span {:style "padding:1em;"}]
-   [:input {:type "submit", :value "SET LOG-LEVEL"}]])
+   [:input {:type "submit", :id "set-log-level" :value "SET LOG-LEVEL"}]])
 
 (defn loggers-form
   "Returns a Hiccup-vector for the *loggers form* which allows the
@@ -102,7 +101,7 @@
     (for [{:keys [logger-name log-level]} (:loggers @app-state)]
       [:tr
        [:td logger-name]
-       [:td [:select {:id "level"} (make-options log-levels log-level)]]])
+       [:td [:select (make-options log-levels log-level)]]])
 
     [:input {:type "submit", :id "refresh" :value "REFRESH"}]]])
 
@@ -111,13 +110,6 @@
 ;; call backend web-services and change app state and trigger re-draw
 
 ;; ################### main ##########################
-
-;; create view, mount view, trigger service-call and draw app state
-
-(defn http-get
-  [url]
-  (go (let [res (<! (http/get url))]
-        (log "RES:" res))))
 
 (defn load-current-loggers [& _] ;; can be event-callback
   (go (let [res (<! (http/get "ws/get-current-loggers"))]
@@ -128,6 +120,14 @@
       (.getElementById "loggers-form")
       (.replaceWith (hipo-i/create (loggers-form) nil)))
   (events/listen (dom/getElement "refresh") "click" load-current-loggers))
+
+(defn set-log-level [& _] ;; can be event-callback
+  (let [logger (-> js/document (.getElementById "logger") (.-value))
+        level (-> js/document (.getElementById "level") (.-value))]
+    (log "LEVEL" logger " " log-level)
+    (go 
+     (http/post (str "/ws/set-log-level/" logger "/" level))
+     (load-current-loggers))))
 
 (defn main!
   "Main entry point of the SPA.
@@ -145,9 +145,14 @@
         (.getElementById "main")
         (.replaceWith root))
 
+    (events/listen (dom/getElement "set-log-level") "click" set-log-level)
+
     (load-current-loggers)))
 
 (add-watch app-state :i-need-no-key render-loggers)
              
 (main!)
 (log "solo.spa loaded")
+
+#_
+(-> js/document (.getElementById "logger") (.-value))
