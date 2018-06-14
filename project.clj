@@ -143,6 +143,8 @@
 
                    :dependencies [[org.clojure/clojurescript "1.10.238"]
                                   [prismatic/dommy "1.1.0"]
+                                  [cljs-http "0.1.45"]
+                                  [org.clojure/core.async "0.4.474"]
                                   [hipo "0.5.2"]]}})
              
 

@@ -11,6 +11,7 @@
 ;; ################### model ##########################
 
 (defn get-current-loggers []
+  {:post [(or (.println System/out (format "get-current-loggers --> %s" %)) true)]}
   {:body {:loggers
           (web/get-current-loggers {:filter-reg-ex #"" :hide false})}
    :headers {"Cache-Control" "no-cache"}})
