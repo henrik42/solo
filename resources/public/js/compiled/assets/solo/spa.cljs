@@ -1,24 +1,14 @@
 (ns solo.spa
-  (:require-macros [cljs.core.async.macros :refer [go alt!]])
-  (:require [goog.events :as events]
-            [goog.dom :as dom]
-            [cljs.core.async :refer [put! <! >! chan timeout]]
+  (:require-macros [cljs.core.async.macros :refer [go]])
+  (:require [cljs.core.async :refer [<! >!]]
             [clojure.browser.repl :as repl]
-            [hipo.interpreter :as hipo-i]
-            [cljs-http.client :as http]
-            #_ [dommy.core :as dommy
-             :refer-macros [sel sel1]]))
+            [hipo.interpreter :as hipo]
+            [cljs-http.client :as http]))
 
-;; TODO: move this to a seperate namespace and use CLJS compiler
-;; option to load in "dev"
 (defonce conn
   (repl/connect "http://localhost:9000/repl"))
 
 (enable-console-print!)
-
-;; ----------------------------------------------------------------------
-
-(def app-state (atom {}))
 
 (defn log [& xs]
   (.log js/console (apply str "LOG:" xs)))
@@ -29,14 +19,36 @@
 
     #{"UNKNOWN!" "NOT-SET!" "DEBUG" "INFO" "WARN" "ERROR" "OFF"})
 
+;; ################### model ##########################
+
+(declare ^:export render-loggers)
+
+(def app-state
+  (let [s (atom {})]
+    (add-watch s :i-need-no-key #'render-loggers)
+    s))
+
+;; ################### controller ##########################
+
+(defn load-current-loggers [& _] ;; can be event-callback
+  (go (let [res (<! (http/get "ws/get-current-loggers"))]
+        (swap! app-state assoc :loggers (get-in res [:body :loggers])))))
+
+(defn set-log-level [& _] ;; can be event-callback
+  (let [logger (-> js/document (.getElementById "logger") (.-value))
+        level (-> js/document (.getElementById "level") (.-value))]
+    (go 
+     (http/post (str "/ws/set-log-level/" logger "/" level))
+     (load-current-loggers))))
+
+;; ################### view ##########################
+
 (defn make-options
   "Returns `:option` Hiccup-vector-seq for `xs`. If `(= x o)` for
   entry `o` of `xs` then `:selected` is `true`."
 
   [xs x]
   (map (fn [o] [:option {:selected (= x o)} o]) xs))
-
-;; ################### view ##########################
 
 (defn top-of-page
   "Returns a Hiccup-vector for the top-of-page including a link to the
@@ -61,18 +73,16 @@
    [:label {:for "logger"} "LOGGER:"]
    [:input {:type "text",
             :id "logger",
-            ;; :value nil,
             :placeholder "Logger Name"}]
 
    [:span {:style "padding:1em;"}]
    [:label {:for "level"} " LEVEL:"]
-   
-   ;; TODO: build options
-   [:select {;;:name "level",
-             :id "level"} (make-options log-levels "INFO")]
+   [:select {:id "level"} (make-options log-levels "INFO")]
    
    [:span {:style "padding:1em;"}]
-   [:input {:type "submit", :id "set-log-level" :value "SET LOG-LEVEL"}]])
+   [:input {:type "submit"
+            :on-click set-log-level
+            :value "SET LOG-LEVEL"}]])
 
 (defn loggers-form
   "Returns a Hiccup-vector for the *loggers form* which allows the
@@ -88,7 +98,6 @@
      [:th "LOGGER"
       [:input {:type "text",
                :id "filter",
-               ;; :value "",
                :placeholder "Filter Reg-Ex",
                :style "float: right;"}]]
      [:th "LEVEL"
@@ -96,47 +105,40 @@
        [:label {:for "hide"} " Hide NOT-SET!:"]
        [:input {:type "checkbox",
                 :id "hide",
-                 ;;:value "true",
                 :checked (get @app-state :hide false)}]]]]
+    
     (for [{:keys [logger-name log-level]} (:loggers @app-state)]
       [:tr
        [:td logger-name]
        [:td [:select (make-options log-levels log-level)]]])
 
-    [:input {:type "submit", :id "refresh" :value "REFRESH"}]]])
-
-;; ################### controller ##########################
-
-;; call backend web-services and change app state and trigger re-draw
+    [:input {:type "submit"
+             :on-click load-current-loggers
+             :value "REFRESH"}]]])
 
 ;; ################### main ##########################
 
-(defn load-current-loggers [& _] ;; can be event-callback
-  (go (let [res (<! (http/get "ws/get-current-loggers"))]
-        (swap! app-state assoc :loggers (get-in res [:body :loggers])))))
+(defn ^:export render-loggers
+  "Creates the DOM for `(loggers-form)` and mounts it at
+  `id=\"loggers-form\"`."
 
-(defn render-loggers [& _] ;; can be watch listener
+  [& _] ;; can be watch listener
   (-> js/document
       (.getElementById "loggers-form")
-      (.replaceWith (hipo-i/create (loggers-form) nil)))
-  (events/listen (dom/getElement "refresh") "click" load-current-loggers))
+      (.replaceWith (hipo/create (loggers-form) nil))))
 
-(defn set-log-level [& _] ;; can be event-callback
-  (let [logger (-> js/document (.getElementById "logger") (.-value))
-        level (-> js/document (.getElementById "level") (.-value))]
-    (log "LEVEL" logger " " log-level)
-    (go 
-     (http/post (str "/ws/set-log-level/" logger "/" level))
-     (load-current-loggers))))
-
-(defn main!
+(defn main
   "Main entry point of the SPA.
 
-  Call this function to create the DOM for the SPA and to populate and
-  render/mount the inital app-state at `id` `main`."
+  Creates the DOM for the SPA and mounts it at `id=\"main\"`. Then
+  calls `(load-current-loggers)`.
+
+  The `main`-DOM will contain the `(loggers-form)`-DOM with
+  `id=\"loggers-form\"` so that this sub-DOM can be _updated_ via
+  `render-loggers`."
 
   []
-  (let [root (hipo-i/create [:div#main
+  (let [root (hipo/create [:div#main
                              (top-of-page)
                              (set-log-level-form)
                              (loggers-form)]
@@ -145,14 +147,6 @@
         (.getElementById "main")
         (.replaceWith root))
 
-    (events/listen (dom/getElement "set-log-level") "click" set-log-level)
-
     (load-current-loggers)))
 
-(add-watch app-state :i-need-no-key render-loggers)
-             
-(main!)
-(log "solo.spa loaded")
-
-#_
-(-> js/document (.getElementById "logger") (.-value))
+(main)
