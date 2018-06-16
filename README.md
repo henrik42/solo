@@ -1664,7 +1664,7 @@ jetty-and-log4j-example app which uses log4j.
 For client side logic I use ClojureScript/CLJS [1]. CLJS is a
 compiled/transpiled language [2] which is very similar to
 Clojure. CLJS is compiled to JavaScript/JS, the compiler is written in
-Clojure.
+Clojure. CLJS uses the __Google Closure compiler__ [xx].
 
 Until now `solo.web` uses no client-side scripting. All client
 interaction with the backend is based on HTML-`form`
@@ -1693,6 +1693,7 @@ bare _core_ _logic_ (`solo.core`).
 [1] https://clojurescript.org/  
 [2] https://github.com/clojure/clojurescript  
 [JSON] JSON URL  
+[x] https://developers.google.com/closure/compiler/
 
 ## solo.spa, solo.web.spa
 
@@ -1779,11 +1780,11 @@ want.
 
 Many more files are written to `resources/public/js/compiled/out/`
 (cf. `:output-dir "resources/public/js/compiled/out/*"`). CLJS uses
-the Google Closure compiler [1], so that makes up for some of the
+the Google Closure Library [1] so that makes up for some of the
 generated JS files.
 
-[1] https://developers.google.com/closure/compiler/  
-[2] https://github.com/clojure/clojurescript-site/blob/master/content/reference/compiler-options.adoc  
+[1] __Google Closure Library__  
+[x] https://github.com/clojure/clojurescript-site/blob/master/content/reference/compiler-options.adoc  
 [mixed source] URL for using cljx  
 
 __Hosting HTML Page__
@@ -1866,7 +1867,7 @@ to the backend.
 
 You run the __incremental__ __build__ like this:
 
-    solo-project$ lein make-spa-auto
+    solo-project$ lein make-spa-autoa
 
 This runs the following alias. It will start an auto-compile that will
 just sit there and wait and compile any CLJS source that changes.
