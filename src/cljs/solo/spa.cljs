@@ -1,16 +1,22 @@
 (ns solo.spa
+  "A Single Page Application (SPA)."
+  
   (:require-macros [cljs.core.async.macros :refer [go]])
   (:require [cljs.core.async :refer [<! >!]]
             [clojure.browser.repl :as repl]
             [hipo.interpreter :as hipo]
             [cljs-http.client :as http]))
 
+;;TODO: use the GUI to start a REPL
 (defonce conn
   (repl/connect "http://localhost:9000/repl"))
 
-(enable-console-print!)
+;;(enable-console-print!)
 
-(defn log [& xs]
+(defn log
+  "Prints to `js/console`."
+
+  [& xs]
   (.log js/console (apply str "LOG:" xs)))
 
 (def log-levels
@@ -24,17 +30,62 @@
 (declare ^:export render-loggers)
 
 (def app-state
+  "THE STATE of the application. Whenever this state changes
+  `render-loggers` will be called to update/(re)-render the GUI."
+  
   (let [s (atom {})]
     (add-watch s :i-need-no-key #'render-loggers)
     s))
 
+(defn filter-reg-ex
+  "Returns the `app-state`'s `:filter-reg-ex` (`js/RegExp`). Returns
+  `#\".*\"` if the `:filter-reg-ex` is empty/not-set or not a valid
+  `js/RegExp` expression. Never returns `nil`."
+
+  []
+  (let [reg-ex (get @app-state :filter-reg-ex ".*")]
+    (try (js/RegExp reg-ex) (catch :default t #".*"))))
+
+(defn hide?
+  "Returns the `app-state`'s `:hide` (`boolean`). Returns `false` if
+  the `:hide` is empty/not-set. Never returns `nil`."
+  
+  []
+  (:hide @app-state false))
+
+(defn set-hide!
+  "Sets the `app-state`'s `:hide`."
+
+  [e]
+  (log (js->clj e)))
+
+(defn loggers
+  "Returns the `app-state`'s `:loggers` (map-seq). If `(hide?)` is
+  truthy loggers with `:log-level \"NOT-SET!\" will be filtered out."
+
+  []
+  (let [filter-reg-ex (filter-reg-ex)
+        hide (hide?)]
+    (->> (:loggers @app-state)
+         (map 
+          (fn [{:keys [logger-name log-level] :as logger}]
+            (cond
+              (= "" log-level) (assoc logger :log-level "NOT-SET!")
+              (not (log-levels log-level)) (assoc logger :log-level "UNKNOWN!")
+              :else logger)))
+         (filter 
+          #(and (re-find filter-reg-ex (:logger-name %))
+                (if hide
+                  (not= "NOT-SET!" (:log-level %))
+                  true))))))
+
 ;; ################### controller ##########################
 
-(defn load-current-loggers [& _] ;; can be event-callback
+(defn load-current-loggers [& _]
   (go (let [res (<! (http/get "ws/get-current-loggers"))]
         (swap! app-state assoc :loggers (get-in res [:body :loggers])))))
 
-(defn set-log-level [& _] ;; can be event-callback
+(defn set-log-level [& _]
   (let [logger (-> js/document (.getElementById "logger") (.-value))
         level (-> js/document (.getElementById "level") (.-value))]
     (go 
@@ -105,9 +156,10 @@
        [:label {:for "hide"} " Hide NOT-SET!:"]
        [:input {:type "checkbox",
                 :id "hide",
-                :checked (get @app-state :hide false)}]]]]
+                :on-change set-hide!
+                :checked (hide?)}]]]]
     
-    (for [{:keys [logger-name log-level]} (:loggers @app-state)]
+    (for [{:keys [logger-name log-level]} (loggers)]
       [:tr
        [:td logger-name]
        [:td [:select (make-options log-levels log-level)]]])
@@ -120,9 +172,9 @@
 
 (defn ^:export render-loggers
   "Creates the DOM for `(loggers-form)` and mounts it at
-  `id=\"loggers-form\"`."
+  `id=\"loggers-form\"`. So this (re)renders the loggers-form."
 
-  [& _] ;; can be watch listener
+  [& _] 
   (-> js/document
       (.getElementById "loggers-form")
       (.replaceWith (hipo/create (loggers-form) nil))))
@@ -130,12 +182,13 @@
 (defn main
   "Main entry point of the SPA.
 
-  Creates the DOM for the SPA and mounts it at `id=\"main\"`. Then
-  calls `(load-current-loggers)`.
+  Creates the `main`-DOM for the SPA and mounts it in the current DOM
+  at `id=\"main\"`. So the initial hosting page must contain such a
+  `id=\"main\"-node. Then calls `(load-current-loggers)`.
 
-  The `main`-DOM will contain the `(loggers-form)`-DOM with
+  The `main`-DOM contains the `(loggers-form)`-DOM with
   `id=\"loggers-form\"` so that this sub-DOM can be _updated_ via
-  `render-loggers`."
+  `render-loggers` whenever the `app-state` changes."
 
   []
   (let [root (hipo/create [:div#main
