@@ -5,6 +5,7 @@
   (:require [cljs.core.async :refer [<! >!]]
             [clojure.browser.repl :as repl]
             [hipo.interpreter :as hipo]
+            [goog.dom :as gdom]
             [cljs-http.client :as http]))
 
 ;;TODO: use the GUI to start a REPL
@@ -17,7 +18,7 @@
   "Prints to `js/console`."
 
   [& xs]
-  (.log js/console (apply str "LOG:" xs)))
+  (.log js/console (apply str "log:" xs)))
 
 (def log-levels
     "The set of known log-levels (incl. `\"UNKNOWN!\"` and
@@ -43,8 +44,17 @@
   `js/RegExp` expression. Never returns `nil`."
 
   []
-  (let [reg-ex (get @app-state :filter-reg-ex ".*")]
+  (let [reg-ex (:filter-reg-ex @app-state #".*")]
     (try (js/RegExp reg-ex) (catch :default t #".*"))))
+
+(defn reg-ex->str [r]
+  (let [r (str r)]
+    (.substring r 1 (dec (.-length r)))))
+
+(defn set-filter-reg-ex! [x]
+  (swap! app-state assoc :filter-reg-ex
+         (if (string? x) x
+             (-> x .-currentTarget .-value))))
 
 (defn hide?
   "Returns the `app-state`'s `:hide` (`boolean`). Returns `false` if
@@ -54,13 +64,18 @@
   (:hide @app-state false))
 
 (defn set-hide!
-  "Sets the `app-state`'s `:hide`."
+  "Eventlistener that sets the `app-state`'s `:hide`-value to the
+  current `-checked`-value of the checkbox (i.e. the event
+  target). Call with a `boolean` to set the `app-state`'s
+  `:hide`-value. Returns the new `app-state`."
 
-  [e]
-  (log (js->clj e)))
+  [x]
+  (swap! app-state assoc :hide
+         (if (boolean? x) x
+             (-> x .-currentTarget .-checked))))
 
 (defn loggers
-  "Returns the `app-state`'s `:loggers` (map-seq). If `(hide?)` is
+  "Returns the `app-state`'s `:loggers` (a _map-seq_). If `(hide?)` is
   truthy loggers with `:log-level \"NOT-SET!\" will be filtered out."
 
   []
@@ -149,6 +164,8 @@
      [:th "LOGGER"
       [:input {:type "text",
                :id "filter",
+               :value (-> (filter-reg-ex) (reg-ex->str))
+               :on-change set-filter-reg-ex!
                :placeholder "Filter Reg-Ex",
                :style "float: right;"}]]
      [:th "LEVEL"

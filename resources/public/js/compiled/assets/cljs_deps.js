@@ -45,4 +45,4 @@ goog.addDependency("../clojure/set.js", ['clojure.set'], ['cljs.core']);
 goog.addDependency("../hipo/dom.js", ['hipo.dom'], ['cljs.core']);
 goog.addDependency("../hipo/interceptor.js", ['hipo.interceptor'], ['cljs.core']);
 goog.addDependency("../hipo/interpreter.js", ['hipo.interpreter'], ['hipo.hiccup', 'cljs.core', 'hipo.attribute', 'clojure.set', 'hipo.dom', 'hipo.interceptor']);
-goog.addDependency("../solo/spa.js", ['solo.spa'], ['clojure.browser.repl', 'cljs.core', 'cljs_http.client', 'cljs.core.async', 'hipo.interpreter']);
+goog.addDependency("../solo/spa.js", ['solo.spa'], ['goog.dom', 'clojure.browser.repl', 'cljs.core', 'cljs_http.client', 'cljs.core.async', 'hipo.interpreter']);

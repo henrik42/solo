@@ -1057,22 +1057,23 @@ Created [...]/solo-project/target/make-web-war+web-deps+uberjar/solo-web.war
 <hr />
 <h1><a href="#step-eight-clojurescript" name="step-eight-clojurescript"></a>Step Eight: clojurescript</h1>
 <hr />
-<p>For client side logic I use ClojureScript/CLJS [1]. CLJS is a compiled/transpiled language [2] which is very similar to Clojure. CLJS is compiled to JavaScript/JS, the compiler is written in Clojure.</p>
+<p>For client side logic I use ClojureScript/CLJS [1]. CLJS is a compiled/transpiled language [2] which is very similar to Clojure. CLJS is compiled to JavaScript/JS, the compiler is written in Clojure. CLJS uses the <strong>Google Closure compiler</strong> [xx].</p>
 <p>Until now <code>solo.web</code> uses no client-side scripting. All client interaction with the backend is based on HTML-<code>form</code> <em>POST-backs</em>. While we’re introducing client-side scripting we’ll re-structure the logic a little:</p>
 <ul>
   <li>
-  <p>We publish web-services (<code>/ws/get-current-loggers</code> and  <code>/ws/set-log-level</code>) on the server-side: these will use JSON  (**TODO:** what about EDN?) as message format. That makes it easy to  use these web-services from the browser/CLJS.</p></li>
+  <p>In <code>src/clj/solo/web/spa.clj</code> we publish web-services  (<code>/ws/get-current-loggers</code> and <code>/ws/set-log-level</code>) on the  server-side. These will use JSON [JSON] (**TODO:** what about EDN?)  as message format. That makes it easy to use these web-services from  the browser/CLJS.</p></li>
   <li>
-  <p>We consume (i.e. <em>use</em>) these web-services on the client-side: we’ll  use CLJS to (1) retrieve the loggers via <code>/ws/get-current-loggers</code>,  (2) do the filtering/sorting and (3) render the data to the DOM. For  mutation we’ll (4) call <code>/ws/set-log-level</code>.</p></li>
+  <p>In <code>src/cljs/solo/spa.cljs</code> we consume/use these web-services on the  client-side. We’ll use CLJS to (1) retrieve the loggers via  <code>/ws/get-current-loggers</code>, (2) do the filtering/sorting and (3)  render the data to the DOM. For mutation we’ll (4) call  <code>/ws/set-log-level</code>.</p></li>
 </ul>
-<p>So we move most of the MVC-logic away from the server and put it into the client. Not only will the client do the rendering (which it has done before already) but also do <em>smart</em> things like <strong>create</strong> the markup/DOM and do filtering etc. The backend becomes just a thin (technical) proxy/adapter and the bare <em>core</em> <em>logic</em> (<code>solo.core</code>).</p>
-<p>[1] <a href="https://clojurescript.org/">https://clojurescript.org/</a> [2] <a href="https://github.com/clojure/clojurescript">https://github.com/clojure/clojurescript</a></p>
+<p>So we move most of the MVC-logic away from the server and put it into the client. Not only will the client (<code>solo.spa</code>) do the rendering (which it has done before already) but also do <em>smart</em> things like <strong>create</strong> the markup/DOM and do filtering etc. The backend (<code>solo.web.spa</code>) becomes just a thin (technical) proxy/adapter for the bare <em>core</em> <em>logic</em> (<code>solo.core</code>).</p>
+<p>[1] <a href="https://clojurescript.org/">https://clojurescript.org/</a><br />[2] <a href="https://github.com/clojure/clojurescript">https://github.com/clojure/clojurescript</a><br />[JSON] JSON URL<br />[x] <a href="https://developers.google.com/closure/compiler/">https://developers.google.com/closure/compiler/</a></p>
 <h2><a href="#solo-spa-solo-web-spa" name="solo-spa-solo-web-spa"></a>solo.spa, solo.web.spa</h2>
 <p>Before we look into the CLJS sources let’s have a look at the build.</p>
 <p><strong>Build</strong></p>
 <p>We put the CLJS sources into <code>src/cljs/solo/spa.cljs</code>. You can compile these sources with:</p>
 <pre><code>solo-project$ lein make-spa
 </code></pre>
+<p><strong>Note:</strong> The Clojure/ClojureScript compile support mixed source formats via reader conditionals [mixed source] (not used in <em>Solo</em>). So you can put source into <code>*.cljx</code> files and let both compilers compile these sources. Thus you have <em>single</em> <em>source</em> and you can use these namespace from Clojure and ClojureScript. No code duplication!</p>
 <p>This will run the CLJS compiler which produces JavaScript code into <code>resources/public/js/compiled/</code>. You should see something like this:</p>
 <pre><code>Compiling ClojureScript...
 Compiling ["resources/public/js/compiled/solo-spa.js"] from ["src/cljs"]...
@@ -1114,12 +1115,13 @@ document.write('&lt;script&gt;goog.require("process.env");&lt;/script&gt;');
 document.write('&lt;script&gt;goog.require("solo.spa");&lt;/script&gt;');
 </code></pre>
 <p>It’s a <em>loader</em> script that will pull in all libraries that CLJS and <code>solo.spa</code> depend on and in the end it will <em>load</em> (i.e. <code>require</code>) namespace <code>solo.spa</code> (cf. <code>:main solo.spa</code>) – it’s <strong>not</strong> a function call that “starts your program”, it is just the “loading of your namespace” that has to start-up whatever you want to have started.</p>
-<p>Note that the <em>loader</em> uses <code>document.write</code> (so it really <strong>writes</strong> <code>script</code> <strong>elements</strong> into the hosting HTML page while it is loading) to make the <strong>browser</strong> load the JavaScript sources. It does <strong>not</strong> use a JS API to dynamically load JS sources (except for the last two lines that call <code>require</code> function). And some of the referenced JS scrip-files do also use <code>document.write</code>. This makes it difficult to load these JavaScript sources after the hosting HTML page has been loaded initially, because writing to the document after the inital load has completed will wipe-out the current document and do a new page-load so you’ll lose the loading document which is usually not what you’re trying to do.</p>
-<p>Many more files are written to <code>resources/public/js/compiled/out/</code> (cf. <code>:output-dir "resources/public/js/compiled/out/*"</code>). CLJS uses the Google Closure compiler [1], so that makes for some of the generated JS files.</p>
-<p>[1] <a href="https://developers.google.com/closure/compiler/">https://developers.google.com/closure/compiler/</a> [2] <a href="https://github.com/clojure/clojurescript-site/blob/master/content/reference/compiler-options.adoc">https://github.com/clojure/clojurescript-site/blob/master/content/reference/compiler-options.adoc</a></p>
+<p>Note that the <em>loader</em> uses <code>document.write</code> (so it really <strong>writes</strong> <code>script</code> <strong>elements</strong> into the hosting HTML page while it is loading) to make the <strong>browser</strong> load the JavaScript sources. It does <strong>not</strong> use a JS API to dynamically load JS sources (except for the last two lines that call <code>require</code>). And some of the referenced JS scrip-files do also use <code>document.write</code>. This makes it difficult to load these JavaScript sources after the hosting HTML page has been loaded initially, because writing to the document <strong>after</strong> the inital load has completed will wipe-out the current document and do a new page-load so you’ll lose the loaded document (DOM and any <strong>state</strong> that may exist in your CLJS namespaces!) which is usually not what you want.</p>
+<p>Many more files are written to <code>resources/public/js/compiled/out/</code> (cf. <code>:output-dir "resources/public/js/compiled/out/*"</code>). CLJS uses the Google Closure Library [1] so that makes up for some of the generated JS files.</p>
+<p>[1] <strong>Google Closure Library</strong><br />[x] <a href="https://github.com/clojure/clojurescript-site/blob/master/content/reference/compiler-options.adoc">https://github.com/clojure/clojurescript-site/blob/master/content/reference/compiler-options.adoc</a><br />[mixed source] URL for using cljx </p>
 <p><strong>Hosting HTML Page</strong></p>
-<p>We want to run <code>solo.spa</code> in the browser. In order to load the compiled JS into the browser we need a <em>hosting</em> HTML page that contains a <code>&lt;script&gt;</code> element that references the JS file <code>resources/public/js/compiled/solo-spa.js</code>.</p>
-<p>You could use a static <code>index.html</code> file and load that via <code>file://</code> or <code>http://</code> URL. Instead we will create the HTML page <strong>dynamically</strong> via <em>Solo’s</em> server side. In <code>src/clj/solo/web/spa.clj</code> you find the web-app that we’ll use for the SPA. It delivers</p>
+<p>We want to run <code>solo.spa</code> in the browser. In order to load the compiled JS into the browser we’ll use a <em>hosting</em> HTML page that contains a <code>&lt;script&gt;</code> element that references the JS file <code>resources/public/js/compiled/solo-spa.js</code>.</p>
+<p>You could use a static <code>index.html</code> file and load that via <code>file://</code> or <code>http://</code> URL. Instead we will create the HTML page <strong>dynamically</strong> via <em>Solo’s</em> server side. In <code>src/clj/solo/web/spa.clj</code> you find the web-app that we’ll use for the SPA.</p>
+<p>It delivers</p>
 <ul>
   <li>
     <p>the hosting HTML page at <code>/spa</code>: this loads the JS main module, look  into <code>solo.web.spa/the-page</code></p>
@@ -1145,25 +1147,25 @@ document.write('&lt;script&gt;goog.require("solo.spa");&lt;/script&gt;');
   (route/resources "/out" {:root "public/js/compiled"})
   web/app)
 </code></pre>
+<p><strong>Note:</strong> Instead of introducing a <strong>seperate</strong> route <code>(route/resources "/out" {:root "public/js/compiled"})</code> for <code>/out</code> we could just have used <code>(route/resources "/")</code> from <code>solo.web/main-routes</code> to which <code>solo.web.spa/main-routes</code> delegates. In this case we would have to use another <code>:asset-path</code> to account for the different base-offset/<code>:root</code>.</p>
 <p><strong>Running Solo SPA</strong></p>
 <p>You can run the SPA just the way you ran <em>Solo</em> before. I changed <code>src/clj/solo/jetty.clj</code> so that Jetty now serves the new web-app <code>solo.web.spa/app</code>.</p>
 <pre><code>solo-project$ lein run-web-jar -j 3000
 </code></pre>
 <p><strong>Development</strong></p>
-<p>While using <em>Solo</em> SPA you can change the Clojure backend and the CLJS front-end anytime.</p>
-<p>You just need to run the CLJS compiler (__incremental__ <strong>build</strong>!) whenever the CLJS sources change and you need nREPL or Swank to talk to the backend. Like this:</p>
-<pre><code>solo-project$ lein make-spa-auto
+<p>While using <em>Solo</em> SPA you can change the Clojure backend and the CLJS front-end <strong>anytime</strong>.</p>
+<p>You just need to run the CLJS compiler (__incremental__ <strong>build</strong>!) whenever the CLJS sources change and you need nREPL or Swank to talk to the backend.</p>
+<p>You run the <strong>incremental</strong> <strong>build</strong> like this:</p>
+<pre><code>solo-project$ lein make-spa-autoa
 </code></pre>
 <p>This runs the following alias. It will start an auto-compile that will just sit there and wait and compile any CLJS source that changes.</p>
 <pre><code>"make-spa-auto" ["with-profile" "+spa" "trampoline" "cljsbuild" "auto"]
 </code></pre>
 <p>And then in a second shell run <em>Solo</em>:</p>
-<pre><code>solo-project$ lein run-web-jar -j 3000 -s 4005
+<pre><code>solo-project$ lein run-web-jar -j 3000 -s 4005 -n 7888
 </code></pre>
 <p>Now you have two running JVMs.</p>
 <p>When you change the CLJS source you have to <em>reload</em> the page in the browser after the CLJS compiler has written the updated file. The reload will not (__yet__!) be done for you. Since the reload will wipe the current page/document you will lose any state that your application may have reached (but see below!).</p>
-<h2><a href="#solo-rest-solo-client-rest" name="solo-rest-solo-client-rest"></a>solo.rest, solo.client.rest</h2>
-<h2><a href="#solo-client" name="solo-client"></a>solo.client</h2>
 <hr />
 <h1><a href="#step-nine-brepl" name="step-nine-brepl"></a>Step Nine: bREPL</h1>
 <hr />

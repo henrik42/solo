@@ -2982,6 +2982,7 @@ net.brehaut.ClojureTools = (function (SH) {
             [solo.web :as web]))</pre></td></tr><tr><td class="docs"><h6>############# model ####################</h6>
 </td><td class="codes"></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn get-current-loggers []
+  {:post [(or (.println System/out (format &quot;get-current-loggers --&gt; %s&quot; %)) true)]}
   {:body {:loggers
           (web/get-current-loggers {:filter-reg-ex # :hide false})}
    :headers {&quot;Cache-Control&quot; &quot;no-cache&quot;}})</pre></td></tr><tr><td class="docs">
