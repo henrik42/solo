@@ -209,7 +209,7 @@
   (let [loggers (get-current-loggers options)]
     (hp/html5
      [:head
-      (hp/include-css "/css/solo.css")]
+      (hp/include-css "css/solo.css")]
      [:body
       (top-of-page)
       (set-log-level-form options)

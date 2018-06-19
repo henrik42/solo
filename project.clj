@@ -69,7 +69,7 @@
 
             ;; run CLJS compiler in incremental mode, compile files as
             ;; soon as they change
-            "make-spa-auto" ["with-profile" "+spa" "trampoline" "cljsbuild" "auto"]
+            "make-spa-auto" ["with-profile" "+spa" "do" ["clean"] ["trampoline" "cljsbuild" "auto"]]
 
             ;; run JVM/Clojure REPL connected to browser REPL via long
             ;; polling from the browser
@@ -77,7 +77,7 @@
 
             }
   
-  :ring {:handler solo.web/app
+  :ring {:handler solo.web.spa/app
          :nrepl {:start? true
                  :port 9998}}
   
@@ -110,7 +110,7 @@
              :provided {:dependencies [[ring/ring-jetty-adapter "1.6.3"]]}
              
              :web-deps {:dependencies [[ring/ring-core "1.6.3"]
-                                       ;; [ring/ring-json "0.4.0"]
+                                       [ring/ring-json "0.4.0"]
                                        ;;[ring/ring-jetty-adapter "1.6.3"]
                                        [compojure "1.6.0"]
                                        [hiccup "1.0.5"]
@@ -142,7 +142,6 @@
                                                      :target-path]
 
                    :dependencies [[org.clojure/clojurescript "1.10.238"]
-                                  [prismatic/dommy "1.1.0"]
                                   [cljs-http "0.1.45"]
                                   [org.clojure/core.async "0.4.474"]
                                   [hipo "0.5.2"]]}})

@@ -39,8 +39,8 @@ throw (new Error("Assert failed: (not (neg? i))"));
 return (el.childNodes[i]);
 });
 hipo.dom.children = (function hipo$dom$children(var_args){
-var G__3031 = arguments.length;
-switch (G__3031) {
+var G__6436 = arguments.length;
+switch (G__6436) {
 case 1:
 return hipo.dom.children.cljs$core$IFn$_invoke$arity$1((arguments[(0)]));
 
@@ -83,10 +83,10 @@ return nel;
 return and__3911__auto__;
 }
 })())){
-var G__3033 = nel;
-var G__3034 = cljs.core.conj.call(null,acc,nel);
-cel = G__3033;
-acc = G__3034;
+var G__6438 = nel;
+var G__6439 = cljs.core.conj.call(null,acc,nel);
+cel = G__6438;
+acc = G__6439;
 continue;
 } else {
 return acc;
@@ -160,8 +160,8 @@ while(true){
 if((_ < n__4376__auto__)){
 el.removeChild(el.lastChild);
 
-var G__3035 = (_ + (1));
-_ = G__3035;
+var G__6440 = (_ + (1));
+_ = G__6440;
 continue;
 } else {
 return null;
@@ -201,4 +201,4 @@ throw (new Error("Assert failed: (not (neg? i))"));
 return el.removeChild(hipo.dom.child.call(null,el,i));
 });
 
-//# sourceMappingURL=dom.js.map?rel=1529002149264
+//# sourceMappingURL=dom.js.map?rel=1529441018568

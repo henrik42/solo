@@ -36,9 +36,9 @@
   we defer the loading of `solo.web` to runtime."
 
   []
-  (require 'solo.web)
+  (require 'solo.web.spa)
   (def app
-    (eval (read-string "solo.web/app"))))
+    (eval (read-string "solo.web.spa/app"))))
   
 (defn init
   "Initialize Servlet. Synchronously starts nREPL server and sets

@@ -11,7 +11,7 @@
 ;; ################### model ##########################
 
 (defn get-current-loggers []
-  {:post [(or (.println System/out (format "get-current-loggers --> %s" %)) true)]}
+  {:__post [(or (.println System/out (format "get-current-loggers --> %s" %)) true)]}
   {:body {:loggers
           (web/get-current-loggers {:filter-reg-ex #"" :hide false})}
    :headers {"Cache-Control" "no-cache"}})
@@ -25,7 +25,7 @@
 (defn the-page []
   (hp/html5
    [:head
-    (hp/include-css "/css/solo.css")]
+    (hp/include-css "css/solo.css")]
    [:body
     [:div#main]
     [:script {:src "out/solo-spa.js" :type "text/javascript"}]]))
