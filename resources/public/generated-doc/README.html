@@ -1080,7 +1080,7 @@ Compiling ["resources/public/js/compiled/solo-spa.js"] from ["src/cljs"]...
 Successfully compiled ["resources/public/js/compiled/solo-spa.js"] in 1.84 seconds.
 </code></pre>
 <p>The compile/build is configured with some <code>project.clj</code> entries. <code>:cljsbuild</code> defines the build(s) [2]:</p>
-<pre><code>  :aliases {,,, "make-spa" ["with-profile" "+spa" "trampoline" "cljsbuild" "once"]}
+<pre><code>  :aliases {,,, "make-spa" ["with-profile" "+spa" "do" ["clean"] ["trampoline" "cljsbuild" "once"]]}
 
   :profiles {,,,
              :spa {:plugins [[lein-cljsbuild "1.1.7" :exclusions [[org.clojure/clojure] ]]]
@@ -1089,19 +1089,21 @@ Successfully compiled ["resources/public/js/compiled/solo-spa.js"] in 1.84 secon
                                                      :target-path]
 
                    :dependencies [[org.clojure/clojurescript "1.10.238"]
-                                  [prismatic/dommy "1.1.0"]]}}
+                                  [cljs-http "0.1.45"]
+                                  [org.clojure/core.async "0.4.474"]
+                                  [hipo "0.5.2"]]}})
 
   :cljsbuild {:builds
               [{:id "dev"
                 :source-paths ["src/cljs"]
 
                 :compiler {:main solo.spa
-                           :asset-path "js/compiled/out"
+                           :asset-path "out/assets"
                            :output-to "resources/public/js/compiled/solo-spa.js"
-                           :output-dir "resources/public/js/compiled/out"
+                           :output-dir "resources/public/js/compiled/assets"
                            :source-map-timestamp true}}]}
 </code></pre>
-<p>The <em>main</em> entry point is <code>solo-spa.js</code> (cf. <code>:output-to
+<p>The <em>main</em> <em>entry</em> <em>point</em> is <code>solo-spa.js</code> (cf. <code>:output-to
 "resources/public/js/compiled/solo-spa.js"</code>). It should look like this:</p>
 <pre><code>var CLOSURE_UNCOMPILED_DEFINES = {};
 var CLOSURE_NO_DEPS = true;
@@ -1110,13 +1112,14 @@ if(typeof goog == "undefined")
 document.write('&lt;script src="out/assets/goog/deps.js"&gt;&lt;/script&gt;');
 document.write('&lt;script src="out/assets/cljs_deps.js"&gt;&lt;/script&gt;');
 document.write('&lt;script&gt;if (typeof goog == "undefined")
-  console.warn("ClojureScript could not load :main, did you forget to specify :asset-path?");&lt;/script&gt;');
+  console.warn("ClojureScript could not load :main, did you forget to specify :asset-path?");
+  &lt;/script&gt;');
 document.write('&lt;script&gt;goog.require("process.env");&lt;/script&gt;');
 document.write('&lt;script&gt;goog.require("solo.spa");&lt;/script&gt;');
 </code></pre>
-<p>It’s a <em>loader</em> script that will pull in all libraries that CLJS and <code>solo.spa</code> depend on and in the end it will <em>load</em> (i.e. <code>require</code>) namespace <code>solo.spa</code> (cf. <code>:main solo.spa</code>) – it’s <strong>not</strong> a function call that “starts your program”, it is just the “loading of your namespace” that has to start-up whatever you want to have started.</p>
+<p>It’s a <em>loader</em> script that will pull in all libraries that CLJS and <code>solo.spa</code> depend on and in the end it will <em>load</em> (i.e. <code>require</code>) namespace <code>solo.spa</code> (cf. <code>:compiler {:main solo.spa</code>) – it’s <strong>not</strong> a function call that “starts your program”, it is just the “loading of your namespace” that has to start-up whatever you want to have started.</p>
 <p>Note that the <em>loader</em> uses <code>document.write</code> (so it really <strong>writes</strong> <code>script</code> <strong>elements</strong> into the hosting HTML page while it is loading) to make the <strong>browser</strong> load the JavaScript sources. It does <strong>not</strong> use a JS API to dynamically load JS sources (except for the last two lines that call <code>require</code>). And some of the referenced JS scrip-files do also use <code>document.write</code>. This makes it difficult to load these JavaScript sources after the hosting HTML page has been loaded initially, because writing to the document <strong>after</strong> the inital load has completed will wipe-out the current document and do a new page-load so you’ll lose the loaded document (DOM and any <strong>state</strong> that may exist in your CLJS namespaces!) which is usually not what you want.</p>
-<p>Many more files are written to <code>resources/public/js/compiled/out/</code> (cf. <code>:output-dir "resources/public/js/compiled/out/*"</code>). CLJS uses the Google Closure Library [1] so that makes up for some of the generated JS files.</p>
+<p>Many more files are written to <code>resources/public/js/compiled/assets/</code> (cf. <code>:output-dir "resources/public/js/compiled/assets"</code>). CLJS uses the <strong>Google Closure Library</strong> [1] so that makes up for some of the generated JS files.</p>
 <p>[1] <strong>Google Closure Library</strong><br />[x] <a href="https://github.com/clojure/clojurescript-site/blob/master/content/reference/compiler-options.adoc">https://github.com/clojure/clojurescript-site/blob/master/content/reference/compiler-options.adoc</a><br />[mixed source] URL for using cljx </p>
 <p><strong>Hosting HTML Page</strong></p>
 <p>We want to run <code>solo.spa</code> in the browser. In order to load the compiled JS into the browser we’ll use a <em>hosting</em> HTML page that contains a <code>&lt;script&gt;</code> element that references the JS file <code>resources/public/js/compiled/solo-spa.js</code>.</p>
@@ -1142,21 +1145,56 @@ document.write('&lt;script&gt;goog.require("solo.spa");&lt;/script&gt;');
 "out/assets"</code>. Again <code>out</code> maps to <code>resources/public/js/compiled</code>. So for example <code>src="out/assets/goog/base.js"</code> effectivly points to <code>resources/public/js/compiled/assets/goog/base.js</code>.</p>
 <p>All other requests will be delegated to <code>solo.web/app</code>. So you can still use <em>Solo’s</em> CSS files in your SPA and you can even <em>switch</em> to the plain HTML version of <em>Solo</em> just by using a different URL to start.</p>
 <p>All this routing is condensed into this (have I mentioned that Clojure source is so <em>dense</em> that it first hurts when you come from other programming languages like – say – Java?!)</p>
-<pre><code>(defroutes main-routes
+<pre><code>(defroutes ws-routes
+  (GET  "/ws/get-current-loggers" _ (get-current-loggers))
+  (POST "/ws/set-log-level/:logger/:level" [logger level] (set-log-level! logger level)))
+
+(defroutes main-routes
   (GET "/spa" _ (the-page))
   (route/resources "/out" {:root "public/js/compiled"})
+  (-&gt; ws-routes
+      (json/wrap-json-body)
+      (json/wrap-json-params)
+      (json/wrap-json-response))
   web/app)
 </code></pre>
 <p><strong>Note:</strong> Instead of introducing a <strong>seperate</strong> route <code>(route/resources "/out" {:root "public/js/compiled"})</code> for <code>/out</code> we could just have used <code>(route/resources "/")</code> from <code>solo.web/main-routes</code> to which <code>solo.web.spa/main-routes</code> delegates. In this case we would have to use another <code>:asset-path</code> to account for the different base-offset/<code>:root</code>.</p>
 <p><strong>Running Solo SPA</strong></p>
-<p>You can run the SPA just the way you ran <em>Solo</em> before. I changed <code>src/clj/solo/jetty.clj</code> so that Jetty now serves the new web-app <code>solo.web.spa/app</code>.</p>
-<pre><code>solo-project$ lein run-web-jar -j 3000
+<p>You can run the SPA just the way you ran <em>Solo</em> before.</p>
+<ul>
+  <li>
+    <p>via <code>lein-ring</code> plugin</p>
+    <pre><code>solo-project$ lein ring server-headless
 </code></pre>
+  </li>
+  <li>
+    <p>via <code>lein run-web-jar</code> – I changed <code>src/clj/solo/jetty.clj</code> so that  Jetty now serves the new web-app <code>solo.web.spa/app</code>.</p>
+    <pre><code>solo-project$ lein run-web-jar -j 3000
+</code></pre>
+  </li>
+  <li>
+    <p>via <code>solo-web.jar</code>:</p>
+    <pre><code>solo-project$ lein make-web-jar
+solo-project$ cp target/uberjar/solo-0.1.0-SNAPSHOT-standalone.jar  ./solo-web.jar
+solo-project$ java -jar solo-web.jar -j 3000
+</code></pre>
+  </li>
+  <li>
+    <p>via <code>solo-web.war</code></p>
+    <pre><code>solo-project$ lein make-web-war
+solo-project$ java \
+               -Dlog4j.configuration=file:log4j.properties -Dlog4j.debug=true \
+               -jar lib/jetty-runner-9.4.9.v20180320.jar \
+               --jar lib/log4j-1.2.17.jar \
+               target/make-web-war+web-deps+uberjar/solo-web.war
+</code></pre>
+  </li>
+</ul>
 <p><strong>Development</strong></p>
 <p>While using <em>Solo</em> SPA you can change the Clojure backend and the CLJS front-end <strong>anytime</strong>.</p>
 <p>You just need to run the CLJS compiler (__incremental__ <strong>build</strong>!) whenever the CLJS sources change and you need nREPL or Swank to talk to the backend.</p>
 <p>You run the <strong>incremental</strong> <strong>build</strong> like this:</p>
-<pre><code>solo-project$ lein make-spa-autoa
+<pre><code>solo-project$ lein make-spa-auto
 </code></pre>
 <p>This runs the following alias. It will start an auto-compile that will just sit there and wait and compile any CLJS source that changes.</p>
 <pre><code>"make-spa-auto" ["with-profile" "+spa" "trampoline" "cljsbuild" "auto"]

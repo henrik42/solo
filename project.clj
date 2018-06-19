@@ -111,7 +111,6 @@
              
              :web-deps {:dependencies [[ring/ring-core "1.6.3"]
                                        [ring/ring-json "0.4.0"]
-                                       ;;[ring/ring-jetty-adapter "1.6.3"]
                                        [compojure "1.6.0"]
                                        [hiccup "1.0.5"]
                                        [robert/hooke "1.3.0"]

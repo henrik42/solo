@@ -2982,7 +2982,7 @@ net.brehaut.ClojureTools = (function (SH) {
             [solo.web :as web]))</pre></td></tr><tr><td class="docs"><h6>############# model ####################</h6>
 </td><td class="codes"></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn get-current-loggers []
-  {:post [(or (.println System/out (format &quot;get-current-loggers --&gt; %s&quot; %)) true)]}
+  {:__post [(or (.println System/out (format &quot;get-current-loggers --&gt; %s&quot; %)) true)]}
   {:body {:loggers
           (web/get-current-loggers {:filter-reg-ex # :hide false})}
    :headers {&quot;Cache-Control&quot; &quot;no-cache&quot;}})</pre></td></tr><tr><td class="docs">
@@ -2993,7 +2993,7 @@ net.brehaut.ClojureTools = (function (SH) {
 </td><td class="codes"><pre class="brush: clojure">(defn the-page []
   (hp/html5
    [:head
-    (hp/include-css &quot;/css/solo.css&quot;)]
+    (hp/include-css &quot;css/solo.css&quot;)]
    [:body
     [:div#main]
     [:script {:src &quot;out/solo-spa.js&quot; :type &quot;text/javascript&quot;}]]))</pre></td></tr><tr><td class="docs"><h6>############# handler/controller ####################</h6>
@@ -3312,7 +3312,7 @@ form-params (e.g. filter and hide settings).</li>
   (let [loggers (get-current-loggers options)]
     (hp/html5
      [:head
-      (hp/include-css &quot;/css/solo.css&quot;)]
+      (hp/include-css &quot;css/solo.css&quot;)]
      [:body
       (top-of-page)
       (set-log-level-form options)
@@ -3379,9 +3379,9 @@ VFS URLs which we find in JBoss/Wildfly.</p>
   we defer the loading of <code>solo.web</code> to runtime.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn load-solo-web!
   []
-  (require 'solo.web)
+  (require 'solo.web.spa)
   (def app
-    (eval (read-string &quot;solo.web/app&quot;))))</pre></td></tr><tr><td class="docs"><p>Initialize Servlet. Synchronously starts nREPL server and sets
+    (eval (read-string &quot;solo.web.spa/app&quot;))))</pre></td></tr><tr><td class="docs"><p>Initialize Servlet. Synchronously starts nREPL server and sets
   <code>nrepl-server</code> atom. This method should not throw an exception if
   the nREPL server cannot start. This may happen, when the port is
   already opened. So we will just keep on going in this case.</p>

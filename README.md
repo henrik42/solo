@@ -1723,28 +1723,30 @@ This will run the CLJS compiler which produces JavaScript code into
 The compile/build is configured with some `project.clj`
 entries. `:cljsbuild` defines the build(s) [2]:
 
-      :aliases {,,, "make-spa" ["with-profile" "+spa" "trampoline" "cljsbuild" "once"]}
+      :aliases {,,, "make-spa" ["with-profile" "+spa" "do" ["clean"] ["trampoline" "cljsbuild" "once"]]}
 
       :profiles {,,,
                  :spa {:plugins [[lein-cljsbuild "1.1.7" :exclusions [[org.clojure/clojure] ]]]
-                       
+                                    
                        :clean-targets ^{:protect false} ["resources/public/js/compiled"
                                                          :target-path]
     
                        :dependencies [[org.clojure/clojurescript "1.10.238"]
-                                      [prismatic/dommy "1.1.0"]]}}
-                                      
+                                      [cljs-http "0.1.45"]
+                                      [org.clojure/core.async "0.4.474"]
+                                      [hipo "0.5.2"]]}})
+    
       :cljsbuild {:builds
                   [{:id "dev"
                     :source-paths ["src/cljs"]
     
                     :compiler {:main solo.spa
-                               :asset-path "js/compiled/out"
+                               :asset-path "out/assets"
                                :output-to "resources/public/js/compiled/solo-spa.js"
-                               :output-dir "resources/public/js/compiled/out"
+                               :output-dir "resources/public/js/compiled/assets"
                                :source-map-timestamp true}}]}
-
-The _main_ entry point is `solo-spa.js` (cf. `:output-to
+    
+The _main_ _entry_ _point_ is `solo-spa.js` (cf. `:output-to
 "resources/public/js/compiled/solo-spa.js"`). It should look like
 this:
 
@@ -1755,15 +1757,17 @@ this:
     document.write('<script src="out/assets/goog/deps.js"></script>');
     document.write('<script src="out/assets/cljs_deps.js"></script>');
     document.write('<script>if (typeof goog == "undefined")
-      console.warn("ClojureScript could not load :main, did you forget to specify :asset-path?");</script>');
+      console.warn("ClojureScript could not load :main, did you forget to specify :asset-path?");
+      </script>');
     document.write('<script>goog.require("process.env");</script>');
     document.write('<script>goog.require("solo.spa");</script>');
-    
+        
 It's a _loader_ script that will pull in all libraries that CLJS and
 `solo.spa` depend on and in the end it will _load_ (i.e. `require`)
-namespace `solo.spa` (cf. `:main solo.spa`) -- it's __not__ a function
-call that "starts your program", it is just the "loading of your
-namespace" that has to start-up whatever you want to have started.
+namespace `solo.spa` (cf. `:compiler {:main solo.spa`) -- it's __not__
+a function call that "starts your program", it is just the "loading of
+your namespace" that has to start-up whatever you want to have
+started.
 
 Note that the _loader_ uses `document.write` (so it really __writes__
 `script` __elements__ into the hosting HTML page while it is loading)
@@ -1778,9 +1782,9 @@ page-load so you'll lose the loaded document (DOM and any __state__
 that may exist in your CLJS namespaces!) which is usually not what you
 want.
 
-Many more files are written to `resources/public/js/compiled/out/`
-(cf. `:output-dir "resources/public/js/compiled/out/*"`). CLJS uses
-the Google Closure Library [1] so that makes up for some of the
+Many more files are written to `resources/public/js/compiled/assets/`
+(cf. `:output-dir "resources/public/js/compiled/assets"`). CLJS uses
+the __Google Closure Library__ [1] so that makes up for some of the
 generated JS files.
 
 [1] __Google Closure Library__  
@@ -1836,11 +1840,19 @@ All this routing is condensed into this (have I mentioned that Clojure
 source is so _dense_ that it first hurts when you come from other
 programming languages like -- say -- Java?!)
 
+    (defroutes ws-routes
+      (GET  "/ws/get-current-loggers" _ (get-current-loggers))
+      (POST "/ws/set-log-level/:logger/:level" [logger level] (set-log-level! logger level)))
+      
     (defroutes main-routes
       (GET "/spa" _ (the-page))
       (route/resources "/out" {:root "public/js/compiled"})
+      (-> ws-routes
+          (json/wrap-json-body)
+          (json/wrap-json-params)
+          (json/wrap-json-response))
       web/app)
-
+    
 __Note:__ Instead of introducing a __seperate__ route
 `(route/resources "/out" {:root "public/js/compiled"})` for `/out` we
 could just have used `(route/resources "/")` from
@@ -1850,11 +1862,31 @@ account for the different base-offset/`:root`.
 
 __Running Solo SPA__
 
-You can run the SPA just the way you ran _Solo_ before. I changed
-`src/clj/solo/jetty.clj` so that Jetty now serves the new web-app
-`solo.web.spa/app`.
+You can run the SPA just the way you ran _Solo_ before.
 
-    solo-project$ lein run-web-jar -j 3000
+* via `lein-ring` plugin
+
+        solo-project$ lein ring server-headless
+
+* via `lein run-web-jar` -- I changed `src/clj/solo/jetty.clj` so that
+  Jetty now serves the new web-app `solo.web.spa/app`.
+
+        solo-project$ lein run-web-jar -j 3000
+
+* via `solo-web.jar`:
+
+        solo-project$ lein make-web-jar
+        solo-project$ cp target/uberjar/solo-0.1.0-SNAPSHOT-standalone.jar  ./solo-web.jar
+        solo-project$ java -jar solo-web.jar -j 3000
+
+* via `solo-web.war`
+
+        solo-project$ lein make-web-war
+        solo-project$ java \
+                       -Dlog4j.configuration=file:log4j.properties -Dlog4j.debug=true \
+                       -jar lib/jetty-runner-9.4.9.v20180320.jar \
+                       --jar lib/log4j-1.2.17.jar \
+                       target/make-web-war+web-deps+uberjar/solo-web.war
 
 __Development__
 
@@ -1867,7 +1899,7 @@ to the backend.
 
 You run the __incremental__ __build__ like this:
 
-    solo-project$ lein make-spa-autoa
+    solo-project$ lein make-spa-auto
 
 This runs the following alias. It will start an auto-compile that will
 just sit there and wait and compile any CLJS source that changes.
