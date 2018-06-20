@@ -9,10 +9,10 @@
             [cljs-http.client :as http]))
 
 ;;TODO: use the GUI to start a REPL
-(defonce conn
+#_ (defonce conn
   (repl/connect "http://localhost:9000/repl"))
 
-;;(enable-console-print!)
+(enable-console-print!)
 
 (defn log
   "Prints to `js/console`."
@@ -97,15 +97,14 @@
 ;; ################### controller ##########################
 
 (defn load-current-loggers [& _]
-  (go (let [res (<! (http/get "ws/get-current-loggers"))]
-        (swap! app-state assoc :loggers (get-in res [:body :loggers])))))
+  (go
+   (let [res (<! (http/get "ws/get-current-loggers"))]
+     (swap! app-state assoc :loggers (get-in res [:body :loggers])))))
 
-(defn set-log-level [& _]
-  (let [logger (-> js/document (.getElementById "logger") (.-value))
-        level (-> js/document (.getElementById "level") (.-value))]
-    (go 
-     (http/post (str "/ws/set-log-level/" logger "/" level))
-     (load-current-loggers))))
+(defn set-log-level! [logger-name log-level]
+  (go 
+   (http/post (str "/ws/set-log-level/" logger-name "/" log-level))
+   (load-current-loggers)))
 
 ;; ################### view ##########################
 
@@ -147,7 +146,11 @@
    
    [:span {:style "padding:1em;"}]
    [:input {:type "submit"
-            :on-click set-log-level
+            :on-click
+            (fn [_]
+              (let [logger (-> js/document (.getElementById "logger") (.-value))
+                    level (-> js/document (.getElementById "level") (.-value))]
+                (set-log-level! logger level)))
             :value "SET LOG-LEVEL"}]])
 
 (defn loggers-form
@@ -179,7 +182,12 @@
     (for [{:keys [logger-name log-level]} (loggers)]
       [:tr
        [:td logger-name]
-       [:td [:select (make-options log-levels log-level)]]])
+       [:td [:select
+             {:on-change
+              (fn [evt]
+                (let [log-level (-> evt .-currentTarget .-value)]
+                  (set-log-level! logger-name log-level)))}
+             (make-options log-levels log-level)]]])
 
     [:input {:type "submit"
              :on-click load-current-loggers
@@ -220,3 +228,4 @@
     (load-current-loggers)))
 
 (main)
+(log "loaded")

@@ -17,8 +17,9 @@
    :headers {"Cache-Control" "no-cache"}})
 
 (defn set-log-level! [logger level]
+  {:post [(or (.println System/out (format "(set-log-level! %s %s) --> %s" logger level %)) true)]}
   (web/set-log-level! logger level)
-  {})
+  {:body {}})
 
 ;; ################### view ##########################
 
