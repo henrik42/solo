@@ -11,13 +11,13 @@
 ;; ################### model ##########################
 
 (defn get-current-loggers []
-  {:__post [(or (.println System/out (format "get-current-loggers --> %s" %)) true)]}
+  #_ {:post [(or (.println System/out (format "get-current-loggers --> %s" %)) true)]}
   {:body {:loggers
           (web/get-current-loggers {:filter-reg-ex #"" :hide false})}
    :headers {"Cache-Control" "no-cache"}})
 
 (defn set-log-level! [logger level]
-  {:post [(or (.println System/out (format "(set-log-level! %s %s) --> %s" logger level %)) true)]}
+  #_ {:post [(or (.println System/out (format "(set-log-level! %s %s) --> %s" logger level %)) true)]}
   (web/set-log-level! logger level)
   {:body {}})
 

@@ -2982,13 +2982,14 @@ net.brehaut.ClojureTools = (function (SH) {
             [solo.web :as web]))</pre></td></tr><tr><td class="docs"><h6>############# model ####################</h6>
 </td><td class="codes"></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn get-current-loggers []
-  {:__post [(or (.println System/out (format &quot;get-current-loggers --&gt; %s&quot; %)) true)]}
+  #_ {:post [(or (.println System/out (format &quot;get-current-loggers --&gt; %s&quot; %)) true)]}
   {:body {:loggers
           (web/get-current-loggers {:filter-reg-ex # :hide false})}
    :headers {&quot;Cache-Control&quot; &quot;no-cache&quot;}})</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn set-log-level! [logger level]
+  #_ {:post [(or (.println System/out (format &quot;(set-log-level! %s %s) --&gt; %s&quot; logger level %)) true)]}
   (web/set-log-level! logger level)
-  {})</pre></td></tr><tr><td class="docs"><h6>############# view ####################</h6>
+  {:body {}})</pre></td></tr><tr><td class="docs"><h6>############# view ####################</h6>
 </td><td class="codes"></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn the-page []
   (hp/html5
