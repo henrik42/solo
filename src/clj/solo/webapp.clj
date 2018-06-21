@@ -1,5 +1,5 @@
 (ns solo.webapp
-  "A web application (serving `solo.web/app`).
+  "A web application (serving `solo.web.spa/app`).
 
   Can be deployed into a Servlet-container as a WAR. If you want to
   run _Solo_ as a stand-alone application use `solo.main`.
@@ -29,11 +29,11 @@
   (atom nil))
 
 (defn load-solo-web!
-  "Requires `solo.web` and `def`ines `app`.
+  "Requires `solo.web.spa` and `def`ines `app`.
 
-  `solo.webapp` is loaded during build and if it `use`d `solo.web` we
-  would need log4j JAR on the classpath which we do not have/want. So
-  we defer the loading of `solo.web` to runtime."
+  `solo.webapp` is loaded during build and if it `use`d `solo.web.spa`
+  we would need log4j JAR on the classpath which we do not
+  have/want. So we defer the loading of `solo.web.spa` to runtime."
 
   []
   (require 'solo.web.spa)

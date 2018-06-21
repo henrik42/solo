@@ -1,5 +1,5 @@
 (ns solo.main
-  "A Jetty-based stand-alone web-application (serves `solo.web/app`).
+  "A Jetty-based stand-alone web-application (serves `solo.web.spa/app`).
 
   Use it for testing when you don't need the host-application that
   you're usually targeting with _Solo_ (note that you'll have to

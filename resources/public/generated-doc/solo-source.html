@@ -2970,7 +2970,20 @@ net.brehaut.ClojureTools = (function (SH) {
                     .getLoggerRepository
                     .getCurrentLoggers
                     enumeration-seq))
-        (Logger/getRootLogger))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#solo.web.spa" name="solo.web.spa"><h1 class="project-name">solo.web.spa</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs">
+        (Logger/getRootLogger))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#solo.web.spa" name="solo.web.spa"><h1 class="project-name">solo.web.spa</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>The server-side of a single page application (SPA).</p>
+
+<p>  Just like <code>solo.web</code> this namespace delivers a
+  Compojure/Hiccup-based Ring-handler. In <strong>addition</strong> to <code>solo.web</code>
+  it offers routes for</p>
+
+<ul>
+<li><p>loading the SPA, including loading JavaScript sources</p></li>
+<li><p>calling <code>solo.core/get-current-loggers</code> with JSON
+request/responses</p></li>
+<li><p>calling <code>solo.core/set-log-level!</code> with JSON request</p>
+
+<p>So this namespaces delivers the content/assets for the SPA.</p></li>
+</ul>
 </td><td class="codes"><pre class="brush: clojure">(ns solo.web.spa
   (:use compojure.core
         [hiccup.middleware :only (wrap-base-url)])
@@ -2980,30 +2993,66 @@ net.brehaut.ClojureTools = (function (SH) {
             [compojure.handler :as handler]
             [compojure.route :as route]
             [solo.web :as web]))</pre></td></tr><tr><td class="docs"><h6>############# model ####################</h6>
-</td><td class="codes"></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(defn get-current-loggers []
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Returns the current loggers in a nested map (Ring-handler map). See
+  <code>solo.web/get-current-loggers</code>.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn get-current-loggers
+  []
   #_ {:post [(or (.println System/out (format &quot;get-current-loggers --&gt; %s&quot; %)) true)]}
   {:body {:loggers
-          (web/get-current-loggers {:filter-reg-ex # :hide false})}
-   :headers {&quot;Cache-Control&quot; &quot;no-cache&quot;}})</pre></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(defn set-log-level! [logger level]
+          (web/get-current-loggers {:filter-reg-ex #&quot;&quot; :hide false})}
+   :headers {&quot;Cache-Control&quot; &quot;no-cache&quot;}})</pre></td></tr><tr><td class="docs"><p>Sets the log-level. See <code>solo.web/set-log-level!</code>. Returns {:body
+  {}}`.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn set-log-level!
+  [logger level]
   #_ {:post [(or (.println System/out (format &quot;(set-log-level! %s %s) --&gt; %s&quot; logger level %)) true)]}
   (web/set-log-level! logger level)
   {:body {}})</pre></td></tr><tr><td class="docs"><h6>############# view ####################</h6>
-</td><td class="codes"></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(defn the-page []
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Returns the HTML markup for the SPA.</p>
+
+<p>  The markup contains a <code>script</code> element that makes the browser load
+  the JavaScript sources for the SPA. On completion the SPA will be
+  started and the GUI will be built and populated with the currently
+  active/registered log4 loggers.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn the-page
+  []
   (hp/html5
    [:head
     (hp/include-css &quot;css/solo.css&quot;)]
    [:body
     [:div#main]
     [:script {:src &quot;out/solo-spa.js&quot; :type &quot;text/javascript&quot;}]]))</pre></td></tr><tr><td class="docs"><h6>############# handler/controller ####################</h6>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>curl http://localhost:3000/ws/get-current-loggers
-curl -X POST http://localhost:3000/ws/set-log-level/foo/info</p>
-</td><td class="codes"></td></tr><tr><td class="docs">
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Web-Service routes.</p>
+
+<p>  These will be called from the browser (CLJS/JavaScript).</p>
+
+<ul>
+<li><p><code>GET /ws/get-current-loggers</code>: returns the currently
+active/registered log4j loggers in JSON. Try</p>
+
+<p>  curl http://localhost:3000/ws/get-current-loggers</p>
+
+<p>  ;--> {"loggers":[{"logger-name":"root","log-level":"DEBUG"}]}</p></li>
+<li><p><code>POST /ws/set-log-level/:logger/:level</code>: sets the <code>:level</code> of the
+<code>:logger</code>. Note that the <code>POST</code> has no <em>message</em> <em>content</em> -- just
+the URL. Try</p>
+
+<p>  curl -X POST http://localhost:3000/ws/set-log-level/foo/info</p></li>
+</ul>
 </td><td class="codes"><pre class="brush: clojure">(defroutes ws-routes
   (GET  &quot;/ws/get-current-loggers&quot; _ (get-current-loggers))
-  (POST &quot;/ws/set-log-level/:logger/:level&quot; [logger level] (set-log-level! logger level)))</pre></td></tr><tr><td class="docs">
+  (POST &quot;/ws/set-log-level/:logger/:level&quot; [logger level] (set-log-level! logger level)))</pre></td></tr><tr><td class="docs"><p>The Ring-handler for all the routes that <em>Solo</em> supports:</p>
+
+<ul>
+<li><code>GET /spa</code>: delivers <em>the one and only page</em> (<code>solo.web.spa/the-page</code>)</li>
+<li><code>GET /out</code>: delivers compiled CLJS (i.e. JavaScript and source maps) sources (static <em>resources</em>)</li>
+<li><code>GET /ws/get-current-loggers</code> (see <code>ws-routes</code>)</li>
+<li><p><code>POST /ws/set-log-level/:logger/:level</code> (see <code>ws-routes</code>)</p>
+
+<p>In <strong>addition</strong> all routes of <code>solo.web/main-routes</code> are served. So
+you can switch back and forth (or use multi-tab browsing) between
+the SPA and the old-fashion web-app. They both talk to the same
+backend/log4j.</p></li>
+</ul>
 </td><td class="codes"><pre class="brush: clojure">(defroutes main-routes
   (GET &quot;/spa&quot; _ (the-page))
   (route/resources &quot;/out&quot; {:root &quot;public/js/compiled&quot;})
@@ -3011,9 +3060,10 @@ curl -X POST http://localhost:3000/ws/set-log-level/foo/info</p>
       (json/wrap-json-body)
       (json/wrap-json-params)
       (json/wrap-json-response))
-  web/app)</pre></td></tr><tr><td class="docs">
+  web/app)</pre></td></tr><tr><td class="docs"><p>Top-level Ring-handler (<em>THE APP</em>).</p>
 </td><td class="codes"><pre class="brush: clojure">(def app
-  (-&gt; (handler/site #'main-routes)))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#solo.main" name="solo.main"><h1 class="project-name">solo.main</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>A Jetty-based stand-alone web-application (serves <code>solo.web/app</code>).</p>
+  (-&gt; (handler/site #'main-routes)
+      (wrap-base-url)))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#solo.main" name="solo.main"><h1 class="project-name">solo.main</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>A Jetty-based stand-alone web-application (serves <code>solo.web.spa/app</code>).</p>
 
 <p>  Use it for testing when you don't need the host-application that
   you're usually targeting with <em>Solo</em> (note that you'll have to
@@ -3351,7 +3401,7 @@ form-params (e.g. filter and hide settings).</li>
   (route/not-found &quot;Page not found&quot;))</pre></td></tr><tr><td class="docs"><p>Top-level Ring-handler (<em>THE APP</em>).</p>
 </td><td class="codes"><pre class="brush: clojure">(def app
   (-&gt; (handler/site #'main-routes)
-      (wrap-base-url)))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#solo.webapp" name="solo.webapp"><h1 class="project-name">solo.webapp</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>A web application (serving <code>solo.web/app</code>).</p>
+      (wrap-base-url)))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#solo.webapp" name="solo.webapp"><h1 class="project-name">solo.webapp</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>A web application (serving <code>solo.web.spa/app</code>).</p>
 
 <p>  Can be deployed into a Servlet-container as a WAR. If you want to
   run <em>Solo</em> as a stand-alone application use <code>solo.main</code>.</p>
@@ -3373,11 +3423,11 @@ VFS URLs which we find in JBoss/Wildfly.</p>
      :content-length (@#'response/connection-content-length conn)
      :last-modified (@#'response/connection-last-modified conn)}))</pre></td></tr><tr><td class="docs"><p>Atom that holds an nREPL-server (see <code>init</code>).</p>
 </td><td class="codes"><pre class="brush: clojure">(def nrepl-server
-  (atom nil))</pre></td></tr><tr><td class="docs"><p>Requires <code>solo.web</code> and <code>def</code>ines <code>app</code>.</p>
+  (atom nil))</pre></td></tr><tr><td class="docs"><p>Requires <code>solo.web.spa</code> and <code>def</code>ines <code>app</code>.</p>
 
-<p>  <code>solo.webapp</code> is loaded during build and if it <code>use</code>d <code>solo.web</code> we
-  would need log4j JAR on the classpath which we do not have/want. So
-  we defer the loading of <code>solo.web</code> to runtime.</p>
+<p>  <code>solo.webapp</code> is loaded during build and if it <code>use</code>d <code>solo.web.spa</code>
+  we would need log4j JAR on the classpath which we do not
+  have/want. So we defer the loading of <code>solo.web.spa</code> to runtime.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn load-solo-web!
   []
   (require 'solo.web.spa)
