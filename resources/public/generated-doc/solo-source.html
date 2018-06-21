@@ -2913,8 +2913,6 @@ net.brehaut.ClojureTools = (function (SH) {
 
 <p>  So <code>get-logger</code> is <strong>impure</strong> and should maybe better be named
   <code>get-logger!</code>.</p>
-
-<hr />
 </td><td class="codes"><pre class="brush: clojure">(ns solo.core
   (:import [org.apache.log4j Logger Level]
            [org.apache.log4j.spi RootLogger]))</pre></td></tr><tr><td class="docs"><p>Returns a map <code>{:logger-name &lt;String:logger-name&gt; :log-level &lt;String:log-level&gt;}</code>
@@ -2925,8 +2923,6 @@ net.brehaut.ClojureTools = (function (SH) {
 <p>   If <code>log4j-logger</code> is a root logger then <code>:logger-name</code> will always
    be <code>"root"</code>. This is enforced explicitly to cope with a bug in
    JBoss.</p>
-
-<hr />
 </td><td class="codes"><pre class="brush: clojure">(defn logger-&gt;map
   [log4j-logger]
   {:pre [(not (nil? log4j-logger))]}
@@ -2937,7 +2933,14 @@ net.brehaut.ClojureTools = (function (SH) {
   non-<code>nil</code> <code>&lt;String:logger-name&gt;</code>. Never returns <code>nil</code>. Passing
   <code>"root"</code> returns the root logger.</p>
 
-<hr />
+<p>  Example:</p>
+
+<pre><code>  (get-logger "root")
+  ;;--&gt; {:logger-name "root", :log-level "ERROR"}
+
+  (get-logger "foo")
+  ;;--&gt; {:logger-name "foo", :log-level ""}
+</code></pre>
 </td><td class="codes"><pre class="brush: clojure">(defn get-logger
   [logger-name]
   {:pre [(string? logger-name)]}
@@ -2945,9 +2948,8 @@ net.brehaut.ClojureTools = (function (SH) {
         (Logger/getRootLogger)
         (Logger/getLogger logger-name))
       logger-&gt;map))</pre></td></tr><tr><td class="docs"><p>Sets the logger's <code>&lt;String:log-level&gt;</code>. Passing <code>"root"</code> as
-  <code>&lt;String:logger-name&gt;</code> will set the root logger's log-level.</p>
-
-<hr />
+  <code>&lt;String:logger-name&gt;</code> will set the root logger's log-level. Returns
+  <code>nil</code>.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn set-log-level!
   [logger-name log-level]
   {:pre [(string? logger-name)]}
@@ -2957,7 +2959,11 @@ net.brehaut.ClojureTools = (function (SH) {
       (.setLevel (Level/toLevel log-level))))</pre></td></tr><tr><td class="docs"><p>Returns a map-seq (as of <code>logger-&gt;map</code>) of the current log4
   loggers (incl. the root logger).</p>
 
-<hr />
+<p>  Example:</p>
+
+<pre><code>  (get-current-loggers)
+  ;;--&gt; ({:logger-name "root", :log-level "ERROR"})
+</code></pre>
 </td><td class="codes"><pre class="brush: clojure">(defn get-current-loggers
   []
   (map logger-&gt;map
@@ -2970,7 +2976,7 @@ net.brehaut.ClojureTools = (function (SH) {
                     .getLoggerRepository
                     .getCurrentLoggers
                     enumeration-seq))
-        (Logger/getRootLogger))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#solo.web.spa" name="solo.web.spa"><h1 class="project-name">solo.web.spa</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>The server-side of a single page application (SPA).</p>
+        (Logger/getRootLogger))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#solo.web.spa" name="solo.web.spa"><h1 class="project-name">solo.web.spa</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>The server-side of the single page application (SPA).</p>
 
 <p>  Just like <code>solo.web</code> this namespace delivers a
   Compojure/Hiccup-based Ring-handler. In <strong>addition</strong> to <code>solo.web</code>
@@ -2978,9 +2984,8 @@ net.brehaut.ClojureTools = (function (SH) {
 
 <ul>
 <li><p>loading the SPA, including loading JavaScript sources</p></li>
-<li><p>calling <code>solo.core/get-current-loggers</code> with JSON
-request/responses</p></li>
-<li><p>calling <code>solo.core/set-log-level!</code> with JSON request</p>
+<li><p>getting the current loggers in JSON format</p></li>
+<li><p>setting a logger's log-level</p>
 
 <p>So this namespaces delivers the content/assets for the SPA.</p></li>
 </ul>
@@ -3002,6 +3007,11 @@ request/responses</p></li>
           (web/get-current-loggers {:filter-reg-ex #&quot;&quot; :hide false})}
    :headers {&quot;Cache-Control&quot; &quot;no-cache&quot;}})</pre></td></tr><tr><td class="docs"><p>Sets the log-level. See <code>solo.web/set-log-level!</code>. Returns {:body
   {}}`.</p>
+
+<p>  Note: this function <strong>returns</strong> an empty Ring-response <code>:body</code> which
+  becomes an empty JSON message (i.e. <code>{}</code>) on the client. The browser
+  <strong>needs</strong> this. That's why we do not just call
+  <code>solo.web/set-log-level!</code>.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn set-log-level!
   [logger level]
   #_ {:post [(or (.println System/out (format &quot;(set-log-level! %s %s) --&gt; %s&quot; logger level %)) true)]}
@@ -3089,6 +3099,16 @@ backend/log4j.</p></li>
   only used for <strong>naming</strong> the function on the remote site.</p>
 
 <p>  Returns the result or throws exception.</p>
+
+<p>  Example:</p>
+
+<pre><code>  ((remote-wrapper #(solo.nrepl/get-connection {:port 9998}) #'solo.core/get-logger) nil "root")
+  ;;--&gt; {:logger-name "root", :log-level "ERROR"}
+
+  ((remote-wrapper #(solo.nrepl/get-connection {:port 9998}) #'solo.core/get-logger) nil nil)
+  ;;--&gt; REMOTE:AssertionError Assert failed: (string? logger-name)  solo.core/get-logger (core.clj:69)
+        [...]
+</code></pre>
 </td><td class="codes"><pre class="brush: clojure">(defn remote-wrapper
   [conn-fn fn-var]
   (fn [_ &amp; args]
@@ -3101,7 +3121,12 @@ backend/log4j.</p></li>
   &quot;Parses string argument `[&lt;host&gt;:]&lt;port&gt;`. Returns map with `:host`
   and `:port` for non-`nil` key-values (plays well with `{:keys [port
   host] :or [host &lt;host-default&gt; port &lt;port-default&gt;]}`
-  destructuring).&quot;
+  destructuring).
+  Example:
+      (parse-host:port \&quot;foo:1234\&quot;)
+      ;;--&gt; {:host \&quot;foo\&quot;, :port 1234}
+      (parse-host:port \&quot;1234\&quot;)
+      ;;--&gt; {:port 1234}&quot;
   [host:port]
   (let [[_ host port] (re-matches #&quot;([^:]+)??:?([0-9]+)&quot; host:port)
         res (if host {:host host} {})]
@@ -3119,7 +3144,7 @@ backend/log4j.</p></li>
   [msg summary]
   (.println System/out (format &quot;USAGE: [options]\n%s\n%s&quot; msg summary))
   (System/exit 1))</pre></td></tr><tr><td class="docs"><p>Starts a Jetty server (and optionally nREPL &amp; Swank) with
-  <code>solo.web/app</code>.</p>
+  <code>solo.web.spa/app</code>.</p>
 
 <p>  CLI options:</p>
 
@@ -3406,14 +3431,21 @@ form-params (e.g. filter and hide settings).</li>
 <p>  Can be deployed into a Servlet-container as a WAR. If you want to
   run <em>Solo</em> as a stand-alone application use <code>solo.main</code>.</p>
 
-<p>  Lifecycle functions <code>init</code>/<code>destroy</code> will be called for
+<p>  This namespace does <strong>not</strong> deliver any servlet. Instead the generic
+  Ring-servlet is used and a <code>web.xml</code> is automagically generated
+  during build (see <code>:alias make-web-war</code> in <code>project.clj</code>). The
+  Ring-servlet then delegates to <code>init</code>, <code>destroy</code> and <code>app</code> (see
+  <code>load-solo-web!</code>).</p>
+
+<p>  Servlet-lifecycle functions <code>init</code>/<code>destroy</code> will be called for
   start-up/shut-down (which starts/stops an nREPL server).</p>
 
 <p>  <code>solo.core</code> is used to access the log4j API locally. Usually log4j
   JAR will be part of the JEE host-application (EAR-<code>/lib</code>).</p>
 </td><td class="codes"><pre class="brush: clojure">(ns solo.webapp
   (:require [solo.nrepl :as nrepl]
-            [ring.util.response :as response]))</pre></td></tr><tr><td class="docs"><p>ring.util.response/resource-data does not know how to handle Apache
+            [ring.util.response :as response]))</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(declare ^:no-doc app)</pre></td></tr><tr><td class="docs"><p>ring.util.response/resource-data does not know how to handle Apache
 VFS URLs which we find in JBoss/Wildfly.</p>
 </td><td class="codes"></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defmethod response/resource-data :vfs
@@ -3421,7 +3453,8 @@ VFS URLs which we find in JBoss/Wildfly.</p>
   (let [conn (.openConnection url)]
     {:content (.getInputStream conn)
      :content-length (@#'response/connection-content-length conn)
-     :last-modified (@#'response/connection-last-modified conn)}))</pre></td></tr><tr><td class="docs"><p>Atom that holds an nREPL-server (see <code>init</code>).</p>
+     :last-modified (@#'response/connection-last-modified conn)}))</pre></td></tr><tr><td class="docs"><p>An <code>atom</code> that holds the latest nREPL-server that has been started
+  and not stopped (see [[init]] and [[destroy]]).</p>
 </td><td class="codes"><pre class="brush: clojure">(def nrepl-server
   (atom nil))</pre></td></tr><tr><td class="docs"><p>Requires <code>solo.web.spa</code> and <code>def</code>ines <code>app</code>.</p>
 
@@ -3432,21 +3465,23 @@ VFS URLs which we find in JBoss/Wildfly.</p>
   []
   (require 'solo.web.spa)
   (def app
-    (eval (read-string &quot;solo.web.spa/app&quot;))))</pre></td></tr><tr><td class="docs"><p>Initialize Servlet. Synchronously starts nREPL server and sets
-  <code>nrepl-server</code> atom. This method should not throw an exception if
-  the nREPL server cannot start. This may happen, when the port is
-  already opened. So we will just keep on going in this case.</p>
+    (eval (read-string &quot;solo.web.spa/app&quot;))))</pre></td></tr><tr><td class="docs"><p>Initialize the <code>Servlet</code>. <strong>Asynchronously</strong> starts nREPL server
+  and sets <code>nrepl-server</code> atom. This method should not throw an
+  exception if the nREPL server cannot start. This may happen, when
+  the port is already opened. So we will just keep on going in this
+  case.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn init
   []
   (load-solo-web!)
-  (try 
-    (reset! nrepl-server
-            (nrepl/start-server :port 7888))
-    (catch Throwable t
-      (.println System/err t))))</pre></td></tr><tr><td class="docs"><p>Set <code>nrepl-server</code> atom to <code>nil</code> and then try to <code>.close</code> the
-  running server. If this fails, <code>nrepl-server</code> atom will still be
-  <code>nil</code> so that an <code>init</code> will try to start a new nREPL server. Hope
-  this makes sense in most cases.</p>
+  (future 
+    (try 
+      (reset! nrepl-server
+              (nrepl/start-server :port 7888))
+      (catch Throwable t
+        (.println System/err t)))))</pre></td></tr><tr><td class="docs"><p>Sets <code>nrepl-server</code> atom to <code>nil</code> and then tries to `(.close
+  server)<code>the running server. If this fails,</code>nrepl-server` atom will
+  still be <code>nil</code> so that an <code>init</code> will try to start a new nREPL
+  server. Hope this makes sense in most cases.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn destroy
   []
   (when-let [server @nrepl-server]
@@ -3466,6 +3501,10 @@ VFS URLs which we find in JBoss/Wildfly.</p>
 <p>  Can be over-written/redefined in runtime/production
   environments. This implementation just
   calls <code>(solo.nrepl/start-server)</code>.</p>
+
+<p>  <strong>Note:</strong> this function is not meant to be called from user-code as
+  part of the application. It is part of the bootstrapping mechanism
+  that starts up the application for initialization purposes.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn jumpstart
   []
   (println &quot;solo.jumpstart/jumpstart: starting up:&quot;)
@@ -3500,6 +3539,12 @@ VFS URLs which we find in JBoss/Wildfly.</p>
 
 <p>  <strong>Note:</strong> <code>code</code> may have more than one form. <code>code</code> will be eval'ed
   but only the last value will be returned.</p>
+
+<p>  Example:</p>
+
+<pre><code>  (-&gt; (get-connection {:port 9998}) (remote-eval "(+ 1 2)"))
+  ;;--&gt; 3
+</code></pre>
 </td><td class="codes"><pre class="brush: clojure">(defn remote-eval
   [nrepl-connection code]
   (let [{:keys [value err]} (-&gt; (client nrepl-connection 1000)
@@ -3519,7 +3564,7 @@ VFS URLs which we find in JBoss/Wildfly.</p>
   [&amp; args]
   (start-server))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#solo.swank" name="solo.swank"><h1 class="project-name">solo.swank</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Functions around Swank.</p>
 </td><td class="codes"><pre class="brush: clojure">(ns solo.swank
-  (require [swank.swank :as swank]))</pre></td></tr><tr><td class="docs"><p>Starts a Swank server on given port/host. There can be atmost one
+  (require [swank.swank :as swank]))</pre></td></tr><tr><td class="docs"><p>Starts a Swank server on given port/host. There can be at most one
   running server at any time. A running server may be shut down
   by <code>(stop-server)</code>. Throws exception if the server cannot be
   started. Returns the server.</p>

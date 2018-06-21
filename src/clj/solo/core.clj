@@ -44,9 +44,8 @@
   `(get-current-loggers)` the first time).
 
   So `get-logger` is __impure__ and should maybe better be named
-  `get-logger!`.
-
-  ---"
+  `get-logger!`."
+  
   (:import [org.apache.log4j Logger Level]
            [org.apache.log4j.spi RootLogger]))
 
@@ -58,9 +57,7 @@
 
    If `log4j-logger` is a root logger then `:logger-name` will always
    be `\"root\"`. This is enforced explicitly to cope with a bug in
-   JBoss.
-
-   ---"
+   JBoss."
 
   [log4j-logger]
   {:pre [(not (nil? log4j-logger))]}
@@ -74,7 +71,13 @@
   non-`nil` `<String:logger-name>`. Never returns `nil`. Passing
   `\"root\"` returns the root logger.
 
-  ---"
+  Example:
+
+      (get-logger \"root\")
+      ;;--> {:logger-name \"root\", :log-level \"ERROR\"}
+
+      (get-logger \"foo\")
+      ;;--> {:logger-name \"foo\", :log-level \"\"}"
 
   [logger-name]
   {:pre [(string? logger-name)]}
@@ -85,9 +88,8 @@
 
 (defn set-log-level!
   "Sets the logger's `<String:log-level>`. Passing `\"root\"` as
-  `<String:logger-name>` will set the root logger's log-level.
-
-  ---"
+  `<String:logger-name>` will set the root logger's log-level. Returns
+  `nil`."
 
   [logger-name log-level]
   {:pre [(string? logger-name)]}
@@ -100,7 +102,10 @@
   "Returns a map-seq (as of `logger->map`) of the current log4
   loggers (incl. the root logger).
 
-  ---"
+  Example:
+
+      (get-current-loggers)
+      ;;--> ({:logger-name \"root\", :log-level \"ERROR\"})"
   
   []
   (map logger->map

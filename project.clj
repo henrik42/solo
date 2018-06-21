@@ -79,6 +79,7 @@
   
   :ring {:handler solo.web.spa/app
          :nrepl {:start? true
+                 :host "0.0.0.0"
                  :port 9998}}
   
   :codox {:metadata {:doc/format :markdown}

@@ -4,7 +4,13 @@
   Can be deployed into a Servlet-container as a WAR. If you want to
   run _Solo_ as a stand-alone application use `solo.main`.
 
-  Lifecycle functions `init`/`destroy` will be called for
+  This namespace does __not__ deliver any servlet. Instead the generic
+  Ring-servlet is used and a `web.xml` is automagically generated
+  during build (see `:alias make-web-war` in `project.clj`). The
+  Ring-servlet then delegates to `init`, `destroy` and `app` (see
+  `load-solo-web!`).
+
+  Servlet-lifecycle functions `init`/`destroy` will be called for
   start-up/shut-down (which starts/stops an nREPL server).
 
   `solo.core` is used to access the log4j API locally. Usually log4j
@@ -12,6 +18,8 @@
   
   (:require [solo.nrepl :as nrepl]
             [ring.util.response :as response]))
+
+(declare ^:no-doc app)
 
 ;; ring.util.response/resource-data does not know how to handle Apache
 ;; VFS URLs which we find in JBoss/Wildfly.
@@ -24,7 +32,8 @@
      :last-modified (@#'response/connection-last-modified conn)}))
 
 (def nrepl-server
-  "Atom that holds an nREPL-server (see `init`)."
+  "An `atom` that holds the latest nREPL-server that has been started
+  and not stopped (see [[init]] and [[destroy]])."
 
   (atom nil))
 
@@ -41,24 +50,26 @@
     (eval (read-string "solo.web.spa/app"))))
   
 (defn init
-  "Initialize Servlet. Synchronously starts nREPL server and sets
-  `nrepl-server` atom. This method should not throw an exception if
-  the nREPL server cannot start. This may happen, when the port is
-  already opened. So we will just keep on going in this case."
+  "Initialize the `Servlet`. __Asynchronously__ starts nREPL server
+  and sets `nrepl-server` atom. This method should not throw an
+  exception if the nREPL server cannot start. This may happen, when
+  the port is already opened. So we will just keep on going in this
+  case."
 
   []
   (load-solo-web!)
-  (try 
-    (reset! nrepl-server
-            (nrepl/start-server :port 7888))
-    (catch Throwable t
-      (.println System/err t))))
+  (future 
+    (try 
+      (reset! nrepl-server
+              (nrepl/start-server :port 7888))
+      (catch Throwable t
+        (.println System/err t)))))
 
 (defn destroy
-  "Set `nrepl-server` atom to `nil` and then try to `.close` the
-  running server. If this fails, `nrepl-server` atom will still be
-  `nil` so that an `init` will try to start a new nREPL server. Hope
-  this makes sense in most cases."
+  "Sets `nrepl-server` atom to `nil` and then tries to `(.close
+  server)` the running server. If this fails, `nrepl-server` atom will
+  still be `nil` so that an `init` will try to start a new nREPL
+  server. Hope this makes sense in most cases."
   
   []
   (when-let [server @nrepl-server]

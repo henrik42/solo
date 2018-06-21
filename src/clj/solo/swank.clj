@@ -4,7 +4,7 @@
   (require [swank.swank :as swank]))
 
 (defn start-server
-  "Starts a Swank server on given port/host. There can be atmost one
+  "Starts a Swank server on given port/host. There can be at most one
   running server at any time. A running server may be shut down
   by `(stop-server)`. Throws exception if the server cannot be
   started. Returns the server.

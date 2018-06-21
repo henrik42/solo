@@ -33,7 +33,12 @@
   stacktrace will be lost).
 
   **Note:** `code` may have more than one form. `code` will be eval'ed
-  but only the last value will be returned."
+  but only the last value will be returned.
+
+  Example:
+
+      (-> (get-connection {:port 9998}) (remote-eval \"(+ 1 2)\"))
+      ;;--> 3"
 
   [nrepl-connection code]
   (let [{:keys [value err]} (-> (client nrepl-connection 1000)

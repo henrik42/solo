@@ -27,7 +27,16 @@
   the remote server. So `fn-var` is **not** de-referenced locally but
   only used for **naming** the function on the remote site.
 
-  Returns the result or throws exception."
+  Returns the result or throws exception.
+
+  Example:
+
+      ((remote-wrapper #(solo.nrepl/get-connection {:port 9998}) #'solo.core/get-logger) nil \"root\")
+      ;;--> {:logger-name \"root\", :log-level \"ERROR\"}
+
+      ((remote-wrapper #(solo.nrepl/get-connection {:port 9998}) #'solo.core/get-logger) nil nil)
+      ;;--> REMOTE:AssertionError Assert failed: (string? logger-name)  solo.core/get-logger (core.clj:69)
+            [...]"
 
   [conn-fn fn-var]
   (fn [_ & args]
@@ -41,7 +50,15 @@
   "Parses string argument `[<host>:]<port>`. Returns map with `:host`
   and `:port` for non-`nil` key-values (plays well with `{:keys [port
   host] :or [host <host-default> port <port-default>]}`
-  destructuring)."
+  destructuring).
+
+  Example:
+
+      (parse-host:port \"foo:1234\")
+      ;;--> {:host \"foo\", :port 1234}
+
+      (parse-host:port \"1234\")
+      ;;--> {:port 1234}"
 
   [host:port]
   (let [[_ host port] (re-matches #"([^:]+)??:?([0-9]+)" host:port)
@@ -69,7 +86,7 @@
 
 (defn -main
   "Starts a Jetty server (and optionally nREPL & Swank) with
-  `solo.web/app`.
+  `solo.web.spa/app`.
 
   CLI options:
 
