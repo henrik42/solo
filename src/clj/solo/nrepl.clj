@@ -28,12 +28,12 @@
 
 (defn remote-eval
   "Evaluates `<String:code>` remotely via `nrepl-connection`. Returns
-  value of evaluation. If eval on remote site throws exception, a
+  value of evaluation. If `eval` on remote site throws exception, a
   `RuntimeException` will be thrown (remote exception type and
   stacktrace will be lost).
 
-  **Note:** `code` may have more than one form. `code` will be eval'ed
-  but only the last value will be returned.
+  **Note:** `code` may have more than one form. `code` will be
+  `eval`'ed but only the last value will be returned.
 
   Example:
 

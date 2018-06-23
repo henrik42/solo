@@ -3,9 +3,9 @@
 
   This namespace contains functions for
 
-  * accessing the `solo.core` business backend via Compojure-GET-routes (*model*)
-  * reacting to user input via Compojure-POST-routes (*controller*)
-  * creating the presentation via Hiccup functions (*view*)"
+  * accessing the `solo.core` business backend via Compojure-GET-routes (the *model*)
+  * reacting to user input via Compojure-POST-routes (the *controller*)
+  * creating the presentation via Hiccup functions (the *view*)"
   
   (:use compojure.core
         [hiccup.middleware :only (wrap-base-url)])
@@ -28,7 +28,7 @@
   #{"UNKNOWN!" "NOT-SET!" "DEBUG" "INFO" "WARN" "ERROR" "OFF"})
 
 (defn get-current-loggers
-  "Returns a mapped, filtered and sorted map-set of current log4j
+  "Returns a mapped, filtered and sorted map-seq of current log4j
   logger (see `solo.core/get-current-loggers`).
 
   For presentation purposes each `:log-level` will be mapped as
@@ -41,7 +41,12 @@
   Filtering is done by `re-find`-matching `filter-reg-ex` against the
   `logger-name`. Sorting is done on `logger-name`. When `hide` is
   truthly loggers with (mapped) `(= log-level \"NOT-SET!\")` will be
-  filtered out."
+  filtered out.
+
+  Example:
+
+      (get-current-loggers {:filter-reg-ex #\"oo\" :hide false})
+      ;;--> ({:logger-name \"root\", :log-level \"DEBUG\"})"
 
   [{:keys [filter-reg-ex hide]}]
   (->> (core/get-current-loggers)
@@ -89,7 +94,14 @@
 
 (defn req->hide
   "Extracts and returns the `hide` parameter from the
-  ring-request-map."
+  Ring-request-map.
+
+  Example:
+
+      (req->hide {
+          :params {\" FILTER\" \"\", \" HIDE\" \"true\", \"de.innovas\" \"INFO\", :root \"DEBUG\"}
+          :request-method :post})
+      ;;--> true"
 
   [{:keys [request-method params]}]
   (let [hide-str (if (= request-method :get)
@@ -99,7 +111,14 @@
 
 (defn req->filter-reg-ex
   "Extracts and returns the `filter-reg-ex` parameter from the
-  ring-request-map."
+  Ring-request-map.
+
+  Example:
+
+      (req->filter-reg-ex
+          {:params {\" FILTER\" \".*\", \" HIDE\" \"true\", \"de.innovas\" \"INFO\", :root \"DEBUG\"}
+           :request-method :post})
+      ;;--> #\".*\""
 
   [{:keys [request-method params]}]
   (let [reg-ex-str (or
@@ -113,12 +132,19 @@
 
 (defn make-redirect-url
   "Returns an absolute URL to the context-root of the web-app (which
-  received the given ring-request) including URL parameter expressions
+  received the given Ring-request) including URL parameter expressions
   for `hide` and `filter-reg-ex`.
 
-  The URL does not include protcol and hostname. This URL is used for
+  The URL does not include protocol and hostname. This URL is used for
   redirecting the browser to the context-root of the application after
-  having submitted a `POST` request."
+  having submitted a `POST` request.
+
+  Example:
+
+      (make-redirect-url
+          {:params {\" FILTER\" \".*\", \" HIDE\" \"true\", \"de.innovas\" \"INFO\", :root \"DEBUG\"}
+           :request-method :post})
+      ;;--> \"/?hide=true&filter=.*\""
 
   [req]
   (str (hu/url (str (:context req) "/")
@@ -225,7 +251,7 @@
    * `POST /set-log-level`: sets the log-level for a logger
    * `POST /update-loggers`: sets the log-level for all displayed
      loggers"
-  
+
   (GET "/" req (the-page
                 {:hide (req->hide req)
                  :filter-reg-ex (req->filter-reg-ex req)}))
@@ -249,7 +275,15 @@
   (route/not-found "Page not found"))
 
 (def app
-  "Top-level Ring-handler (*THE APP*)."
-  
+  "Top-level Ring-handler (i.e. *THE APP*).
+
+  This function receives the Ring-request-map and must return the
+  Ring-response.
+
+  Example:
+
+      (app {:request-method :get :uri \"/d\"})
+      ;;--> {:status 404, :headers {\"Content-Type\" \"text/html; charset=utf-8\"}, :body \"Page not found\"}"
+
   (-> (handler/site #'main-routes)
       (wrap-base-url)))

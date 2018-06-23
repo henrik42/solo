@@ -26,7 +26,14 @@
 
 (defn get-current-loggers
   "Returns the current loggers in a nested map (Ring-handler map). See
-  `solo.web/get-current-loggers`."
+  `solo.web/get-current-loggers`.
+
+  Example:
+
+      (get-current-loggers)
+      ;;--> {:body {:loggers ({:logger-name \"de.innovas\", :log-level \"INFO\"}
+                              {:logger-name \"root\", :log-level \"DEBUG\"})},
+             :headers {\"Cache-Control\" \"no-cache\"}}"
 
   []
   #_ {:post [(or (.println System/out (format "get-current-loggers --> %s" %)) true)]}
@@ -78,13 +85,13 @@
 
       curl http://localhost:3000/ws/get-current-loggers
 
-      ;--> {\"loggers\":[{\"logger-name\":\"root\",\"log-level\":\"DEBUG\"}]}
+        ;;--> {\"loggers\":[{\"logger-name\":\"root\",\"log-level\":\"DEBUG\"}]}
 
   * `POST /ws/set-log-level/:logger/:level`: sets the `:level` of the
     `:logger`. Note that the `POST` has no _message_ _content_ -- just
     the URL. Try
 
-      curl -X POST http://localhost:3000/ws/set-log-level/foo/info"
+        curl -X POST http://localhost:3000/ws/set-log-level/foo/info"
   
   (GET  "/ws/get-current-loggers" _ (get-current-loggers))
   (POST "/ws/set-log-level/:logger/:level" [logger level] (set-log-level! logger level)))

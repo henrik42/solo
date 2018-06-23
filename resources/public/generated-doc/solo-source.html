@@ -3000,6 +3000,14 @@ net.brehaut.ClojureTools = (function (SH) {
             [solo.web :as web]))</pre></td></tr><tr><td class="docs"><h6>############# model ####################</h6>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Returns the current loggers in a nested map (Ring-handler map). See
   <code>solo.web/get-current-loggers</code>.</p>
+
+<p>  Example:</p>
+
+<pre><code>  (get-current-loggers)
+  ;;--&gt; {:body {:loggers ({:logger-name "de.innovas", :log-level "INFO"}
+                          {:logger-name "root", :log-level "DEBUG"})},
+         :headers {"Cache-Control" "no-cache"}}
+</code></pre>
 </td><td class="codes"><pre class="brush: clojure">(defn get-current-loggers
   []
   #_ {:post [(or (.println System/out (format &quot;get-current-loggers --&gt; %s&quot; %)) true)]}
@@ -3041,12 +3049,14 @@ active/registered log4j loggers in JSON. Try</p>
 
 <p>  curl http://localhost:3000/ws/get-current-loggers</p>
 
-<p>  ;--> {"loggers":[{"logger-name":"root","log-level":"DEBUG"}]}</p></li>
+<pre><code>;;--&gt; {"loggers":[{"logger-name":"root","log-level":"DEBUG"}]}
+</code></pre></li>
 <li><p><code>POST /ws/set-log-level/:logger/:level</code>: sets the <code>:level</code> of the
 <code>:logger</code>. Note that the <code>POST</code> has no <em>message</em> <em>content</em> -- just
 the URL. Try</p>
 
-<p>  curl -X POST http://localhost:3000/ws/set-log-level/foo/info</p></li>
+<pre><code>curl -X POST http://localhost:3000/ws/set-log-level/foo/info
+</code></pre></li>
 </ul>
 </td><td class="codes"><pre class="brush: clojure">(defroutes ws-routes
   (GET  &quot;/ws/get-current-loggers&quot; _ (get-current-loggers))
@@ -3217,9 +3227,9 @@ backend/log4j.</p></li>
 <p>  This namespace contains functions for</p>
 
 <ul>
-<li>accessing the <code>solo.core</code> business backend via Compojure-GET-routes (<em>model</em>)</li>
-<li>reacting to user input via Compojure-POST-routes (<em>controller</em>)</li>
-<li>creating the presentation via Hiccup functions (<em>view</em>)</li>
+<li>accessing the <code>solo.core</code> business backend via Compojure-GET-routes (the <em>model</em>)</li>
+<li>reacting to user input via Compojure-POST-routes (the <em>controller</em>)</li>
+<li>creating the presentation via Hiccup functions (the <em>view</em>)</li>
 </ul>
 </td><td class="codes"><pre class="brush: clojure">(ns solo.web
   (:use compojure.core
@@ -3236,7 +3246,7 @@ backend/log4j.</p></li>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>The set of known log-levels (incl. <code>"UNKNOWN!"</code> and
   <code>"NOT-SET!"</code>).</p>
 </td><td class="codes"><pre class="brush: clojure">(def log-levels
-  #{&quot;UNKNOWN!&quot; &quot;NOT-SET!&quot; &quot;DEBUG&quot; &quot;INFO&quot; &quot;WARN&quot; &quot;ERROR&quot; &quot;OFF&quot;})</pre></td></tr><tr><td class="docs"><p>Returns a mapped, filtered and sorted map-set of current log4j
+  #{&quot;UNKNOWN!&quot; &quot;NOT-SET!&quot; &quot;DEBUG&quot; &quot;INFO&quot; &quot;WARN&quot; &quot;ERROR&quot; &quot;OFF&quot;})</pre></td></tr><tr><td class="docs"><p>Returns a mapped, filtered and sorted map-seq of current log4j
   logger (see <code>solo.core/get-current-loggers</code>).</p>
 
 <p>  For presentation purposes each <code>:log-level</code> will be mapped as
@@ -3250,7 +3260,12 @@ backend/log4j.</p></li>
 <p>Filtering is done by <code>re-find</code>-matching <code>filter-reg-ex</code> against the
 <code>logger-name</code>. Sorting is done on <code>logger-name</code>. When <code>hide</code> is
 truthly loggers with (mapped) <code>(= log-level "NOT-SET!")</code> will be
-filtered out.</p></li>
+filtered out.</p>
+
+<p>Example:</p>
+
+<p>  (get-current-loggers {:filter-reg-ex #"oo" :hide false})
+  ;;--> ({:logger-name "root", :log-level "DEBUG"})</p></li>
 </ul>
 </td><td class="codes"><pre class="brush: clojure">(defn get-current-loggers
   [{:keys [filter-reg-ex hide]}]
@@ -3291,14 +3306,30 @@ form-params (e.g. filter and hide settings).</li>
   (if (set-log-level? logger level)
     (core/set-log-level! logger level)))</pre></td></tr><tr><td class="docs"><h6>############# request processing ####################</h6>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Extracts and returns the <code>hide</code> parameter from the
-  ring-request-map.</p>
+  Ring-request-map.</p>
+
+<p>  Example:</p>
+
+<pre><code>  (req-&gt;hide {
+      :params {" FILTER" "", " HIDE" "true", "de.innovas" "INFO", :root "DEBUG"}
+      :request-method :post})
+  ;;--&gt; true
+</code></pre>
 </td><td class="codes"><pre class="brush: clojure">(defn req-&gt;hide
   [{:keys [request-method params]}]
   (let [hide-str (if (= request-method :get)
                    (:hide params)
                    (params &quot; HIDE&quot;))]
     (Boolean/valueOf hide-str)))</pre></td></tr><tr><td class="docs"><p>Extracts and returns the <code>filter-reg-ex</code> parameter from the
-  ring-request-map.</p>
+  Ring-request-map.</p>
+
+<p>  Example:</p>
+
+<pre><code>  (req-&gt;filter-reg-ex
+      {:params {" FILTER" ".*", " HIDE" "true", "de.innovas" "INFO", :root "DEBUG"}
+       :request-method :post})
+  ;;--&gt; #".*"
+</code></pre>
 </td><td class="codes"><pre class="brush: clojure">(defn req-&gt;filter-reg-ex
   [{:keys [request-method params]}]
   (let [reg-ex-str (or
@@ -3309,12 +3340,20 @@ form-params (e.g. filter and hide settings).</li>
     (try 
       (java.util.regex.Pattern/compile reg-ex-str)
       (catch Throwable t (java.util.regex.Pattern/compile &quot;&quot;)))))</pre></td></tr><tr><td class="docs"><p>Returns an absolute URL to the context-root of the web-app (which
-  received the given ring-request) including URL parameter expressions
+  received the given Ring-request) including URL parameter expressions
   for <code>hide</code> and <code>filter-reg-ex</code>.</p>
 
-<p>  The URL does not include protcol and hostname. This URL is used for
+<p>  The URL does not include protocol and hostname. This URL is used for
   redirecting the browser to the context-root of the application after
   having submitted a <code>POST</code> request.</p>
+
+<p>  Example:</p>
+
+<pre><code>  (make-redirect-url
+      {:params {" FILTER" ".*", " HIDE" "true", "de.innovas" "INFO", :root "DEBUG"}
+       :request-method :post})
+  ;;--&gt; "/?hide=true&amp;filter=.*"
+</code></pre>
 </td><td class="codes"><pre class="brush: clojure">(defn make-redirect-url
   [req]
   (str (hu/url (str (:context req) &quot;/&quot;)
@@ -3423,7 +3462,16 @@ form-params (e.g. filter and hide settings).</li>
           (core/set-log-level! logger-name level))))
     (response/redirect (make-redirect-url req)))
   (route/resources &quot;/&quot;)
-  (route/not-found &quot;Page not found&quot;))</pre></td></tr><tr><td class="docs"><p>Top-level Ring-handler (<em>THE APP</em>).</p>
+  (route/not-found &quot;Page not found&quot;))</pre></td></tr><tr><td class="docs"><p>Top-level Ring-handler (i.e. <em>THE APP</em>).</p>
+
+<p>  This function receives the Ring-request-map and must return the
+  Ring-response.</p>
+
+<p>  Example:</p>
+
+<pre><code>  (app {:request-method :get :uri "/d"})
+  ;;--&gt; {:status 404, :headers {"Content-Type" "text/html; charset=utf-8"}, :body "Page not found"}
+</code></pre>
 </td><td class="codes"><pre class="brush: clojure">(def app
   (-&gt; (handler/site #'main-routes)
       (wrap-base-url)))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#solo.webapp" name="solo.webapp"><h1 class="project-name">solo.webapp</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>A web application (serving <code>solo.web.spa/app</code>).</p>
@@ -3533,12 +3581,12 @@ VFS URLs which we find in JBoss/Wildfly.</p>
                            params t))))]
     (.println System/out (str &quot;Started nREPL server on &quot; params &quot;.&quot;))
     server))</pre></td></tr><tr><td class="docs"><p>Evaluates <code>&lt;String:code&gt;</code> remotely via <code>nrepl-connection</code>. Returns
-  value of evaluation. If eval on remote site throws exception, a
+  value of evaluation. If <code>eval</code> on remote site throws exception, a
   <code>RuntimeException</code> will be thrown (remote exception type and
   stacktrace will be lost).</p>
 
-<p>  <strong>Note:</strong> <code>code</code> may have more than one form. <code>code</code> will be eval'ed
-  but only the last value will be returned.</p>
+<p>  <strong>Note:</strong> <code>code</code> may have more than one form. <code>code</code> will be
+  <code>eval</code>'ed but only the last value will be returned.</p>
 
 <p>  Example:</p>
 

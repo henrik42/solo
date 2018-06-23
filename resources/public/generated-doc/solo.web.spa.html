@@ -10,7 +10,13 @@
   <li>
   <p>setting a logger’s log-level</p></li>
 </ul>
-<p>So this namespaces delivers the content/assets for the SPA.</p></div></div><div class="public anchor" id="var-app"><h3>app</h3><div class="usage"></div><div class="doc"><div class="markdown"><p>Top-level Ring-handler (*THE APP*).</p></div></div></div><div class="public anchor" id="var-get-current-loggers"><h3>get-current-loggers</h3><div class="usage"><code>(get-current-loggers)</code></div><div class="doc"><div class="markdown"><p>Returns the current loggers in a nested map (Ring-handler map). See <code>solo.web/get-current-loggers</code>.</p></div></div></div><div class="public anchor" id="var-main-routes"><h3>main-routes</h3><div class="usage"></div><div class="doc"><div class="markdown"><p>The Ring-handler for all the routes that <em>Solo</em> supports:</p>
+<p>So this namespaces delivers the content/assets for the SPA.</p></div></div><div class="public anchor" id="var-app"><h3>app</h3><div class="usage"></div><div class="doc"><div class="markdown"><p>Top-level Ring-handler (*THE APP*).</p></div></div></div><div class="public anchor" id="var-get-current-loggers"><h3>get-current-loggers</h3><div class="usage"><code>(get-current-loggers)</code></div><div class="doc"><div class="markdown"><p>Returns the current loggers in a nested map (Ring-handler map). See <code>solo.web/get-current-loggers</code>.</p>
+<p>Example:</p>
+<pre><code>(get-current-loggers)
+;;--&gt; {:body {:loggers ({:logger-name "de.innovas", :log-level "INFO"}
+                        {:logger-name "root", :log-level "DEBUG"})},
+       :headers {"Cache-Control" "no-cache"}}
+</code></pre></div></div></div><div class="public anchor" id="var-main-routes"><h3>main-routes</h3><div class="usage"></div><div class="doc"><div class="markdown"><p>The Ring-handler for all the routes that <em>Solo</em> supports:</p>
 <ul>
   <li><code>GET /spa</code>: delivers <em>the one and only page</em> (<code>solo.web.spa/the-page</code>)</li>
   <li><code>GET /out</code>: delivers compiled CLJS (i.e. JavaScript and source maps) sources (static <em>resources</em>)</li>
@@ -25,7 +31,7 @@
   <li>
     <p><code>GET /ws/get-current-loggers</code>: returns the currently  active/registered log4j loggers in JSON. Try</p>
     <p>curl <a href="http://localhost:3000/ws/get-current-loggers">http://localhost:3000/ws/get-current-loggers</a></p>
-    <p>;–&gt; {“loggers”:[{“logger-name”:“root”,“log-level”:“DEBUG”}]}</p>
+    <p>;;–&gt; {“loggers”:[{“logger-name”:“root”,“log-level”:“DEBUG”}]}</p>
   </li>
   <li>
     <p><code>POST /ws/set-log-level/:logger/:level</code>: sets the <code>:level</code> of the  <code>:logger</code>. Note that the <code>POST</code> has no <em>message</em> <em>content</em> – just  the URL. Try</p>
