@@ -1667,20 +1667,20 @@ Clojure. CLJS is compiled to JavaScript/JS, the compiler is written in
 Clojure. CLJS uses the __Google Closure compiler__ [xx].
 
 Until now `solo.web` uses no client-side scripting. All client
-interaction with the backend is based on HTML-`form`
-_POST-backs_. While we're introducing client-side scripting we'll
-re-structure the logic a little:
+interaction with the backend is based on plain HTML _controls_ and
+HTML-`form` _POST-backs_. While we're introducing client-side
+scripting we'll re-structure the logic a little:
 
 * In `src/clj/solo/web/spa.clj` we publish web-services
   (`/ws/get-current-loggers` and `/ws/set-log-level`) on the
   server-side. These will use JSON [JSON] (**TODO:** what about EDN?)
   as message format. That makes it easy to use these web-services from
-  the browser/CLJS.
+  the browser/CLJS/JavaScript.
 
 * In `src/cljs/solo/spa.cljs` we consume/use these web-services on the
   client-side. We'll use CLJS to (1) retrieve the loggers via
-  `/ws/get-current-loggers`, (2) do the filtering/sorting and (3)
-  render the data to the DOM. For mutation we'll (4) call
+  `/ws/get-current-loggers`, (2) do filtering/sorting and (3) render
+  the data to the DOM. For mutation we'll (4) call
   `/ws/set-log-level`.
 
 So we move most of the MVC-logic away from the server and put it into
@@ -1706,15 +1706,16 @@ these sources with:
 
     solo-project$ lein make-spa
 
-__Note:__ The Clojure/ClojureScript compile support mixed source
-formats via reader conditionals [mixed source] (not used in
+__Note:__ The Clojure/ClojureScript compiler/`reader` supports mixed
+source formats via _reader_ _conditionals_ [mixed source] (not used in
 _Solo_). So you can put source into `*.cljx` files and let both
 compilers compile these sources. Thus you have _single_ _source_ and
 you can use these namespace from Clojure and ClojureScript. No code
 duplication!
 
-This will run the CLJS compiler which produces JavaScript code into
-`resources/public/js/compiled/`. You should see something like this:
+`make-spa`will run the CLJS compiler which produces JavaScript code
+into `resources/public/js/compiled/`. You should see something like
+this:
 
     Compiling ClojureScript...
     Compiling ["resources/public/js/compiled/solo-spa.js"] from ["src/cljs"]...
