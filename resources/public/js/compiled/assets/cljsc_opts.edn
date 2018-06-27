@@ -1,1 +1,1 @@
-{:output-wrapper false, :externs ["closure-js/externs"], :libs ["closure-js/libs"], :main solo.spa, :asset-path "out/assets", :output-to "resources/public/js/compiled/solo-spa.js", :output-dir "resources/public/js/compiled/assets", :source-map-timestamp true}
+{:main solo.spa, :asset-path "out/assets", :output-to "resources/public/js/compiled/solo-spa.js", :output-dir "resources/public/js/compiled/assets", :source-map-timestamp true, :optimizations :none}

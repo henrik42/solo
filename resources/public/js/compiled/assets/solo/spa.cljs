@@ -103,7 +103,7 @@
 
 (defn set-log-level! [logger-name log-level]
   (go 
-   (http/post (str "/ws/set-log-level/" logger-name "/" log-level))
+   (http/post (str "ws/set-log-level/" logger-name "/" log-level))
    (load-current-loggers)))
 
 ;; ################### view ##########################

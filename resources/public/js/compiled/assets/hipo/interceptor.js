@@ -220,8 +220,8 @@ hipo.interceptor.StateInterceptor.prototype.hipo$interceptor$Interceptor$_interc
 var self__ = this;
 var ___$1 = this;
 cljs.core.swap_BANG_.call(null,self__.a,((function (___$1){
-return (function (p1__6461_SHARP_,p2__6460_SHARP_){
-return cljs.core.cons.call(null,p2__6460_SHARP_,p1__6461_SHARP_);
+return (function (p1__25320_SHARP_,p2__25319_SHARP_){
+return cljs.core.cons.call(null,p2__25319_SHARP_,p1__25320_SHARP_);
 });})(___$1))
 ,new cljs.core.PersistentArrayMap(null, 2, [new cljs.core.Keyword(null,"type","type",1174270348),t,new cljs.core.Keyword(null,"value","value",305978217),o], null));
 
@@ -332,4 +332,4 @@ return (new hipo.interceptor.IdentityReconciliationInterceptor());
 });
 
 
-//# sourceMappingURL=interceptor.js.map?rel=1529500737659
+//# sourceMappingURL=interceptor.js.map?rel=1530042243248
