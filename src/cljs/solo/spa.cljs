@@ -1,14 +1,18 @@
 (ns solo.spa
-  "A Single Page Application (SPA)."
+  "A Single Page Application (SPA).
+
+   Note: When using Figwheel for development this namespace may be
+   loaded repeatedly -- i.e. more than once. So loading this namespace
+   must not _destroy_ the application state. See [[app-state]]."
   
   (:require-macros [cljs.core.async.macros :refer [go]])
-  (:require [cljs.core.async :refer [<! >!]]
+  (:require [cljs.core.async :refer [<!]]
             [clojure.browser.repl :as repl]
             [hipo.interpreter :as hipo]
-            [goog.dom :as gdom]
             [cljs-http.client :as http]))
 
-;;TODO: use the GUI to start a REPL
+;;TODO: use the GUI to start a REPL -- what if bREPL is not running on
+;;the browsers host?!
 #_ (defonce conn
   (repl/connect "http://localhost:9000/repl"))
 
@@ -18,7 +22,7 @@
   "Prints to `js/console`."
 
   [& xs]
-  (.log js/console (apply str "log:" xs)))
+  (.log js/console (apply str "SOLO:" xs)))
 
 (def log-levels
     "The set of known log-levels (incl. `\"UNKNOWN!\"` and
@@ -30,10 +34,9 @@
 
 (declare ^:export render-loggers)
 
-(def app-state
-  "THE STATE of the application. Whenever this state changes
-  `render-loggers` will be called to update/(re)-render the GUI."
-  
+;; THE STATE of the application. Whenever this state changes
+;; `render-loggers` will be called to update/(re)-render the GUI.
+(defonce app-state  
   (let [s (atom {})]
     (add-watch s :i-need-no-key #'render-loggers)
     s))
@@ -227,5 +230,9 @@
 
     (load-current-loggers)))
 
-(main)
-(log "loaded")
+(try
+  (main)
+  (catch js/Error e
+    (log "(main) failed : " e)))
+
+(log "solo.spa loaded!")

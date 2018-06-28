@@ -2,6 +2,7 @@
   (:require
    [clojure.string :as string]
    [figwheel.client.socket :as socket]
+   [figwheel.client.utils :as utils]
    [cljs.core.async :refer [put! chan <! map< close! timeout alts!] :as async]
    [goog.string]
    [goog.dom.dataset :as data]
@@ -68,6 +69,7 @@
                                 "opacity: 0.0;"
                                 "box-sizing: border-box;"
                                 "z-index: 10000;"
+                                "text-align: left;"
                                 ) })]
         (set! (.-onclick el) heads-up-onclick-handler)
         (set! (.-innerHTML el) cljs-logo-svg)
@@ -81,7 +83,7 @@
 (defn set-style! [{:keys [container-el]} st-map]
   (mapv
    (fn [[k v]]
-     (aset (.-style container-el) (name k) v))
+     (gobj/set (.-style container-el) (name k) v))
    st-map))
 
 (defn set-content! [{:keys [content-area-el] :as c} dom-str]
@@ -172,23 +174,31 @@
 
 (defn format-inline-error [inline-error]
   (let [lines (map format-inline-error-line (pad-line-numbers inline-error))]
-    (str "<pre style='whitespace:pre; font-family:monospace; font-size:0.8em; border-radius: 3px;"
-         " line-height: 1.1em; padding: 10px; overflow: hidden; background-color: rgb(24,26,38); margin-right: 5px'>"
+    (str "<pre style='whitespace:pre; overflow-x: scroll; display:block; font-family:monospace; font-size:0.8em; border-radius: 3px;"
+         " line-height: 1.1em; padding: 10px; background-color: rgb(24,26,38); margin-right: 5px'>"
          (string/join "\n" lines)
          "</pre>")))
 
-(defn exception->display-data [{:keys [failed-compiling reader-exception analysis-exception
-                                       class file line column message error-inline] :as exception}]
+(def flatten-exception #(take-while some? (iterate :cause %)))
+
+(defn exception->display-data [{:keys [failed-loading-clj-file
+                                       failed-compiling
+                                       reader-exception
+                                       analysis-exception
+                                       display-ex-data
+                                       class file line column message
+                                       error-inline] :as exception}]
   (let [last-message (cond
                        (and file line)
                        (str "Please see line " line " of file " file )
                        file (str "Please see " file)
                        :else nil)]
     {:head (cond
-                analysis-exception "Could not Analyze"
-                reader-exception   "Could not Read"
-                failed-compiling   "Could not Compile"
-                :else "Compile Exception")
+             failed-loading-clj-file "Couldn't load Clojure file"
+             analysis-exception "Could not Analyze"
+             reader-exception   "Could not Read"
+             failed-compiling   "Could not Compile"
+             :else "Compile Exception")
      :sub-head file
      :messages (concat
                 (map
@@ -198,14 +208,22 @@
                            (str (escape class)
                                 ": ") "")
                         "<span style=\"font-weight:bold;\">" (escape message) "</span>")
+                   (when display-ex-data
+                     (str "<pre style=\"white-space: pre-wrap\">" (utils/pprint-to-string display-ex-data) "</pre>"))
                    (when (pos? (count error-inline))
                      (format-inline-error error-inline))]
                   (map #(str (escape (:class %))
-                             ": " (escape (:message %)))  (:exception-data exception))))
+                             ": " (escape (:message %)))  (flatten-exception (:exception-data exception)))))
                 (when last-message [(str "<div style=\"color: #AD4F4F; padding-top: 3px;\">" (escape last-message) "</div>")]))
      :file file
      :line line
      :column column}))
+
+(defn auto-notify-source-file-line [{:keys [file line column]}]
+  (socket/send! {:figwheel-event "file-selected"
+                 :file-name (str file)
+                 :file-line (str line)
+                 :file-column (str column)}))
 
 (defn display-exception [exception-data]
   (let [{:keys [head
@@ -249,7 +267,8 @@
 (defn display-system-warning [header msg]
   (display-heads-up {:backgroundColor "rgba(255, 220, 110, 0.95)" }
                     (str (close-link) (heading header)
-                         (format-line msg {}))))
+                         "<div>" msg "</div>"
+                         #_(format-line msg {}))))
 
 (defn display-warning [warning-data]
   (let [{:keys [head
@@ -280,9 +299,9 @@
           child-count (.-length (dom/getChildren content-area-el))]
       (if (< child-count 6)
         (do
-          (dom/append el (dom/htmlToDocumentFragment
-                          (format-line (format-warning-message warning-data)
-                                       warning-data)))
+          (set! (.-innerHTML el)
+                (format-line (format-warning-message warning-data)
+                             warning-data))
           (dom/append content-area-el el))
         (when-let [last-child (dom/getLastElementChild content-area-el)]
           (if-let [message-count (data/get last-child "figwheel_count")]

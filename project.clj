@@ -74,69 +74,64 @@
             ;; run JVM/Clojure REPL connected to browser REPL via long
             ;; polling from the browser
             "run-brepl" ["with-profile" "+spa" "trampoline" "cljsbuild" "repl-listen"]
+            
+            ;; run figwheel -- it builds CLJS-->JS, watches the code
+            ;; and re-compiles and if the client is connected (via
+            ;; web-socket) it will re-load the changed JS into the
+            ;; client. We do a "clean" so that changes to the
+            ;; project.clj will have an effect (reproduceable build!)
+            "run-figwheel" ["with-profile" "+spa" "trampoline" "do" ["clean"] ["figwheel"]]
 
             }
-  
+
+  ;; Ring configuration -- for `lein ring` and `lein make-web-war`
   :ring {:handler solo.web.spa/app
          :nrepl {:start? true
                  :host "0.0.0.0"
                  :port 9998}}
-  
+
+  ;; Codox configuration -- for `lein make-doc`
   :codox {:metadata {:doc/format :markdown}
           :themes [:rdash]
           :doc-files ["doc/intro.md", "README.md"]
           :output-path "resources/public/generated-doc/"}
 
+  ;; server-side figwheel configuration
+  ;;
+  ;; You need this if you want the client to open a web-socket for
+  ;; JS/CSS-reload and a REPL into the browser.
+  :figwheel {:server-ip "0.0.0.0"
+             :server-port 3448
+             :css-dirs ["resources/public/css"]}
+  
+  ;; CLJS build configuration -- for `lein run-brepl`, `lein
+  ;; make-spa-auto` and `lein make-spa` and for figwheel `lein
+  ;; run-figwheel`
   :cljsbuild {:builds
               [{:id "dev"
                 :source-paths ["src/cljs"]
-
                 :compiler {:main solo.spa
                            :asset-path "out/assets"
                            :output-to "resources/public/js/compiled/solo-spa.js"
                            :output-dir "resources/public/js/compiled/assets"
-                           :source-map-timestamp true}}]}
+                           :source-map-timestamp true}
+                ;; client-side figwheel configuration
+                ;;
+                ;; If this is missing you may still use figwheel for
+                ;; incremental builds but you will have no
+                ;; JS/CSS-reload and no REPL into the browser.
+                ;;
+                ;; client connects to
+                ;; ws://[[client-hostname]]:<:server-port>/figwheel-ws/<build-id>
+                ;; (see 
+                ;; -- so we can run figwheel on a server and connect
+                ;; with a browser from your desktop
+                ;; e.g. http://localhost:3448/figwheel-ws/dev
+                :figwheel {:websocket-host :js-client-host}}]}
 
-  :figwheel {;; :http-server-root "public" ;; default and assumes "resources"
-             ;; :server-port 3449 ;; default
-             ;; :server-ip "127.0.0.1"
-
-             :css-dirs ["resources/public/css"] ;; watch and update CSS
-
-             ;; Start an nREPL server into the running figwheel process
-             ;; :nrepl-port 7888
-
-             ;; Server Ring Handler (optional)
-             ;; if you want to embed a ring handler into the figwheel http-kit
-             ;; server, this is for simple ring servers, if this
-
-             ;; doesn't work for you just run your own server :) (see lein-ring)
-
-             ;; :ring-handler hello_world.server/handler
-
-             ;; To be able to open files in your editor from the heads up display
-             ;; you will need to put a script on your path.
-             ;; that script will have to take a file path and a line number
-             ;; ie. in  ~/bin/myfile-opener
-             ;; #! /bin/sh
-             ;; emacsclient -n +$2 $1
-             ;;
-             ;; :open-file-command "myfile-opener"
-
-             ;; if you are using emacsclient you can just use
-             ;; :open-file-command "emacsclient"
-
-             ;; if you want to disable the REPL
-             ;; :repl false
-
-             ;; to configure a different figwheel logfile path
-             ;; :server-logfile "tmp/logs/figwheel-logfile.log"
-
-             ;; to pipe all the output to the repl
-             ;; :server-logfile false
-             }
-
-  :profiles {:repl {:main solo.jetty }
+  :profiles {;; for `lein repl` -- loads/requires `solo.jetty` and
+             ;; makes it the current namespace
+             :repl {:main solo.jetty}
              
              :dev {:dependencies [[log4j/log4j "1.2.17"]
                                   [ring/ring-core "1.6.3"]
@@ -148,7 +143,8 @@
                                   [org.clojure/tools.cli "0.3.7"]]}
 
              :provided {:dependencies [[ring/ring-jetty-adapter "1.6.3"]]}
-             
+
+             ;; Dep'ies for backend web-app
              :web-deps {:dependencies [[ring/ring-core "1.6.3"]
                                        [ring/ring-json "0.4.0"]
                                        [compojure "1.6.0"]
@@ -175,6 +171,7 @@
                               :aot [solo.jumpstart.servlet_container_initializer]
                               :source-paths ^:replace ["jumpstart/src"]}
 
+             ;; Configuration for CLJS build
              :spa {:plugins [[lein-figwheel "0.5.16"]
                              [lein-cljsbuild "1.1.7" :exclusions [[org.clojure/clojure]]]]
                                 
