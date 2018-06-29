@@ -10,6 +10,7 @@ pom.xml.asc
 *.log
 /.lein-*
 /.nrepl-port
+.rebel_readline_history
 .hgignore
 .hg/
 out/

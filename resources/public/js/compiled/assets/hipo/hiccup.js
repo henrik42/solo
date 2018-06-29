@@ -51,8 +51,8 @@ var s__$1 = cs;
 while(true){
 var i__$1 = s__$1.indexOf(hipo.hiccup.class_separator);
 if((i__$1 > (0))){
-var G__20730 = s__$1.replace(hipo.hiccup.class_separator," ");
-s__$1 = G__20730;
+var G__1530 = s__$1.replace(hipo.hiccup.class_separator," ");
+s__$1 = G__1530;
 continue;
 } else {
 return s__$1;
@@ -162,8 +162,8 @@ return cljs.core.vector_QMARK_.call(null,o);
 if(cljs.core._EQ_.call(null,c,i)){
 return true;
 } else {
-var G__20731 = (i + (1));
-i = G__20731;
+var G__1531 = (i + (1));
+i = G__1531;
 continue;
 }
 } else {
@@ -203,7 +203,7 @@ hipo.hiccup.sentinel = (new hipo.hiccup.Sentinel());
 hipo.hiccup.conjs_BANG_ = (function hipo$hiccup$conjs_BANG_(v,s){
 while(true){
 if(cljs.core.seq.call(null,s)){
-var G__20732 = (function (){var f = cljs.core.first.call(null,s);
+var G__1532 = (function (){var f = cljs.core.first.call(null,s);
 if(cljs.core.truth_((function (){var or__3922__auto__ = hipo.hiccup.literal_QMARK_.call(null,f);
 if(cljs.core.truth_(or__3922__auto__)){
 return or__3922__auto__;
@@ -216,9 +216,9 @@ return cljs.core.conj_BANG_.call(null,v,f);
 return hipo.hiccup.conjs_BANG_.call(null,v,f);
 }
 })();
-var G__20733 = cljs.core.rest.call(null,s);
-v = G__20732;
-s = G__20733;
+var G__1533 = cljs.core.rest.call(null,s);
+v = G__1532;
+s = G__1533;
 continue;
 } else {
 return v;
@@ -239,11 +239,11 @@ var f = cljs.core.nth.call(null,v__$1,(0),hipo.hiccup.sentinel);
 if((hipo.hiccup.sentinel === f)){
 return cljs.core.persistent_BANG_.call(null,acc);
 } else {
-var G__20734 = ((cljs.core.seq_QMARK_.call(null,f))?hipo.hiccup.conjs_BANG_.call(null,acc,f):((!((f == null)))?cljs.core.conj_BANG_.call(null,acc,f):acc
+var G__1534 = ((cljs.core.seq_QMARK_.call(null,f))?hipo.hiccup.conjs_BANG_.call(null,acc,f):((!((f == null)))?cljs.core.conj_BANG_.call(null,acc,f):acc
 ));
-var G__20735 = cljs.core.subvec.call(null,v__$1,(1));
-acc = G__20734;
-v__$1 = G__20735;
+var G__1535 = cljs.core.subvec.call(null,v__$1,(1));
+acc = G__1534;
+v__$1 = G__1535;
 continue;
 }
 break;
@@ -275,4 +275,4 @@ return null;
 }
 });
 
-//# sourceMappingURL=hiccup.js.map?rel=1530166158225
+//# sourceMappingURL=hiccup.js.map?rel=1530253968876

@@ -75,11 +75,12 @@
             ;; polling from the browser
             "run-brepl" ["with-profile" "+spa" "trampoline" "cljsbuild" "repl-listen"]
             
-            ;; run figwheel -- it builds CLJS-->JS, watches the code
-            ;; and re-compiles and if the client is connected (via
-            ;; web-socket) it will re-load the changed JS into the
-            ;; client. We do a "clean" so that changes to the
-            ;; project.clj will have an effect (reproduceable build!)
+            ;; run Figwheel -- it builds CLJS-->JS, watches for code
+            ;; changes and re-compiles and if the client/browser is
+            ;; connected (via web-socket) it will reload the changed
+            ;; JS into the client. We do a "clean" so that changes to
+            ;; the project.clj will have an effect (reproduceable
+            ;; build!)
             "run-figwheel" ["with-profile" "+spa" "trampoline" "do" ["clean"] ["figwheel"]]
 
             }
@@ -96,7 +97,7 @@
           :doc-files ["doc/intro.md", "README.md"]
           :output-path "resources/public/generated-doc/"}
 
-  ;; server-side figwheel configuration
+  ;; server-side Figwheel configuration
   ;;
   ;; You need this if you want the client to open a web-socket for
   ;; JS/CSS-reload and a REPL into the browser.
@@ -105,7 +106,7 @@
              :css-dirs ["resources/public/css"]}
   
   ;; CLJS build configuration -- for `lein run-brepl`, `lein
-  ;; make-spa-auto` and `lein make-spa` and for figwheel `lein
+  ;; make-spa-auto` and `lein make-spa` and for Figwheel `lein
   ;; run-figwheel`
   :cljsbuild {:builds
               [{:id "dev"
@@ -115,18 +116,19 @@
                            :output-to "resources/public/js/compiled/solo-spa.js"
                            :output-dir "resources/public/js/compiled/assets"
                            :source-map-timestamp true}
-                ;; client-side figwheel configuration
+                ;; client-side Figwheel configuration
                 ;;
-                ;; If this is missing you may still use figwheel for
+                ;; If this is missing you may still use Figwheel for
                 ;; incremental builds but you will have no
                 ;; JS/CSS-reload and no REPL into the browser.
                 ;;
-                ;; client connects to
+                ;; Client connects to
                 ;; ws://[[client-hostname]]:<:server-port>/figwheel-ws/<build-id>
-                ;; (see 
-                ;; -- so we can run figwheel on a server and connect
-                ;; with a browser from your desktop
-                ;; e.g. http://localhost:3448/figwheel-ws/dev
+                ;; (see
+                ;; resources/public/js/compiled/assets/figwheel/connect.js)
+                ;; so we can run Figwheel on a server and connect with
+                ;; a browser from your desktop
+                ;; e.g. http://myserver:3448/figwheel-ws/dev
                 :figwheel {:websocket-host :js-client-host}}]}
 
   :profiles {;; for `lein repl` -- loads/requires `solo.jetty` and

@@ -7,7 +7,7 @@
   
   (:require-macros [cljs.core.async.macros :refer [go]])
   (:require [cljs.core.async :refer [<!]]
-            [clojure.browser.repl :as repl]
+            ;;[clojure.browser.repl :as repl]
             [hipo.interpreter :as hipo]
             [cljs-http.client :as http]))
 
@@ -16,7 +16,7 @@
 #_ (defonce conn
   (repl/connect "http://localhost:9000/repl"))
 
-(enable-console-print!)
+;;(enable-console-print!)
 
 (defn log
   "Prints to `js/console`."
@@ -211,12 +211,17 @@
   "Main entry point of the SPA.
 
   Creates the `main`-DOM for the SPA and mounts it in the current DOM
-  at `id=\"main\"`. So the initial hosting page must contain such a
+  at `id=\"main\"`. So the initial hosting page must contain such an
   `id=\"main\"-node. Then calls `(load-current-loggers)`.
 
   The `main`-DOM contains the `(loggers-form)`-DOM with
   `id=\"loggers-form\"` so that this sub-DOM can be _updated_ via
-  `render-loggers` whenever the `app-state` changes."
+  `render-loggers` whenever the `app-state` changes.
+
+  Note: this function builds a DOM-node with `id=\"main\"` __at__ the
+  node with `id=\"main\"`. So this function can be called
+  __repeatedly__! That's important if you want to be able to
+  __reload__ this namespace and to re-run `(main)`."
 
   []
   (let [root (hipo/create [:div#main
@@ -230,9 +235,13 @@
 
     (load-current-loggers)))
 
-(try
-  (main)
-  (catch js/Error e
-    (log "(main) failed : " e)))
-
-(log "solo.spa loaded!")
+;; Whenever this namespace is (re)loaded the DOM will be (re-)created
+;; and (re)mounted at `id="main"`. The app-state will __not__ be reset
+;; on reload (due to `defonce`).
+;;
+;; There are cases when you want to keep the DOM on reload. In that
+;; case you could wrap the `(main`) call in a defonce.
+;;
+;; If you want to reset the `app-state` just reload the page in the
+;; browser.
+(main)

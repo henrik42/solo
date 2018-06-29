@@ -1990,6 +1990,34 @@ __TODO:__ testing clojurescript?
 
 __TODO__: dynamic code reload while preserving your app-state.
 
+Notes:
+
+figwheel inserts code into resources/public/js/compiled/solo-spa.js
+(cf. above!)
+
+    document.write('<script>goog.require("process.env");</script>');
+    document.write("<script>if (typeof goog != \"undefined\") { goog.require(\"figwheel.connect\"); }</script>");
+    document.write('<script>goog.require("solo.spa");</script>');
+
+Und in `resources/public/js/compiled/assets/figwheel/connect.js`
+
+    goog.require('cljs.core');
+    goog.require('solo.spa');
+    goog.require('figwheel.client');
+    goog.require('figwheel.client.utils');
+    figwheel.client.start.call(null,new cljs.core.PersistentArrayMap(null, 2,
+    [new cljs.core.Keyword(null,"build-id","build-id",1642831089),
+    "dev",new cljs.core.Keyword(null,
+    "websocket-url",
+    "websocket-url",-490444938),
+    "ws://localhost:3449/figwheel-ws"], null));
+
+Wenn also solo-spa.js geladen wird, dann wird erst solo.spa geladen
+und dann versucht figwheel eine Web-Socket (kein Long-Polling) auf
+`ws://localhost:3449/figwheel-ws` zu öffnen.
+
+Diese URL darf natürlich nicht durch die Anwendung "bedient" werden.
+
 ------------------------------------------------------------------------
 # Step Eleven: React, Reagent, solo.client.reagent
 ------------------------------------------------------------------------
