@@ -7,16 +7,13 @@
   
   (:require-macros [cljs.core.async.macros :refer [go]])
   (:require [cljs.core.async :refer [<!]]
-            ;;[clojure.browser.repl :as repl]
+            [clojure.browser.repl :as repl]
             [hipo.interpreter :as hipo]
             [cljs-http.client :as http]))
 
-;;TODO: use the GUI to start a REPL -- what if bREPL is not running on
-;;the browsers host?!
-#_ (defonce conn
+;; Only needed for CLJS repl in development
+(defonce conn
   (repl/connect "http://localhost:9000/repl"))
-
-;;(enable-console-print!)
 
 (defn log
   "Prints to `js/console`."

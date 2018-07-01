@@ -1690,6 +1690,8 @@ __create__ the markup/DOM and do filtering etc. The backend
 (`solo.web.spa`) becomes just a thin (technical) proxy/adapter for the
 bare _core_ _logic_ (`solo.core`).
 
+__TODO:__ testing clojurescript?
+
 [1] https://clojurescript.org/  
 [2] https://github.com/clojure/clojurescript  
 [JSON] JSON URL  
@@ -1767,14 +1769,14 @@ It's a _loader_ script that will pull in all libraries that CLJS and
 `solo.spa` depend on and in the end it will _load_ (i.e. `require`)
 namespace `solo.spa` (cf. `:compiler {:main solo.spa`) -- it's __not__
 a function call that "starts your program", it is just the "loading of
-your namespace" that has to start-up whatever you want to have
-started.
+your namespace" that has to start-up whatever you want to have started
+(__TODO:__ you can put that call into the hosting page!).
 
 Note that the _loader_ uses `document.write` (so it really __writes__
 `script` __elements__ into the hosting HTML page while it is loading)
 to make the __browser__ load the JavaScript sources. It does __not__
 use a JS API to dynamically load JS sources (except for the last two
-lines that call `require`). And some of the referenced JS scrip-files
+lines that call `require`). And some of the referenced JS script-files
 do also use `document.write`. This makes it difficult to load these
 JavaScript sources after the hosting HTML page has been loaded
 initially, because writing to the document __after__ the inital load
@@ -1811,7 +1813,7 @@ It delivers
 
         [:script {:src "out/solo-spa.js" :type "text/javascript"}]
 
-* the compiled JS files at `/out`
+* the compiled JS files at `/out` so the browser can load them
 
         (route/resources "/out" {:root "public/js/compiled"})
 
@@ -1834,8 +1836,8 @@ for example `src="out/assets/goog/base.js"` effectivly points to
 
 All other requests will be delegated to `solo.web/app`. So you can
 still use _Solo's_ CSS files in your SPA and you can even _switch_ to
-the plain HTML version of _Solo_ just by using a different URL to
-start.
+the old-style plain HTML version of _Solo_ just by using a different
+URL to start.
 
 All this routing is condensed into this (have I mentioned that Clojure
 source is so _dense_ that it first hurts when you come from other
@@ -1863,9 +1865,11 @@ account for the different base-offset/`:root`.
 
 __Running Solo SPA__
 
-You can run the SPA just the way you ran _Solo_ before.
+You can run the SPA just the way you ran _Solo_ before. In all cases
+just connect to http://localhost:3000/spa
 
-* via `lein-ring` plugin
+* via `lein-ring` plugin (we changed the Ring handler to `:ring
+  {:handler solo.web.spa/app`)
 
         solo-project$ lein ring server-headless
 
@@ -1874,13 +1878,14 @@ You can run the SPA just the way you ran _Solo_ before.
 
         solo-project$ lein run-web-jar -j 3000
 
-* via `solo-web.jar`:
+* via `solo-web.jar`: (Note: no CLJS/JS reload!!! --> classpath!!!)
 
         solo-project$ lein make-web-jar
         solo-project$ cp target/uberjar/solo-0.1.0-SNAPSHOT-standalone.jar  ./solo-web.jar
         solo-project$ java -jar solo-web.jar -j 3000
 
-* via `solo-web.war`
+* via `solo-web.war` (__TODO__ make Jetty use port 3000 not
+  8080)(Note: no CLJS/JS reload!!! --> classpath!!!)
 
         solo-project$ lein make-web-war
         solo-project$ java \
@@ -1891,12 +1896,13 @@ You can run the SPA just the way you ran _Solo_ before.
 
 __Development__
 
-While using _Solo_ SPA you can change the Clojure backend and the CLJS
-front-end __anytime__.
+While using _Solo_ SPA you can change the Clojure __backend__ and the
+CLJS __front-end__ __anytime__.
 
 You just need to run the CLJS compiler (__incremental__ __build__!)
 whenever the CLJS sources change and you need nREPL or Swank to talk
-to the backend.
+to the backend. If you're just developing the CLJS you don't need an
+nREPL/Swank.
 
 You run the __incremental__ __build__ like this:
 
@@ -1936,9 +1942,9 @@ Since we cannot connect to a server-socket in the browser we make the
 browser repeatedly __pull__ the compiled CLJS from the Clojure/JVM --
 it's called _long_ _polling_.
 
-You run this _long_ _polling_ like this in your CLJS. When this
-namespace is loaded it will start a browser REPL and connect to the
-given URL and _long_ _poll_ that URL:
+You run this _long_ _polling_ like this in your CLJS. When this code
+is evaluated it will start a browser REPL and connect to the given URL
+and _long_ _poll_ that URL:
 
     (:require [clojure.browser.repl :as repl])
     (defonce conn (repl/connect "http://localhost:9000/repl"))
@@ -1950,6 +1956,11 @@ Then you need to start the server-side of the browser REPL:
 This runs this:
 
     "run-brepl" ["with-profile" "+spa" "trampoline" "cljsbuild" "repl-listen"]
+
+When you try this make sure that the CLJS has been compiled. You can
+use:
+
+    solo-project$ lein make-spa-auto
 
 The CLJS plugin will try to open a browser window. You can close
 that. Then go to http://localhost:3000/spa
@@ -1982,7 +1993,34 @@ Now try the following. You should see a pop-up in your browser:
 
 You have a REPL in your browser.
 
-__TODO:__ testing clojurescript?
+You can use this to make output go to the browser console rather than
+to the REPL terminal. Try:
+
+    (println "foo")
+    (enable-console-print!)
+    (println "bar")
+
+Try these (`foo` goes to the browser console):
+
+    cljs.user=> js/solo
+    ;;--> #js {:spa #js {:conn #object[Object [object Object]], ,,,,}}
+    cljs.user=> (-> js/solo .-spa .-log)
+    ;;--> #object[solo$spa$log]
+    cljs.user=> ((-> js/solo .-spa .-log) "foo")
+    ;;--> nil
+
+Now let's interact with our app (take a look at the browser window
+when doing this):
+
+    user=> @solo.spa/app-state
+    ;;--> {:loggers [{:logger-name "root", :log-level "DEBUG"}]}
+    user=> (reset! solo.spa/app-state {:loggers [{:logger-name "bar" :log-level "INFO"}]})
+    ;;--> {:loggers [{:logger-name "bar", :log-level "INFO"}]}
+    user=> (solo.spa/set-log-level! "foo" "INFO")
+    ;;--> #object[cljs.core.async.impl.channels.ManyToManyChannel]
+
+So you can interact with any JavaScript function/object, with the DOM
+and with your CLJS stuff.
 
 ------------------------------------------------------------------------
 # Step Ten: figwheel
