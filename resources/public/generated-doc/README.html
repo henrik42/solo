@@ -1273,27 +1273,83 @@ user=&gt; (solo.spa/set-log-level! "foo" "INFO")
 <hr />
 <h1><a href="#step-ten-figwheel" name="step-ten-figwheel"></a>Step Ten: figwheel</h1>
 <hr />
-<p><strong>TODO</strong>: dynamic code reload while preserving your app-state.</p>
-<p>Notes:</p>
-<p>figwheel inserts code into resources/public/js/compiled/solo-spa.js (cf. above!)</p>
+<p>The incremental CLJS compile is nice but we still have to do a complete reload of the app to see the changes in the client. We would rather make changes to individual functions and reload just them without losing the app-state.</p>
+<p>With Figwheel get:</p>
+<ul>
+  <li>a browser REPL</li>
+  <li>CSS reload</li>
+  <li>incremental CLJS build and reload of changed namespaces</li>
+  <li>and more</li>
+</ul>
+<p>For running Figwheel we have:</p>
+<pre><code>"run-figwheel" ["with-profile" "+spa" "trampoline" "do" ["clean"] ["figwheel"]]
+</code></pre>
+<p>This runs the <code>lein-figwheel</code> plugin:</p>
+<pre><code>:spa {:plugins [[lein-figwheel "0.5.16"]
+                [lein-cljsbuild "1.1.7" :exclusions [[org.clojure/clojure] ]]]
+</code></pre>
+<p>Figwheel has a <em>server</em> <em>side</em> configuration:</p>
+<pre><code>  :figwheel {:server-ip "0.0.0.0"
+             :server-port 3448
+             :css-dirs ["resources/public/css"]}
+</code></pre>
+<p>And a <em>client</em> <em>side</em> configuration:</p>
+<pre><code>  :cljsbuild {:builds
+              [{:id "dev"
+                ,,,
+                :figwheel {:websocket-host :js-client-host}}]}
+</code></pre>
+<p>When using Figwheel you do not need any extra code in the CLJS for connecting a REPL from the browser. The Figwheel <strong>compile</strong> <strong>adds</strong> the extra code <strong>automatically</strong> to <code>resources/public/js/compiled/solo-spa.js</code>:</p>
 <pre><code>document.write('&lt;script&gt;goog.require("process.env");&lt;/script&gt;');
 document.write("&lt;script&gt;if (typeof goog != \"undefined\") { goog.require(\"figwheel.connect\"); }&lt;/script&gt;");
 document.write('&lt;script&gt;goog.require("solo.spa");&lt;/script&gt;');
 </code></pre>
 <p>Und in <code>resources/public/js/compiled/assets/figwheel/connect.js</code></p>
-<pre><code>goog.require('cljs.core');
-goog.require('solo.spa');
+<pre><code>// Compiled by ClojureScript 1.10.238 {}
+goog.provide('figwheel.connect');
+goog.require('cljs.core');
 goog.require('figwheel.client');
-goog.require('figwheel.client.utils');
-figwheel.client.start.call(null,new cljs.core.PersistentArrayMap(null, 2,
-[new cljs.core.Keyword(null,"build-id","build-id",1642831089),
-"dev",new cljs.core.Keyword(null,
-"websocket-url",
-"websocket-url",-490444938),
-"ws://localhost:3449/figwheel-ws"], null));
+figwheel.connect.start = (function figwheel$connect$start(){
+var config = new cljs.core.PersistentArrayMap(,,,Keyword(null,"websocket-url","websocket-url",-490444938),
+"ws://[[client-hostname]]:3448/figwheel-ws"], null);
+figwheel.client.start.call(null,config);
 </code></pre>
-<p>Wenn also solo-spa.js geladen wird, dann wird erst solo.spa geladen und dann versucht figwheel eine Web-Socket (kein Long-Polling) auf <code>ws://localhost:3449/figwheel-ws</code> zu öffnen.</p>
-<p>Diese URL darf natürlich nicht durch die Anwendung “bedient” werden.</p>
+<p>So when <code>solo-spa.js</code> is loaded into the browser it loads <code>figwheel.connect</code> and this will start a web-socket connection into the Figwheel <em>server</em>.</p>
+<p>For this to work you have to run <code>lein run-figwheel</code> <strong>first</strong> before you point your browser to <a href="http://localhost:3000/spa">http://localhost:3000/spa</a>. Since <code>run-figwheel</code> does a <code>clean</code> you would see an empty page otherwise.</p>
+<p><strong>Note:</strong> Figwheel really creates CLJS and not JS. The CLJS is then compiled to JS like all the other CLJS. Take a look at <code>resources/public/js/compiled/assets/figwheel/connect.cljs</code>:</p>
+<pre><code>;; This namespace was created to add to the :preloads clojureScript
+;; compile option. This will allow you to start the figwheel client with the
+;; options that you supplied in :external-config &gt; :figwheel/config
+(ns figwheel.connect
+  (:require [figwheel.client])
+  (:require-macros [figwheel.env-config :refer [external-tooling-config]]))
+
+(defn ^:export start []
+  (let [config (external-tooling-config)]
+    (figwheel.client/start config)
+    (when (:devcards config)
+      (js/devcards.core.start-devcard-ui!*))))
+</code></pre>
+<p>In this set-up we’re still using a seperate JVM to run <em>Solo’s</em> backend. Figwheel can host the Ring handler <code>solo.web.spa/app</code> so that you really onle need one Leiningen JVM for all this. But then you have to manage both REPLs in on terminal.</p>
+<p>When you have everything running you can change the <code>background-color</code> in <code>resources/public/css/solo.css</code> to <code>red</code>:</p>
+<pre><code>#top-of-page {
+    border-width: 3px;
+    padding: 8px;
+    background-color: red;
+    box-sizing: border-box;
+}
+</code></pre>
+<p>When you change the file the effect will be visible in the browser. Note that no page reload takes place!</p>
+<p>Now let’s a <code>:post</code> condition to <code>load-current-loggers</code> in <code>src/cljs/solo/spa.cljs</code>:</p>
+<pre><code>(defn load-current-loggers [&amp; _]
+  {:post [(or (println (str "load-current-loggers --&gt; " (:loggers @app-state))) true)]}
+  (go
+   (let [res (&lt;! (http/get "ws/get-current-loggers"))]
+     (swap! app-state assoc :loggers (get-in res [:body :loggers])))))
+</code></pre>
+<p>When you save this Figwheel will (1) comile the source and (2) reload/<code>require</code> <code>solo.spa</code>. Since we have <code>(main)</code> as a top-level form the reload will re-create/mount the <em>Solo</em> DOM which will run <code>load-current-loggers</code> and output the current loggers to the CLJS REPL.</p>
+<p><strong>Note:</strong> since Figwheel does <strong>not</strong> (re-)define individual functions but reloads <strong>namespaces</strong> you have to write the code such that <strong>reloading</strong> your namespaces will do what you want. In <code>solo.spa</code> I wanted to rebuild the DOM on reload so that changes to the view-functions will show-up automagically. That’s why I put <code>(main)</code> in there. I could have used a <code>defonce</code> to shield the DOM against the reload. It depends an what you are trying to archive.</p>
+<p><strong>Note:</strong> the Figwheel compiler will produce not the same output as the standard CLJS compiler. So if you want to change the CLJS code and commit it to your git you should run <code>lein make-spa</code> before commiting. That will remove the Figwheel extra code from the JS.</p>
 <hr />
 <h1><a href="#step-eleven-react-reagent-solo-client-reagent" name="step-eleven-react-reagent-solo-client-reagent"></a>Step Eleven: React, Reagent, solo.client.reagent</h1>
 <hr />

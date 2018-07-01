@@ -11,10 +11,6 @@
             [hipo.interpreter :as hipo]
             [cljs-http.client :as http]))
 
-;; Only needed for CLJS repl in development
-(defonce conn
-  (repl/connect "http://localhost:9000/repl"))
-
 (defn log
   "Prints to `js/console`."
 
