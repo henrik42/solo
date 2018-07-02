@@ -2031,11 +2031,12 @@ complete reload of the app to see the changes in the client. We would
 rather make changes to individual functions and reload just them
 without losing the app-state.
 
-With Figwheel get:
+With Figwheel [1] you get:
 
 * a browser REPL
 * CSS reload
-* incremental CLJS build and reload of changed namespaces
+* incremental CLJS build and reload of changed __namespaces__ (not
+  __individiual__ __functions__)
 * and more
 
 For running Figwheel we have:
@@ -2061,9 +2062,10 @@ And a _client_ _side_ configuration:
                     :figwheel {:websocket-host :js-client-host}}]}
 
 When using Figwheel you do not need any extra code in the CLJS for
-connecting a REPL from the browser. The Figwheel __compile__ __adds__
-the extra code __automatically__ to
-`resources/public/js/compiled/solo-spa.js`:
+connecting a REPL from the browser (like `(defonce conn (repl/connect
+"http://localhost:9000/repl"))` above). The Figwheel __compile__
+__adds__ the extra code (`goog.require("figwheel.connect")`)
+__automatically__ to `resources/public/js/compiled/solo-spa.js`:
 
     document.write('<script>goog.require("process.env");</script>');
     document.write("<script>if (typeof goog != \"undefined\") { goog.require(\"figwheel.connect\"); }</script>");
@@ -2081,15 +2083,17 @@ Und in `resources/public/js/compiled/assets/figwheel/connect.js`
     figwheel.client.start.call(null,config);
     
 So when `solo-spa.js` is loaded into the browser it loads
-`figwheel.connect` and this will start a web-socket connection into
-the Figwheel _server_.
+`figwheel.connect` and this will start a web-socket [2] connection
+into the Figwheel _server_.
 
 For this to work you have to run `lein run-figwheel` __first__ before
 you point your browser to http://localhost:3000/spa. Since
-`run-figwheel` does a `clean` you would see an empty page otherwise.
+`run-figwheel` does a `clean` (which removes all the JS files below
+`resources/public/js/compiled/`) you would see an empty page
+otherwise.
 
-__Note:__ Figwheel really creates CLJS and not JS. The CLJS is then
-compiled to JS like all the other CLJS. Take a look at
+__Note:__ The Figwheel compile really creates CLJS and not JS. The
+CLJS is then compiled to JS like all the other CLJS. Take a look at
 `resources/public/js/compiled/assets/figwheel/connect.cljs`:
 
     ;; This namespace was created to add to the :preloads clojureScript
@@ -2106,9 +2110,9 @@ compiled to JS like all the other CLJS. Take a look at
           (js/devcards.core.start-devcard-ui!*))))
 
 In this set-up we're still using a seperate JVM to run _Solo's_
-backend. Figwheel can host the Ring handler `solo.web.spa/app` so that
-you really onle need one Leiningen JVM for all this. But then you have
-to manage both REPLs in on terminal.
+backend. Figwheel can host a Ring handler (like `solo.web.spa/app`) so
+that you really onle need one Leiningen JVM for all this. But then you
+have to manage both REPLs in one terminal [3].
 
 When you have everything running you can change the `background-color`
 in `resources/public/css/solo.css` to `red`:
@@ -2120,11 +2124,11 @@ in `resources/public/css/solo.css` to `red`:
         box-sizing: border-box;
     }
     
-When you change the file the effect will be visible in the
-browser. Note that no page reload takes place!
+When you save the file the effect will be visible in the browser. Note
+that no page reload takes place!
 
-Now let's a `:post` condition to `load-current-loggers` in
-`src/cljs/solo/spa.cljs`:
+Now let's add a `:post` condition with side-effect to
+`load-current-loggers` in `src/cljs/solo/spa.cljs`:
 
     (defn load-current-loggers [& _]
       {:post [(or (println (str "load-current-loggers --> " (:loggers @app-state))) true)]}
@@ -2132,11 +2136,13 @@ Now let's a `:post` condition to `load-current-loggers` in
        (let [res (<! (http/get "ws/get-current-loggers"))]
          (swap! app-state assoc :loggers (get-in res [:body :loggers])))))
     
-When you save this Figwheel will (1) comile the source and (2)
+When you save this Figwheel will (1) compile the source and (2)
 reload/`require` `solo.spa`. Since we have `(main)` as a top-level
 form the reload will re-create/mount the _Solo_ DOM which will run
-`load-current-loggers` and output the current loggers to the CLJS
-REPL.
+`load-current-loggers` and (via the `:post`) output the current
+loggers to the CLJS REPL. You can use `(enable-console-print!)` to
+make the output go to the browser console instead or use
+`solo.spa/log` instead of `println`.
 
 __Note:__ since Figwheel does __not__ (re-)define individual functions
 but reloads __namespaces__ you have to write the code such that
@@ -2147,15 +2153,27 @@ in there. I could have used a `defonce` to shield the DOM against the
 reload. It depends an what you are trying to archive.
 
 __Note:__ the Figwheel compiler will produce not the same output as
-the standard CLJS compiler. So if you want to change the CLJS code and
-commit it to your git you should run `lein make-spa` before
-commiting. That will remove the Figwheel extra code from the JS.
+the standard CLJS compiler (see above). So if you want to change the
+CLJS code and commit it to your git you should run `lein make-spa`
+before committing. That will remove the Figwheel extra code from the
+CLJS/JS.
+
+## dev-cards
+
+__TBD__
+
+[1] Figwheel  
+[2] Web-Sockets__
+[3] Piggyback?  
 
 ------------------------------------------------------------------------
 # Step Eleven: React, Reagent, solo.client.reagent
 ------------------------------------------------------------------------
 
-* dev-cards?
+
+
+
+
 
 ------------------------------------------------------------------------
 # Step 12: chord, sente, solo.client.websockets
