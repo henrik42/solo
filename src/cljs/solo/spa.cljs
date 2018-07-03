@@ -43,14 +43,25 @@
   (let [reg-ex (:filter-reg-ex @app-state #".*")]
     (try (js/RegExp reg-ex) (catch :default t #".*"))))
 
-(defn reg-ex->str [r]
+(defn reg-ex->str
+  "Returns the `String` representation of the given reg-ex for
+  presentation."
+
+  [r]
   (let [r (str r)]
     (.substring r 1 (dec (.-length r)))))
 
-(defn set-filter-reg-ex! [x]
+(defn set-filter-reg-ex!
+  "Eventlistener that sets the `app-state`'s `:filter-reg-ex`-value to
+  the current `-value` of the textfield (i.e. the event target). Call
+  with a `String` to set the `app-state`'s
+  `:filter-reg-ex`-value. Returns the new `app-state`."
+  
+  [x]
+  #_ {:pre [(or (print (str "SOLO: setting :filter-reg-ex to " (-> x .-target .-value))) true)]}
   (swap! app-state assoc :filter-reg-ex
          (if (string? x) x
-             (-> x .-currentTarget .-value))))
+             (-> x .-target .-value))))
 
 (defn hide?
   "Returns the `app-state`'s `:hide` (`boolean`). Returns `false` if
@@ -66,9 +77,10 @@
   `:hide`-value. Returns the new `app-state`."
 
   [x]
+  #_ {:pre [(or (print (str "SOLO: setting :hide to " (-> x .-target .-checked))) true)]}
   (swap! app-state assoc :hide
          (if (boolean? x) x
-             (-> x .-currentTarget .-checked))))
+             (-> x .-target .-checked))))
 
 (defn loggers
   "Returns the `app-state`'s `:loggers` (a _map-seq_). If `(hide?)` is
@@ -142,12 +154,12 @@
    
    [:span {:style "padding:1em;"}]
    [:input {:type "submit"
+            :value "SET LOG-LEVEL"
             :on-click
             (fn [_]
               (let [logger (-> js/document (.getElementById "logger") (.-value))
                     level (-> js/document (.getElementById "level") (.-value))]
-                (set-log-level! logger level)))
-            :value "SET LOG-LEVEL"}]])
+                (set-log-level! logger level)))}]])
 
 (defn loggers-form
   "Returns a Hiccup-vector for the *loggers form* which allows the
@@ -161,19 +173,19 @@
    [:table#loggers
     [:tr
      [:th "LOGGER"
-      [:input {:type "text",
-               :id "filter",
+      [:input {:type "text"
+               :id "filter"
                :value (-> (filter-reg-ex) (reg-ex->str))
-               :on-change set-filter-reg-ex!
-               :placeholder "Filter Reg-Ex",
-               :style "float: right;"}]]
+               :placeholder "Filter Reg-Ex"
+               :style "float: right;"
+               :on-change set-filter-reg-ex!}]]
      [:th "LEVEL"
       [:span {:style "float: right;"}
        [:label {:for "hide"} " Hide NOT-SET!:"]
-       [:input {:type "checkbox",
-                :id "hide",
-                :on-change set-hide!
-                :checked (hide?)}]]]]
+       [:input {:type "checkbox"
+                :id "hide"
+                :checked (hide?)
+                :on-change set-hide!}]]]]
     
     (for [{:keys [logger-name log-level]} (loggers)]
       [:tr
@@ -181,7 +193,7 @@
        [:td [:select
              {:on-change
               (fn [evt]
-                (let [log-level (-> evt .-currentTarget .-value)]
+                (let [log-level (-> evt .-target .-value)]
                   (set-log-level! logger-name log-level)))}
              (make-options log-levels log-level)]]])
 
@@ -218,10 +230,10 @@
 
   []
   (let [root (hipo/create [:div#main
-                             (top-of-page)
-                             (set-log-level-form)
-                             (loggers-form)]
-                            nil)]
+                           (top-of-page)
+                           (set-log-level-form)
+                           (loggers-form)]
+                          nil)]
     (-> js/document
         (.getElementById "main")
         (.replaceWith root))
