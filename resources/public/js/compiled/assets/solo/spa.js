@@ -2,22 +2,21 @@
 goog.provide('solo.spa');
 goog.require('cljs.core');
 goog.require('cljs.core.async');
-goog.require('clojure.browser.repl');
-goog.require('hipo.interpreter');
+goog.require('reagent.core');
 goog.require('cljs_http.client');
 /**
  * Prints to `js/console`.
  */
 solo.spa.log = (function solo$spa$log(var_args){
 var args__4502__auto__ = [];
-var len__4499__auto___6671 = arguments.length;
-var i__4500__auto___6672 = (0);
+var len__4499__auto___5906 = arguments.length;
+var i__4500__auto___5907 = (0);
 while(true){
-if((i__4500__auto___6672 < len__4499__auto___6671)){
-args__4502__auto__.push((arguments[i__4500__auto___6672]));
+if((i__4500__auto___5907 < len__4499__auto___5906)){
+args__4502__auto__.push((arguments[i__4500__auto___5907]));
 
-var G__6673 = (i__4500__auto___6672 + (1));
-i__4500__auto___6672 = G__6673;
+var G__5908 = (i__4500__auto___5907 + (1));
+i__4500__auto___5907 = G__5908;
 continue;
 } else {
 }
@@ -35,9 +34,9 @@ return console.log(cljs.core.apply.call(null,cljs.core.str,"SOLO:",xs));
 solo.spa.log.cljs$lang$maxFixedArity = (0);
 
 /** @this {Function} */
-solo.spa.log.cljs$lang$applyTo = (function (seq6670){
+solo.spa.log.cljs$lang$applyTo = (function (seq5905){
 var self__4487__auto__ = this;
-return self__4487__auto__.cljs$core$IFn$_invoke$arity$variadic(cljs.core.seq.call(null,seq6670));
+return self__4487__auto__.cljs$core$IFn$_invoke$arity$variadic(cljs.core.seq.call(null,seq5905));
 });
 
 /**
@@ -47,11 +46,7 @@ return self__4487__auto__.cljs$core$IFn$_invoke$arity$variadic(cljs.core.seq.cal
 solo.spa.log_levels = new cljs.core.PersistentHashSet(null, new cljs.core.PersistentArrayMap(null, 7, ["WARN",null,"ERROR",null,"NOT-SET!",null,"DEBUG",null,"UNKNOWN!",null,"INFO",null,"OFF",null], null), null);
 if(typeof solo.spa.app_state !== 'undefined'){
 } else {
-solo.spa.app_state = (function (){var s = cljs.core.atom.call(null,cljs.core.PersistentArrayMap.EMPTY);
-cljs.core.add_watch.call(null,s,new cljs.core.Keyword(null,"i-need-no-key","i-need-no-key",-1371659188),new cljs.core.Var(function(){return solo.spa.render_loggers;},new cljs.core.Symbol("solo.spa","render-loggers","solo.spa/render-loggers",-848750468,null),cljs.core.PersistentHashMap.fromArrays([new cljs.core.Keyword(null,"ns","ns",441598760),new cljs.core.Keyword(null,"name","name",1843675177),new cljs.core.Keyword(null,"file","file",-1269645878),new cljs.core.Keyword(null,"end-column","end-column",1425389514),new cljs.core.Keyword(null,"export","export",214356590),new cljs.core.Keyword(null,"column","column",2078222095),new cljs.core.Keyword(null,"line","line",212345235),new cljs.core.Keyword(null,"declared","declared",92336021),new cljs.core.Keyword(null,"end-line","end-line",1837326455),new cljs.core.Keyword(null,"arglists","arglists",1661989754),new cljs.core.Keyword(null,"doc","doc",1913296891),new cljs.core.Keyword(null,"test","test",577538877)],[new cljs.core.Symbol(null,"solo.spa","solo.spa",-380454172,null),new cljs.core.Symbol(null,"render-loggers","render-loggers",1972374615,null),"src/cljs/solo/spa.cljs",33,true,1,28,true,28,cljs.core.List.EMPTY,null,(cljs.core.truth_(solo.spa.render_loggers)?solo.spa.render_loggers.cljs$lang$test:null)])));
-
-return s;
-})();
+solo.spa.app_state = reagent.core.atom.call(null,cljs.core.PersistentArrayMap.EMPTY);
 }
 /**
  * Returns the `app-state`'s `:filter-reg-ex` (`js/RegExp`). Returns
@@ -61,15 +56,25 @@ return s;
 solo.spa.filter_reg_ex = (function solo$spa$filter_reg_ex(){
 var reg_ex = new cljs.core.Keyword(null,"filter-reg-ex","filter-reg-ex",816995819).cljs$core$IFn$_invoke$arity$2(cljs.core.deref.call(null,solo.spa.app_state),/.*/);
 try{return RegExp(reg_ex);
-}catch (e6674){var t = e6674;
+}catch (e5909){var t = e5909;
 return /.*/;
 }});
+/**
+ * Returns the `String` representation of the given reg-ex for
+ *   presentation.
+ */
 solo.spa.reg_ex__GT_str = (function solo$spa$reg_ex__GT_str(r){
 var r__$1 = [cljs.core.str.cljs$core$IFn$_invoke$arity$1(r)].join('');
 return r__$1.substring((1),(r__$1.length - (1)));
 });
+/**
+ * Eventlistener that sets the `app-state`'s `:filter-reg-ex`-value to
+ *   the current `-value` of the textfield (i.e. the event target). Call
+ *   with a `String` to set the `app-state`'s
+ *   `:filter-reg-ex`-value. Returns the new `app-state`.
+ */
 solo.spa.set_filter_reg_ex_BANG_ = (function solo$spa$set_filter_reg_ex_BANG_(x){
-return cljs.core.swap_BANG_.call(null,solo.spa.app_state,cljs.core.assoc,new cljs.core.Keyword(null,"filter-reg-ex","filter-reg-ex",816995819),((typeof x === 'string')?x:x.currentTarget.value));
+return cljs.core.swap_BANG_.call(null,solo.spa.app_state,cljs.core.assoc,new cljs.core.Keyword(null,"filter-reg-ex","filter-reg-ex",816995819),((typeof x === 'string')?x:x.target.value));
 });
 /**
  * Returns the `app-state`'s `:hide` (`boolean`). Returns `false` if
@@ -85,7 +90,7 @@ return new cljs.core.Keyword(null,"hide","hide",-596913169).cljs$core$IFn$_invok
  *   `:hide`-value. Returns the new `app-state`.
  */
 solo.spa.set_hide_BANG_ = (function solo$spa$set_hide_BANG_(x){
-return cljs.core.swap_BANG_.call(null,solo.spa.app_state,cljs.core.assoc,new cljs.core.Keyword(null,"hide","hide",-596913169),((cljs.core.boolean_QMARK_.call(null,x))?x:x.currentTarget.checked));
+return cljs.core.swap_BANG_.call(null,solo.spa.app_state,cljs.core.assoc,new cljs.core.Keyword(null,"hide","hide",-596913169),((cljs.core.boolean_QMARK_.call(null,x))?x:x.target.checked));
 });
 /**
  * Returns the `app-state`'s `:loggers` (a _map-seq_). If `(hide?)` is
@@ -95,11 +100,11 @@ solo.spa.loggers = (function solo$spa$loggers(){
 var filter_reg_ex = solo.spa.filter_reg_ex.call(null);
 var hide = solo.spa.hide_QMARK_.call(null);
 return cljs.core.filter.call(null,((function (filter_reg_ex,hide){
-return (function (p1__6675_SHARP_){
-var and__3911__auto__ = cljs.core.re_find.call(null,filter_reg_ex,new cljs.core.Keyword(null,"logger-name","logger-name",-1988126927).cljs$core$IFn$_invoke$arity$1(p1__6675_SHARP_));
+return (function (p1__5910_SHARP_){
+var and__3911__auto__ = cljs.core.re_find.call(null,filter_reg_ex,new cljs.core.Keyword(null,"logger-name","logger-name",-1988126927).cljs$core$IFn$_invoke$arity$1(p1__5910_SHARP_));
 if(cljs.core.truth_(and__3911__auto__)){
 if(cljs.core.truth_(hide)){
-return cljs.core.not_EQ_.call(null,"NOT-SET!",new cljs.core.Keyword(null,"log-level","log-level",862121670).cljs$core$IFn$_invoke$arity$1(p1__6675_SHARP_));
+return cljs.core.not_EQ_.call(null,"NOT-SET!",new cljs.core.Keyword(null,"log-level","log-level",862121670).cljs$core$IFn$_invoke$arity$1(p1__5910_SHARP_));
 } else {
 return true;
 }
@@ -108,12 +113,12 @@ return and__3911__auto__;
 }
 });})(filter_reg_ex,hide))
 ,cljs.core.map.call(null,((function (filter_reg_ex,hide){
-return (function (p__6676){
-var map__6677 = p__6676;
-var map__6677__$1 = ((((!((map__6677 == null)))?(((((map__6677.cljs$lang$protocol_mask$partition0$ & (64))) || ((cljs.core.PROTOCOL_SENTINEL === map__6677.cljs$core$ISeq$))))?true:false):false))?cljs.core.apply.call(null,cljs.core.hash_map,map__6677):map__6677);
-var logger = map__6677__$1;
-var logger_name = cljs.core.get.call(null,map__6677__$1,new cljs.core.Keyword(null,"logger-name","logger-name",-1988126927));
-var log_level = cljs.core.get.call(null,map__6677__$1,new cljs.core.Keyword(null,"log-level","log-level",862121670));
+return (function (p__5911){
+var map__5912 = p__5911;
+var map__5912__$1 = ((((!((map__5912 == null)))?(((((map__5912.cljs$lang$protocol_mask$partition0$ & (64))) || ((cljs.core.PROTOCOL_SENTINEL === map__5912.cljs$core$ISeq$))))?true:false):false))?cljs.core.apply.call(null,cljs.core.hash_map,map__5912):map__5912);
+var logger = map__5912__$1;
+var logger_name = cljs.core.get.call(null,map__5912__$1,new cljs.core.Keyword(null,"logger-name","logger-name",-1988126927));
+var log_level = cljs.core.get.call(null,map__5912__$1,new cljs.core.Keyword(null,"log-level","log-level",862121670));
 if(cljs.core._EQ_.call(null,"",log_level)){
 return cljs.core.assoc.call(null,logger,new cljs.core.Keyword(null,"log-level","log-level",862121670),"NOT-SET!");
 } else {
@@ -127,16 +132,22 @@ return logger;
 });})(filter_reg_ex,hide))
 ,new cljs.core.Keyword(null,"loggers","loggers",-1191901729).cljs$core$IFn$_invoke$arity$1(cljs.core.deref.call(null,solo.spa.app_state))));
 });
+/**
+ * Eventlistener that calls the web-service `ws/get-current-loggers`
+ *   and sets the `app-state`'s
+ *   `:loggers`-value. Call `(load-current-loggers)` from the REPL for
+ *   testing.
+ */
 solo.spa.load_current_loggers = (function solo$spa$load_current_loggers(var_args){
 var args__4502__auto__ = [];
-var len__4499__auto___6695 = arguments.length;
-var i__4500__auto___6696 = (0);
+var len__4499__auto___5930 = arguments.length;
+var i__4500__auto___5931 = (0);
 while(true){
-if((i__4500__auto___6696 < len__4499__auto___6695)){
-args__4502__auto__.push((arguments[i__4500__auto___6696]));
+if((i__4500__auto___5931 < len__4499__auto___5930)){
+args__4502__auto__.push((arguments[i__4500__auto___5931]));
 
-var G__6697 = (i__4500__auto___6696 + (1));
-i__4500__auto___6696 = G__6697;
+var G__5932 = (i__4500__auto___5931 + (1));
+i__4500__auto___5931 = G__5932;
 continue;
 } else {
 }
@@ -148,206 +159,211 @@ return solo.spa.load_current_loggers.cljs$core$IFn$_invoke$arity$variadic(argseq
 });
 
 solo.spa.load_current_loggers.cljs$core$IFn$_invoke$arity$variadic = (function (_){
-var c__3158__auto__ = cljs.core.async.chan.call(null,(1));
-cljs.core.async.impl.dispatch.run.call(null,((function (c__3158__auto__){
+var c__3282__auto__ = cljs.core.async.chan.call(null,(1));
+cljs.core.async.impl.dispatch.run.call(null,((function (c__3282__auto__){
 return (function (){
-var f__3159__auto__ = (function (){var switch__3070__auto__ = ((function (c__3158__auto__){
-return (function (state_6689){
-var state_val_6690 = (state_6689[(1)]);
-if((state_val_6690 === (1))){
-var inst_6680 = cljs_http.client.get.call(null,"ws/get-current-loggers");
-var state_6689__$1 = state_6689;
-return cljs.core.async.impl.ioc_helpers.take_BANG_.call(null,state_6689__$1,(2),inst_6680);
+var f__3283__auto__ = (function (){var switch__3194__auto__ = ((function (c__3282__auto__){
+return (function (state_5924){
+var state_val_5925 = (state_5924[(1)]);
+if((state_val_5925 === (1))){
+var inst_5915 = cljs_http.client.get.call(null,"ws/get-current-loggers");
+var state_5924__$1 = state_5924;
+return cljs.core.async.impl.ioc_helpers.take_BANG_.call(null,state_5924__$1,(2),inst_5915);
 } else {
-if((state_val_6690 === (2))){
-var inst_6682 = (state_6689[(2)]);
-var inst_6683 = cljs.core.PersistentVector.EMPTY_NODE;
-var inst_6684 = [new cljs.core.Keyword(null,"body","body",-2049205669),new cljs.core.Keyword(null,"loggers","loggers",-1191901729)];
-var inst_6685 = (new cljs.core.PersistentVector(null,2,(5),inst_6683,inst_6684,null));
-var inst_6686 = cljs.core.get_in.call(null,inst_6682,inst_6685);
-var inst_6687 = cljs.core.swap_BANG_.call(null,solo.spa.app_state,cljs.core.assoc,new cljs.core.Keyword(null,"loggers","loggers",-1191901729),inst_6686);
-var state_6689__$1 = state_6689;
-return cljs.core.async.impl.ioc_helpers.return_chan.call(null,state_6689__$1,inst_6687);
+if((state_val_5925 === (2))){
+var inst_5917 = (state_5924[(2)]);
+var inst_5918 = cljs.core.PersistentVector.EMPTY_NODE;
+var inst_5919 = [new cljs.core.Keyword(null,"body","body",-2049205669),new cljs.core.Keyword(null,"loggers","loggers",-1191901729)];
+var inst_5920 = (new cljs.core.PersistentVector(null,2,(5),inst_5918,inst_5919,null));
+var inst_5921 = cljs.core.get_in.call(null,inst_5917,inst_5920);
+var inst_5922 = cljs.core.swap_BANG_.call(null,solo.spa.app_state,cljs.core.assoc,new cljs.core.Keyword(null,"loggers","loggers",-1191901729),inst_5921);
+var state_5924__$1 = state_5924;
+return cljs.core.async.impl.ioc_helpers.return_chan.call(null,state_5924__$1,inst_5922);
 } else {
 return null;
 }
 }
-});})(c__3158__auto__))
+});})(c__3282__auto__))
 ;
-return ((function (switch__3070__auto__,c__3158__auto__){
+return ((function (switch__3194__auto__,c__3282__auto__){
 return (function() {
-var solo$spa$state_machine__3071__auto__ = null;
-var solo$spa$state_machine__3071__auto____0 = (function (){
-var statearr_6691 = [null,null,null,null,null,null,null];
-(statearr_6691[(0)] = solo$spa$state_machine__3071__auto__);
+var solo$spa$state_machine__3195__auto__ = null;
+var solo$spa$state_machine__3195__auto____0 = (function (){
+var statearr_5926 = [null,null,null,null,null,null,null];
+(statearr_5926[(0)] = solo$spa$state_machine__3195__auto__);
 
-(statearr_6691[(1)] = (1));
+(statearr_5926[(1)] = (1));
 
-return statearr_6691;
+return statearr_5926;
 });
-var solo$spa$state_machine__3071__auto____1 = (function (state_6689){
+var solo$spa$state_machine__3195__auto____1 = (function (state_5924){
 while(true){
-var ret_value__3072__auto__ = (function (){try{while(true){
-var result__3073__auto__ = switch__3070__auto__.call(null,state_6689);
-if(cljs.core.keyword_identical_QMARK_.call(null,result__3073__auto__,new cljs.core.Keyword(null,"recur","recur",-437573268))){
+var ret_value__3196__auto__ = (function (){try{while(true){
+var result__3197__auto__ = switch__3194__auto__.call(null,state_5924);
+if(cljs.core.keyword_identical_QMARK_.call(null,result__3197__auto__,new cljs.core.Keyword(null,"recur","recur",-437573268))){
 continue;
 } else {
-return result__3073__auto__;
+return result__3197__auto__;
 }
 break;
 }
-}catch (e6692){if((e6692 instanceof Object)){
-var ex__3074__auto__ = e6692;
-var statearr_6693_6698 = state_6689;
-(statearr_6693_6698[(5)] = ex__3074__auto__);
+}catch (e5927){if((e5927 instanceof Object)){
+var ex__3198__auto__ = e5927;
+var statearr_5928_5933 = state_5924;
+(statearr_5928_5933[(5)] = ex__3198__auto__);
 
 
-cljs.core.async.impl.ioc_helpers.process_exception.call(null,state_6689);
+cljs.core.async.impl.ioc_helpers.process_exception.call(null,state_5924);
 
 return new cljs.core.Keyword(null,"recur","recur",-437573268);
 } else {
-throw e6692;
+throw e5927;
 
 }
 }})();
-if(cljs.core.keyword_identical_QMARK_.call(null,ret_value__3072__auto__,new cljs.core.Keyword(null,"recur","recur",-437573268))){
-var G__6699 = state_6689;
-state_6689 = G__6699;
+if(cljs.core.keyword_identical_QMARK_.call(null,ret_value__3196__auto__,new cljs.core.Keyword(null,"recur","recur",-437573268))){
+var G__5934 = state_5924;
+state_5924 = G__5934;
 continue;
 } else {
-return ret_value__3072__auto__;
+return ret_value__3196__auto__;
 }
 break;
 }
 });
-solo$spa$state_machine__3071__auto__ = function(state_6689){
+solo$spa$state_machine__3195__auto__ = function(state_5924){
 switch(arguments.length){
 case 0:
-return solo$spa$state_machine__3071__auto____0.call(this);
+return solo$spa$state_machine__3195__auto____0.call(this);
 case 1:
-return solo$spa$state_machine__3071__auto____1.call(this,state_6689);
+return solo$spa$state_machine__3195__auto____1.call(this,state_5924);
 }
 throw(new Error('Invalid arity: ' + (arguments.length - 1)));
 };
-solo$spa$state_machine__3071__auto__.cljs$core$IFn$_invoke$arity$0 = solo$spa$state_machine__3071__auto____0;
-solo$spa$state_machine__3071__auto__.cljs$core$IFn$_invoke$arity$1 = solo$spa$state_machine__3071__auto____1;
-return solo$spa$state_machine__3071__auto__;
+solo$spa$state_machine__3195__auto__.cljs$core$IFn$_invoke$arity$0 = solo$spa$state_machine__3195__auto____0;
+solo$spa$state_machine__3195__auto__.cljs$core$IFn$_invoke$arity$1 = solo$spa$state_machine__3195__auto____1;
+return solo$spa$state_machine__3195__auto__;
 })()
-;})(switch__3070__auto__,c__3158__auto__))
+;})(switch__3194__auto__,c__3282__auto__))
 })();
-var state__3160__auto__ = (function (){var statearr_6694 = f__3159__auto__.call(null);
-(statearr_6694[(6)] = c__3158__auto__);
+var state__3284__auto__ = (function (){var statearr_5929 = f__3283__auto__.call(null);
+(statearr_5929[(6)] = c__3282__auto__);
 
-return statearr_6694;
+return statearr_5929;
 })();
-return cljs.core.async.impl.ioc_helpers.run_state_machine_wrapped.call(null,state__3160__auto__);
-});})(c__3158__auto__))
+return cljs.core.async.impl.ioc_helpers.run_state_machine_wrapped.call(null,state__3284__auto__);
+});})(c__3282__auto__))
 );
 
-return c__3158__auto__;
+return c__3282__auto__;
 });
 
 solo.spa.load_current_loggers.cljs$lang$maxFixedArity = (0);
 
 /** @this {Function} */
-solo.spa.load_current_loggers.cljs$lang$applyTo = (function (seq6679){
+solo.spa.load_current_loggers.cljs$lang$applyTo = (function (seq5914){
 var self__4487__auto__ = this;
-return self__4487__auto__.cljs$core$IFn$_invoke$arity$variadic(cljs.core.seq.call(null,seq6679));
+return self__4487__auto__.cljs$core$IFn$_invoke$arity$variadic(cljs.core.seq.call(null,seq5914));
 });
 
+/**
+ * Calls the web-service `ws/set-log-level/<logger-name>/<log-level>`
+ *   and triggers an update of the GUI by finally
+ *   calling `(load-current-loggers)`.
+ */
 solo.spa.set_log_level_BANG_ = (function solo$spa$set_log_level_BANG_(logger_name,log_level){
-var c__3158__auto__ = cljs.core.async.chan.call(null,(1));
-cljs.core.async.impl.dispatch.run.call(null,((function (c__3158__auto__){
+var c__3282__auto__ = cljs.core.async.chan.call(null,(1));
+cljs.core.async.impl.dispatch.run.call(null,((function (c__3282__auto__){
 return (function (){
-var f__3159__auto__ = (function (){var switch__3070__auto__ = ((function (c__3158__auto__){
-return (function (state_6704){
-var state_val_6705 = (state_6704[(1)]);
-if((state_val_6705 === (1))){
-var inst_6700 = ["ws/set-log-level/",cljs.core.str.cljs$core$IFn$_invoke$arity$1(logger_name),"/",cljs.core.str.cljs$core$IFn$_invoke$arity$1(log_level)].join('');
-var inst_6701 = cljs_http.client.post.call(null,inst_6700);
-var inst_6702 = solo.spa.load_current_loggers.call(null);
-var state_6704__$1 = (function (){var statearr_6706 = state_6704;
-(statearr_6706[(7)] = inst_6701);
+var f__3283__auto__ = (function (){var switch__3194__auto__ = ((function (c__3282__auto__){
+return (function (state_5939){
+var state_val_5940 = (state_5939[(1)]);
+if((state_val_5940 === (1))){
+var inst_5935 = ["ws/set-log-level/",cljs.core.str.cljs$core$IFn$_invoke$arity$1(logger_name),"/",cljs.core.str.cljs$core$IFn$_invoke$arity$1(log_level)].join('');
+var inst_5936 = cljs_http.client.post.call(null,inst_5935);
+var inst_5937 = solo.spa.load_current_loggers.call(null);
+var state_5939__$1 = (function (){var statearr_5941 = state_5939;
+(statearr_5941[(7)] = inst_5936);
 
-return statearr_6706;
+return statearr_5941;
 })();
-return cljs.core.async.impl.ioc_helpers.return_chan.call(null,state_6704__$1,inst_6702);
+return cljs.core.async.impl.ioc_helpers.return_chan.call(null,state_5939__$1,inst_5937);
 } else {
 return null;
 }
-});})(c__3158__auto__))
+});})(c__3282__auto__))
 ;
-return ((function (switch__3070__auto__,c__3158__auto__){
+return ((function (switch__3194__auto__,c__3282__auto__){
 return (function() {
-var solo$spa$set_log_level_BANG__$_state_machine__3071__auto__ = null;
-var solo$spa$set_log_level_BANG__$_state_machine__3071__auto____0 = (function (){
-var statearr_6707 = [null,null,null,null,null,null,null,null];
-(statearr_6707[(0)] = solo$spa$set_log_level_BANG__$_state_machine__3071__auto__);
+var solo$spa$set_log_level_BANG__$_state_machine__3195__auto__ = null;
+var solo$spa$set_log_level_BANG__$_state_machine__3195__auto____0 = (function (){
+var statearr_5942 = [null,null,null,null,null,null,null,null];
+(statearr_5942[(0)] = solo$spa$set_log_level_BANG__$_state_machine__3195__auto__);
 
-(statearr_6707[(1)] = (1));
+(statearr_5942[(1)] = (1));
 
-return statearr_6707;
+return statearr_5942;
 });
-var solo$spa$set_log_level_BANG__$_state_machine__3071__auto____1 = (function (state_6704){
+var solo$spa$set_log_level_BANG__$_state_machine__3195__auto____1 = (function (state_5939){
 while(true){
-var ret_value__3072__auto__ = (function (){try{while(true){
-var result__3073__auto__ = switch__3070__auto__.call(null,state_6704);
-if(cljs.core.keyword_identical_QMARK_.call(null,result__3073__auto__,new cljs.core.Keyword(null,"recur","recur",-437573268))){
+var ret_value__3196__auto__ = (function (){try{while(true){
+var result__3197__auto__ = switch__3194__auto__.call(null,state_5939);
+if(cljs.core.keyword_identical_QMARK_.call(null,result__3197__auto__,new cljs.core.Keyword(null,"recur","recur",-437573268))){
 continue;
 } else {
-return result__3073__auto__;
+return result__3197__auto__;
 }
 break;
 }
-}catch (e6708){if((e6708 instanceof Object)){
-var ex__3074__auto__ = e6708;
-var statearr_6709_6711 = state_6704;
-(statearr_6709_6711[(5)] = ex__3074__auto__);
+}catch (e5943){if((e5943 instanceof Object)){
+var ex__3198__auto__ = e5943;
+var statearr_5944_5946 = state_5939;
+(statearr_5944_5946[(5)] = ex__3198__auto__);
 
 
-cljs.core.async.impl.ioc_helpers.process_exception.call(null,state_6704);
+cljs.core.async.impl.ioc_helpers.process_exception.call(null,state_5939);
 
 return new cljs.core.Keyword(null,"recur","recur",-437573268);
 } else {
-throw e6708;
+throw e5943;
 
 }
 }})();
-if(cljs.core.keyword_identical_QMARK_.call(null,ret_value__3072__auto__,new cljs.core.Keyword(null,"recur","recur",-437573268))){
-var G__6712 = state_6704;
-state_6704 = G__6712;
+if(cljs.core.keyword_identical_QMARK_.call(null,ret_value__3196__auto__,new cljs.core.Keyword(null,"recur","recur",-437573268))){
+var G__5947 = state_5939;
+state_5939 = G__5947;
 continue;
 } else {
-return ret_value__3072__auto__;
+return ret_value__3196__auto__;
 }
 break;
 }
 });
-solo$spa$set_log_level_BANG__$_state_machine__3071__auto__ = function(state_6704){
+solo$spa$set_log_level_BANG__$_state_machine__3195__auto__ = function(state_5939){
 switch(arguments.length){
 case 0:
-return solo$spa$set_log_level_BANG__$_state_machine__3071__auto____0.call(this);
+return solo$spa$set_log_level_BANG__$_state_machine__3195__auto____0.call(this);
 case 1:
-return solo$spa$set_log_level_BANG__$_state_machine__3071__auto____1.call(this,state_6704);
+return solo$spa$set_log_level_BANG__$_state_machine__3195__auto____1.call(this,state_5939);
 }
 throw(new Error('Invalid arity: ' + (arguments.length - 1)));
 };
-solo$spa$set_log_level_BANG__$_state_machine__3071__auto__.cljs$core$IFn$_invoke$arity$0 = solo$spa$set_log_level_BANG__$_state_machine__3071__auto____0;
-solo$spa$set_log_level_BANG__$_state_machine__3071__auto__.cljs$core$IFn$_invoke$arity$1 = solo$spa$set_log_level_BANG__$_state_machine__3071__auto____1;
-return solo$spa$set_log_level_BANG__$_state_machine__3071__auto__;
+solo$spa$set_log_level_BANG__$_state_machine__3195__auto__.cljs$core$IFn$_invoke$arity$0 = solo$spa$set_log_level_BANG__$_state_machine__3195__auto____0;
+solo$spa$set_log_level_BANG__$_state_machine__3195__auto__.cljs$core$IFn$_invoke$arity$1 = solo$spa$set_log_level_BANG__$_state_machine__3195__auto____1;
+return solo$spa$set_log_level_BANG__$_state_machine__3195__auto__;
 })()
-;})(switch__3070__auto__,c__3158__auto__))
+;})(switch__3194__auto__,c__3282__auto__))
 })();
-var state__3160__auto__ = (function (){var statearr_6710 = f__3159__auto__.call(null);
-(statearr_6710[(6)] = c__3158__auto__);
+var state__3284__auto__ = (function (){var statearr_5945 = f__3283__auto__.call(null);
+(statearr_5945[(6)] = c__3282__auto__);
 
-return statearr_6710;
+return statearr_5945;
 })();
-return cljs.core.async.impl.ioc_helpers.run_state_machine_wrapped.call(null,state__3160__auto__);
-});})(c__3158__auto__))
+return cljs.core.async.impl.ioc_helpers.run_state_machine_wrapped.call(null,state__3284__auto__);
+});})(c__3282__auto__))
 );
 
-return c__3158__auto__;
+return c__3282__auto__;
 });
 /**
  * Returns `:option` Hiccup-vector-seq for `xs`. If `(= x o)` for
@@ -355,7 +371,7 @@ return c__3158__auto__;
  */
 solo.spa.make_options = (function solo$spa$make_options(xs,x){
 return cljs.core.map.call(null,(function (o){
-return new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"option","option",65132272),new cljs.core.PersistentArrayMap(null, 1, [new cljs.core.Keyword(null,"selected","selected",574897764),cljs.core._EQ_.call(null,x,o)], null),o], null);
+return new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"option","option",65132272),new cljs.core.PersistentArrayMap(null, 2, [new cljs.core.Keyword(null,"key","key",-1516042587),o,new cljs.core.Keyword(null,"selected","selected",574897764),cljs.core._EQ_.call(null,x,o)], null),o], null);
 }),xs);
 });
 /**
@@ -372,11 +388,11 @@ return new cljs.core.PersistentVector(null, 8, 5, cljs.core.PersistentVector.EMP
  *   the user to enter a logger-name and select a log-level.
  */
 solo.spa.set_log_level_form = (function solo$spa$set_log_level_form(){
-return new cljs.core.PersistentVector(null, 8, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"div#new-logger","div#new-logger",902215213),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"label","label",1718410804),new cljs.core.PersistentArrayMap(null, 1, [new cljs.core.Keyword(null,"for","for",-1323786319),"logger"], null),"LOGGER:"], null),new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"input","input",556931961),new cljs.core.PersistentArrayMap(null, 3, [new cljs.core.Keyword(null,"type","type",1174270348),"text",new cljs.core.Keyword(null,"id","id",-1388402092),"logger",new cljs.core.Keyword(null,"placeholder","placeholder",-104873083),"Logger Name"], null)], null),new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"span","span",1394872991),new cljs.core.PersistentArrayMap(null, 1, [new cljs.core.Keyword(null,"style","style",-496642736),"padding:1em;"], null)], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"label","label",1718410804),new cljs.core.PersistentArrayMap(null, 1, [new cljs.core.Keyword(null,"for","for",-1323786319),"level"], null)," LEVEL:"], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"select","select",1147833503),new cljs.core.PersistentArrayMap(null, 1, [new cljs.core.Keyword(null,"id","id",-1388402092),"level"], null),solo.spa.make_options.call(null,solo.spa.log_levels,"INFO")], null),new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"span","span",1394872991),new cljs.core.PersistentArrayMap(null, 1, [new cljs.core.Keyword(null,"style","style",-496642736),"padding:1em;"], null)], null),new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"input","input",556931961),new cljs.core.PersistentArrayMap(null, 3, [new cljs.core.Keyword(null,"type","type",1174270348),"submit",new cljs.core.Keyword(null,"on-click","on-click",1632826543),(function (_){
+return new cljs.core.PersistentVector(null, 8, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"div#new-logger","div#new-logger",902215213),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"label","label",1718410804),new cljs.core.PersistentArrayMap(null, 1, [new cljs.core.Keyword(null,"for","for",-1323786319),"logger"], null),"LOGGER:"], null),new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"input","input",556931961),new cljs.core.PersistentArrayMap(null, 3, [new cljs.core.Keyword(null,"type","type",1174270348),"text",new cljs.core.Keyword(null,"id","id",-1388402092),"logger",new cljs.core.Keyword(null,"placeholder","placeholder",-104873083),"Logger Name"], null)], null),new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"span","span",1394872991),new cljs.core.PersistentArrayMap(null, 1, [new cljs.core.Keyword(null,"style","style",-496642736),new cljs.core.PersistentArrayMap(null, 1, [new cljs.core.Keyword(null,"padding","padding",1660304693),"1em"], null)], null)], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"label","label",1718410804),new cljs.core.PersistentArrayMap(null, 1, [new cljs.core.Keyword(null,"for","for",-1323786319),"level"], null)," LEVEL:"], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"select","select",1147833503),new cljs.core.PersistentArrayMap(null, 1, [new cljs.core.Keyword(null,"id","id",-1388402092),"level"], null),solo.spa.make_options.call(null,solo.spa.log_levels,"INFO")], null),new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"span","span",1394872991),new cljs.core.PersistentArrayMap(null, 1, [new cljs.core.Keyword(null,"style","style",-496642736),new cljs.core.PersistentArrayMap(null, 1, [new cljs.core.Keyword(null,"padding","padding",1660304693),"1em"], null)], null)], null),new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"input","input",556931961),new cljs.core.PersistentArrayMap(null, 3, [new cljs.core.Keyword(null,"type","type",1174270348),"submit",new cljs.core.Keyword(null,"value","value",305978217),"SET LOG-LEVEL",new cljs.core.Keyword(null,"on-click","on-click",1632826543),(function (_){
 var logger = document.getElementById("logger").value;
 var level = document.getElementById("level").value;
 return solo.spa.set_log_level_BANG_.call(null,logger,level);
-}),new cljs.core.Keyword(null,"value","value",305978217),"SET LOG-LEVEL"], null)], null)], null);
+})], null)], null)], null);
 });
 /**
  * Returns a Hiccup-vector for the *loggers form* which allows the
@@ -386,33 +402,33 @@ return solo.spa.set_log_level_BANG_.call(null,logger,level);
  *   to hide loggers with `(= log-level NOT-SET!)`.
  */
 solo.spa.loggers_form = (function solo$spa$loggers_form(){
-return new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"div#loggers-form","div#loggers-form",-342841966),new cljs.core.PersistentVector(null, 4, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"table#loggers","table#loggers",836788857),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"tr","tr",-1424774646),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"th","th",-545608566),"LOGGER",new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"input","input",556931961),new cljs.core.PersistentArrayMap(null, 6, [new cljs.core.Keyword(null,"type","type",1174270348),"text",new cljs.core.Keyword(null,"id","id",-1388402092),"filter",new cljs.core.Keyword(null,"value","value",305978217),solo.spa.reg_ex__GT_str.call(null,solo.spa.filter_reg_ex.call(null)),new cljs.core.Keyword(null,"on-change","on-change",-732046149),solo.spa.set_filter_reg_ex_BANG_,new cljs.core.Keyword(null,"placeholder","placeholder",-104873083),"Filter Reg-Ex",new cljs.core.Keyword(null,"style","style",-496642736),"float: right;"], null)], null)], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"th","th",-545608566),"LEVEL",new cljs.core.PersistentVector(null, 4, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"span","span",1394872991),new cljs.core.PersistentArrayMap(null, 1, [new cljs.core.Keyword(null,"style","style",-496642736),"float: right;"], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"label","label",1718410804),new cljs.core.PersistentArrayMap(null, 1, [new cljs.core.Keyword(null,"for","for",-1323786319),"hide"], null)," Hide NOT-SET!:"], null),new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"input","input",556931961),new cljs.core.PersistentArrayMap(null, 4, [new cljs.core.Keyword(null,"type","type",1174270348),"checkbox",new cljs.core.Keyword(null,"id","id",-1388402092),"hide",new cljs.core.Keyword(null,"on-change","on-change",-732046149),solo.spa.set_hide_BANG_,new cljs.core.Keyword(null,"checked","checked",-50955819),solo.spa.hide_QMARK_.call(null)], null)], null)], null)], null)], null),(function (){var iter__4292__auto__ = (function solo$spa$loggers_form_$_iter__6713(s__6714){
+return new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"div","div",1057191632),new cljs.core.PersistentVector(null, 4, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"table#loggers","table#loggers",836788857),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"tr","tr",-1424774646),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"th","th",-545608566),"LOGGER",new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"input","input",556931961),new cljs.core.PersistentArrayMap(null, 6, [new cljs.core.Keyword(null,"type","type",1174270348),"text",new cljs.core.Keyword(null,"id","id",-1388402092),"filter",new cljs.core.Keyword(null,"default-value","default-value",232220170),solo.spa.reg_ex__GT_str.call(null,solo.spa.filter_reg_ex.call(null)),new cljs.core.Keyword(null,"placeholder","placeholder",-104873083),"Filter Reg-Ex",new cljs.core.Keyword(null,"style","style",-496642736),new cljs.core.PersistentArrayMap(null, 1, [new cljs.core.Keyword(null,"float","float",-1732389368),"right"], null),new cljs.core.Keyword(null,"on-change","on-change",-732046149),solo.spa.set_filter_reg_ex_BANG_], null)], null)], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"th","th",-545608566),"LEVEL",new cljs.core.PersistentVector(null, 4, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"span","span",1394872991),new cljs.core.PersistentArrayMap(null, 1, [new cljs.core.Keyword(null,"style","style",-496642736),new cljs.core.PersistentArrayMap(null, 1, [new cljs.core.Keyword(null,"float","float",-1732389368),"right"], null)], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"label","label",1718410804),new cljs.core.PersistentArrayMap(null, 1, [new cljs.core.Keyword(null,"for","for",-1323786319),"hide"], null)," Hide NOT-SET!:"], null),new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"input","input",556931961),new cljs.core.PersistentArrayMap(null, 4, [new cljs.core.Keyword(null,"type","type",1174270348),"checkbox",new cljs.core.Keyword(null,"id","id",-1388402092),"hide",new cljs.core.Keyword(null,"checked","checked",-50955819),solo.spa.hide_QMARK_.call(null),new cljs.core.Keyword(null,"on-change","on-change",-732046149),solo.spa.set_hide_BANG_], null)], null)], null)], null)], null),(function (){var iter__4292__auto__ = (function solo$spa$loggers_form_$_iter__5948(s__5949){
 return (new cljs.core.LazySeq(null,(function (){
-var s__6714__$1 = s__6714;
+var s__5949__$1 = s__5949;
 while(true){
-var temp__4657__auto__ = cljs.core.seq.call(null,s__6714__$1);
+var temp__4657__auto__ = cljs.core.seq.call(null,s__5949__$1);
 if(temp__4657__auto__){
-var s__6714__$2 = temp__4657__auto__;
-if(cljs.core.chunked_seq_QMARK_.call(null,s__6714__$2)){
-var c__4290__auto__ = cljs.core.chunk_first.call(null,s__6714__$2);
+var s__5949__$2 = temp__4657__auto__;
+if(cljs.core.chunked_seq_QMARK_.call(null,s__5949__$2)){
+var c__4290__auto__ = cljs.core.chunk_first.call(null,s__5949__$2);
 var size__4291__auto__ = cljs.core.count.call(null,c__4290__auto__);
-var b__6716 = cljs.core.chunk_buffer.call(null,size__4291__auto__);
-if((function (){var i__6715 = (0);
+var b__5951 = cljs.core.chunk_buffer.call(null,size__4291__auto__);
+if((function (){var i__5950 = (0);
 while(true){
-if((i__6715 < size__4291__auto__)){
-var map__6717 = cljs.core._nth.call(null,c__4290__auto__,i__6715);
-var map__6717__$1 = ((((!((map__6717 == null)))?(((((map__6717.cljs$lang$protocol_mask$partition0$ & (64))) || ((cljs.core.PROTOCOL_SENTINEL === map__6717.cljs$core$ISeq$))))?true:false):false))?cljs.core.apply.call(null,cljs.core.hash_map,map__6717):map__6717);
-var logger_name = cljs.core.get.call(null,map__6717__$1,new cljs.core.Keyword(null,"logger-name","logger-name",-1988126927));
-var log_level = cljs.core.get.call(null,map__6717__$1,new cljs.core.Keyword(null,"log-level","log-level",862121670));
-cljs.core.chunk_append.call(null,b__6716,new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"tr","tr",-1424774646),new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"td","td",1479933353),logger_name], null),new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"td","td",1479933353),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"select","select",1147833503),new cljs.core.PersistentArrayMap(null, 1, [new cljs.core.Keyword(null,"on-change","on-change",-732046149),((function (i__6715,map__6717,map__6717__$1,logger_name,log_level,c__4290__auto__,size__4291__auto__,b__6716,s__6714__$2,temp__4657__auto__){
+if((i__5950 < size__4291__auto__)){
+var map__5952 = cljs.core._nth.call(null,c__4290__auto__,i__5950);
+var map__5952__$1 = ((((!((map__5952 == null)))?(((((map__5952.cljs$lang$protocol_mask$partition0$ & (64))) || ((cljs.core.PROTOCOL_SENTINEL === map__5952.cljs$core$ISeq$))))?true:false):false))?cljs.core.apply.call(null,cljs.core.hash_map,map__5952):map__5952);
+var logger_name = cljs.core.get.call(null,map__5952__$1,new cljs.core.Keyword(null,"logger-name","logger-name",-1988126927));
+var log_level = cljs.core.get.call(null,map__5952__$1,new cljs.core.Keyword(null,"log-level","log-level",862121670));
+cljs.core.chunk_append.call(null,b__5951,new cljs.core.PersistentVector(null, 4, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"tr","tr",-1424774646),new cljs.core.PersistentArrayMap(null, 1, [new cljs.core.Keyword(null,"key","key",-1516042587),logger_name], null),new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"td","td",1479933353),logger_name], null),new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"td","td",1479933353),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"select","select",1147833503),new cljs.core.PersistentArrayMap(null, 1, [new cljs.core.Keyword(null,"on-change","on-change",-732046149),((function (i__5950,map__5952,map__5952__$1,logger_name,log_level,c__4290__auto__,size__4291__auto__,b__5951,s__5949__$2,temp__4657__auto__){
 return (function (evt){
-var log_level__$1 = evt.currentTarget.value;
+var log_level__$1 = evt.target.value;
 return solo.spa.set_log_level_BANG_.call(null,logger_name,log_level__$1);
-});})(i__6715,map__6717,map__6717__$1,logger_name,log_level,c__4290__auto__,size__4291__auto__,b__6716,s__6714__$2,temp__4657__auto__))
+});})(i__5950,map__5952,map__5952__$1,logger_name,log_level,c__4290__auto__,size__4291__auto__,b__5951,s__5949__$2,temp__4657__auto__))
 ], null),solo.spa.make_options.call(null,solo.spa.log_levels,log_level)], null)], null)], null));
 
-var G__6721 = (i__6715 + (1));
-i__6715 = G__6721;
+var G__5956 = (i__5950 + (1));
+i__5950 = G__5956;
 continue;
 } else {
 return true;
@@ -420,21 +436,21 @@ return true;
 break;
 }
 })()){
-return cljs.core.chunk_cons.call(null,cljs.core.chunk.call(null,b__6716),solo$spa$loggers_form_$_iter__6713.call(null,cljs.core.chunk_rest.call(null,s__6714__$2)));
+return cljs.core.chunk_cons.call(null,cljs.core.chunk.call(null,b__5951),solo$spa$loggers_form_$_iter__5948.call(null,cljs.core.chunk_rest.call(null,s__5949__$2)));
 } else {
-return cljs.core.chunk_cons.call(null,cljs.core.chunk.call(null,b__6716),null);
+return cljs.core.chunk_cons.call(null,cljs.core.chunk.call(null,b__5951),null);
 }
 } else {
-var map__6719 = cljs.core.first.call(null,s__6714__$2);
-var map__6719__$1 = ((((!((map__6719 == null)))?(((((map__6719.cljs$lang$protocol_mask$partition0$ & (64))) || ((cljs.core.PROTOCOL_SENTINEL === map__6719.cljs$core$ISeq$))))?true:false):false))?cljs.core.apply.call(null,cljs.core.hash_map,map__6719):map__6719);
-var logger_name = cljs.core.get.call(null,map__6719__$1,new cljs.core.Keyword(null,"logger-name","logger-name",-1988126927));
-var log_level = cljs.core.get.call(null,map__6719__$1,new cljs.core.Keyword(null,"log-level","log-level",862121670));
-return cljs.core.cons.call(null,new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"tr","tr",-1424774646),new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"td","td",1479933353),logger_name], null),new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"td","td",1479933353),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"select","select",1147833503),new cljs.core.PersistentArrayMap(null, 1, [new cljs.core.Keyword(null,"on-change","on-change",-732046149),((function (map__6719,map__6719__$1,logger_name,log_level,s__6714__$2,temp__4657__auto__){
+var map__5954 = cljs.core.first.call(null,s__5949__$2);
+var map__5954__$1 = ((((!((map__5954 == null)))?(((((map__5954.cljs$lang$protocol_mask$partition0$ & (64))) || ((cljs.core.PROTOCOL_SENTINEL === map__5954.cljs$core$ISeq$))))?true:false):false))?cljs.core.apply.call(null,cljs.core.hash_map,map__5954):map__5954);
+var logger_name = cljs.core.get.call(null,map__5954__$1,new cljs.core.Keyword(null,"logger-name","logger-name",-1988126927));
+var log_level = cljs.core.get.call(null,map__5954__$1,new cljs.core.Keyword(null,"log-level","log-level",862121670));
+return cljs.core.cons.call(null,new cljs.core.PersistentVector(null, 4, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"tr","tr",-1424774646),new cljs.core.PersistentArrayMap(null, 1, [new cljs.core.Keyword(null,"key","key",-1516042587),logger_name], null),new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"td","td",1479933353),logger_name], null),new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"td","td",1479933353),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"select","select",1147833503),new cljs.core.PersistentArrayMap(null, 1, [new cljs.core.Keyword(null,"on-change","on-change",-732046149),((function (map__5954,map__5954__$1,logger_name,log_level,s__5949__$2,temp__4657__auto__){
 return (function (evt){
-var log_level__$1 = evt.currentTarget.value;
+var log_level__$1 = evt.target.value;
 return solo.spa.set_log_level_BANG_.call(null,logger_name,log_level__$1);
-});})(map__6719,map__6719__$1,logger_name,log_level,s__6714__$2,temp__4657__auto__))
-], null),solo.spa.make_options.call(null,solo.spa.log_levels,log_level)], null)], null)], null),solo$spa$loggers_form_$_iter__6713.call(null,cljs.core.rest.call(null,s__6714__$2)));
+});})(map__5954,map__5954__$1,logger_name,log_level,s__5949__$2,temp__4657__auto__))
+], null),solo.spa.make_options.call(null,solo.spa.log_levels,log_level)], null)], null)], null),solo$spa$loggers_form_$_iter__5948.call(null,cljs.core.rest.call(null,s__5949__$2)));
 }
 } else {
 return null;
@@ -447,52 +463,11 @@ return iter__4292__auto__.call(null,solo.spa.loggers.call(null));
 })(),new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"input","input",556931961),new cljs.core.PersistentArrayMap(null, 3, [new cljs.core.Keyword(null,"type","type",1174270348),"submit",new cljs.core.Keyword(null,"on-click","on-click",1632826543),solo.spa.load_current_loggers,new cljs.core.Keyword(null,"value","value",305978217),"REFRESH"], null)], null)], null)], null);
 });
 /**
- * Creates the DOM for `(loggers-form)` and mounts it at
- *   `id="loggers-form"`. So this (re)renders the loggers-form.
- */
-solo.spa.render_loggers = (function solo$spa$render_loggers(var_args){
-var args__4502__auto__ = [];
-var len__4499__auto___6723 = arguments.length;
-var i__4500__auto___6724 = (0);
-while(true){
-if((i__4500__auto___6724 < len__4499__auto___6723)){
-args__4502__auto__.push((arguments[i__4500__auto___6724]));
-
-var G__6725 = (i__4500__auto___6724 + (1));
-i__4500__auto___6724 = G__6725;
-continue;
-} else {
-}
-break;
-}
-
-var argseq__4503__auto__ = ((((0) < args__4502__auto__.length))?(new cljs.core.IndexedSeq(args__4502__auto__.slice((0)),(0),null)):null);
-return solo.spa.render_loggers.cljs$core$IFn$_invoke$arity$variadic(argseq__4503__auto__);
-});
-goog.exportSymbol('solo.spa.render_loggers', solo.spa.render_loggers);
-
-solo.spa.render_loggers.cljs$core$IFn$_invoke$arity$variadic = (function (_){
-return document.getElementById("loggers-form").replaceWith(hipo.interpreter.create.call(null,solo.spa.loggers_form.call(null),null));
-});
-
-solo.spa.render_loggers.cljs$lang$maxFixedArity = (0);
-
-/** @this {Function} */
-solo.spa.render_loggers.cljs$lang$applyTo = (function (seq6722){
-var self__4487__auto__ = this;
-return self__4487__auto__.cljs$core$IFn$_invoke$arity$variadic(cljs.core.seq.call(null,seq6722));
-});
-
-/**
  * Main entry point of the SPA.
  * 
  *   Creates the `main`-DOM for the SPA and mounts it in the current DOM
  *   at `id="main"`. So the initial hosting page must contain such an
  *   `id="main"-node. Then calls `(load-current-loggers)`.
- * 
- *   The `main`-DOM contains the `(loggers-form)`-DOM with
- *   `id="loggers-form"` so that this sub-DOM can be _updated_ via
- *   `render-loggers` whenever the `app-state` changes.
  * 
  *   Note: this function builds a DOM-node with `id="main"` __at__ the
  *   node with `id="main"`. So this function can be called
@@ -500,11 +475,13 @@ return self__4487__auto__.cljs$core$IFn$_invoke$arity$variadic(cljs.core.seq.cal
  *   __reload__ this namespace and to re-run `(main)`.
  */
 solo.spa.main = (function solo$spa$main(){
-var root = hipo.interpreter.create.call(null,new cljs.core.PersistentVector(null, 4, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"div#main","div#main",-2068630773),solo.spa.top_of_page.call(null),solo.spa.set_log_level_form.call(null),solo.spa.loggers_form.call(null)], null),null);
-document.getElementById("main").replaceWith(root);
+var root = (function (_){
+return new cljs.core.PersistentVector(null, 4, 5, cljs.core.PersistentVector.EMPTY_NODE, [new cljs.core.Keyword(null,"div#main","div#main",-2068630773),new cljs.core.PersistentVector(null, 1, 5, cljs.core.PersistentVector.EMPTY_NODE, [solo.spa.top_of_page], null),new cljs.core.PersistentVector(null, 1, 5, cljs.core.PersistentVector.EMPTY_NODE, [solo.spa.set_log_level_form], null),new cljs.core.PersistentVector(null, 1, 5, cljs.core.PersistentVector.EMPTY_NODE, [solo.spa.loggers_form], null)], null);
+});
+reagent.core.render_component.call(null,new cljs.core.PersistentVector(null, 1, 5, cljs.core.PersistentVector.EMPTY_NODE, [root], null),document.getElementById("main"));
 
 return solo.spa.load_current_loggers.call(null);
 });
 solo.spa.main.call(null);
 
-//# sourceMappingURL=spa.js.map?rel=1530435365054
+//# sourceMappingURL=spa.js.map?rel=1530630227461

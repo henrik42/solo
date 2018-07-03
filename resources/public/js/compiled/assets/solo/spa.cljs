@@ -7,8 +7,7 @@
   
   (:require-macros [cljs.core.async.macros :refer [go]])
   (:require [cljs.core.async :refer [<!]]
-            [clojure.browser.repl :as repl]
-            [hipo.interpreter :as hipo]
+            [reagent.core :as r]
             [cljs-http.client :as http]))
 
 (defn log
@@ -25,14 +24,9 @@
 
 ;; ################### model ##########################
 
-(declare ^:export render-loggers)
-
-;; THE STATE of the application. Whenever this state changes
-;; `render-loggers` will be called to update/(re)-render the GUI.
-(defonce app-state  
-  (let [s (atom {})]
-    (add-watch s :i-need-no-key #'render-loggers)
-    s))
+;; THE STATE of the application. Whenever this state changes Reagent
+;; will re-draw whatever has to be re-drawn.
+(defonce app-state (r/atom {}))
 
 (defn filter-reg-ex
   "Returns the `app-state`'s `:filter-reg-ex` (`js/RegExp`). Returns
@@ -43,14 +37,25 @@
   (let [reg-ex (:filter-reg-ex @app-state #".*")]
     (try (js/RegExp reg-ex) (catch :default t #".*"))))
 
-(defn reg-ex->str [r]
+(defn reg-ex->str
+  "Returns the `String` representation of the given reg-ex for
+  presentation."
+
+  [r]
   (let [r (str r)]
     (.substring r 1 (dec (.-length r)))))
 
-(defn set-filter-reg-ex! [x]
+(defn set-filter-reg-ex!
+  "Eventlistener that sets the `app-state`'s `:filter-reg-ex`-value to
+  the current `-value` of the textfield (i.e. the event target). Call
+  with a `String` to set the `app-state`'s
+  `:filter-reg-ex`-value. Returns the new `app-state`."
+  
+  [x]
+  #_ {:pre [(or (print (str "SOLO: setting :filter-reg-ex to " (-> x .-target .-value))) true)]}
   (swap! app-state assoc :filter-reg-ex
          (if (string? x) x
-             (-> x .-currentTarget .-value))))
+             (-> x .-target .-value))))
 
 (defn hide?
   "Returns the `app-state`'s `:hide` (`boolean`). Returns `false` if
@@ -66,9 +71,10 @@
   `:hide`-value. Returns the new `app-state`."
 
   [x]
+  #_ {:pre [(or (print (str "SOLO: setting :hide to " (-> x .-target .-checked))) true)]}
   (swap! app-state assoc :hide
          (if (boolean? x) x
-             (-> x .-currentTarget .-checked))))
+             (-> x .-target .-checked))))
 
 (defn loggers
   "Returns the `app-state`'s `:loggers` (a _map-seq_). If `(hide?)` is
@@ -92,12 +98,23 @@
 
 ;; ################### controller ##########################
 
-(defn load-current-loggers [& _]
+(defn load-current-loggers
+  "Eventlistener that calls the web-service `ws/get-current-loggers`
+  and sets the `app-state`'s
+  `:loggers`-value. Call `(load-current-loggers)` from the REPL for
+  testing."
+  
+  [& _]
   (go
    (let [res (<! (http/get "ws/get-current-loggers"))]
      (swap! app-state assoc :loggers (get-in res [:body :loggers])))))
 
-(defn set-log-level! [logger-name log-level]
+(defn set-log-level!
+  "Calls the web-service `ws/set-log-level/<logger-name>/<log-level>`
+  and triggers an update of the GUI by finally
+  calling `(load-current-loggers)`."
+
+  [logger-name log-level]
   (go 
    (http/post (str "ws/set-log-level/" logger-name "/" log-level))
    (load-current-loggers)))
@@ -109,7 +126,7 @@
   entry `o` of `xs` then `:selected` is `true`."
 
   [xs x]
-  (map (fn [o] [:option {:selected (= x o)} o]) xs))
+  (map (fn [o] [:option {:key o :selected (= x o)} o]) xs))
 
 (defn top-of-page
   "Returns a Hiccup-vector for the top-of-page including a link to the
@@ -136,18 +153,18 @@
             :id "logger",
             :placeholder "Logger Name"}]
 
-   [:span {:style "padding:1em;"}]
+   [:span {:style {:padding "1em"}}]
    [:label {:for "level"} " LEVEL:"]
    [:select {:id "level"} (make-options log-levels "INFO")]
    
-   [:span {:style "padding:1em;"}]
+   [:span {:style {:padding "1em"}}]
    [:input {:type "submit"
+            :value "SET LOG-LEVEL"
             :on-click
             (fn [_]
               (let [logger (-> js/document (.getElementById "logger") (.-value))
                     level (-> js/document (.getElementById "level") (.-value))]
-                (set-log-level! logger level)))
-            :value "SET LOG-LEVEL"}]])
+                (set-log-level! logger level)))}]])
 
 (defn loggers-form
   "Returns a Hiccup-vector for the *loggers form* which allows the
@@ -157,31 +174,31 @@
   to hide loggers with `(= log-level NOT-SET!)`."
 
   []
-  [:div#loggers-form
+  [:div
    [:table#loggers
     [:tr
      [:th "LOGGER"
-      [:input {:type "text",
-               :id "filter",
-               :value (-> (filter-reg-ex) (reg-ex->str))
-               :on-change set-filter-reg-ex!
-               :placeholder "Filter Reg-Ex",
-               :style "float: right;"}]]
+      [:input {:type "text"
+               :id "filter"
+               :default-value (-> (filter-reg-ex) (reg-ex->str))
+               :placeholder "Filter Reg-Ex"
+               :style {:float "right"}
+               :on-change set-filter-reg-ex!}]]
      [:th "LEVEL"
-      [:span {:style "float: right;"}
+      [:span {:style {:float "right"}}
        [:label {:for "hide"} " Hide NOT-SET!:"]
-       [:input {:type "checkbox",
-                :id "hide",
-                :on-change set-hide!
-                :checked (hide?)}]]]]
+       [:input {:type "checkbox"
+                :id "hide"
+                :checked (hide?)
+                :on-change set-hide!}]]]]
     
     (for [{:keys [logger-name log-level]} (loggers)]
-      [:tr
+      [:tr {:key logger-name}
        [:td logger-name]
        [:td [:select
              {:on-change
               (fn [evt]
-                (let [log-level (-> evt .-currentTarget .-value)]
+                (let [log-level (-> evt .-target .-value)]
                   (set-log-level! logger-name log-level)))}
              (make-options log-levels log-level)]]])
 
@@ -191,15 +208,6 @@
 
 ;; ################### main ##########################
 
-(defn ^:export render-loggers
-  "Creates the DOM for `(loggers-form)` and mounts it at
-  `id=\"loggers-form\"`. So this (re)renders the loggers-form."
-
-  [& _] 
-  (-> js/document
-      (.getElementById "loggers-form")
-      (.replaceWith (hipo/create (loggers-form) nil))))
-
 (defn main
   "Main entry point of the SPA.
 
@@ -207,25 +215,21 @@
   at `id=\"main\"`. So the initial hosting page must contain such an
   `id=\"main\"-node. Then calls `(load-current-loggers)`.
 
-  The `main`-DOM contains the `(loggers-form)`-DOM with
-  `id=\"loggers-form\"` so that this sub-DOM can be _updated_ via
-  `render-loggers` whenever the `app-state` changes.
-
   Note: this function builds a DOM-node with `id=\"main\"` __at__ the
   node with `id=\"main\"`. So this function can be called
   __repeatedly__! That's important if you want to be able to
   __reload__ this namespace and to re-run `(main)`."
 
   []
-  (let [root (hipo/create [:div#main
-                             (top-of-page)
-                             (set-log-level-form)
-                             (loggers-form)]
-                            nil)]
-    (-> js/document
-        (.getElementById "main")
-        (.replaceWith root))
-
+  (let [root (fn [_]
+               [:div#main
+                [top-of-page]
+                [set-log-level-form]
+                [loggers-form]])]
+    
+    (r/render-component [root]
+                        (js/document.getElementById "main"))
+    
     (load-current-loggers)))
 
 ;; Whenever this namespace is (re)loaded the DOM will be (re-)created
