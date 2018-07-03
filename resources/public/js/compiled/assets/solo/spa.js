@@ -484,4 +484,4 @@ return solo.spa.load_current_loggers.call(null);
 });
 solo.spa.main.call(null);
 
-//# sourceMappingURL=spa.js.map?rel=1530630227461
+//# sourceMappingURL=spa.js.map?rel=1530630389392
