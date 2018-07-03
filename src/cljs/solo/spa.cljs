@@ -7,8 +7,7 @@
   
   (:require-macros [cljs.core.async.macros :refer [go]])
   (:require [cljs.core.async :refer [<!]]
-            [clojure.browser.repl :as repl]
-            [hipo.interpreter :as hipo]
+            [reagent.core :as r]
             [cljs-http.client :as http]))
 
 (defn log
@@ -25,14 +24,9 @@
 
 ;; ################### model ##########################
 
-(declare ^:export render-loggers)
-
-;; THE STATE of the application. Whenever this state changes
-;; `render-loggers` will be called to update/(re)-render the GUI.
-(defonce app-state  
-  (let [s (atom {})]
-    (add-watch s :i-need-no-key #'render-loggers)
-    s))
+;; THE STATE of the application. Whenever this state changes Reagent
+;; will re-draw whatever has to be re-drawn.
+(defonce app-state (r/atom {}))
 
 (defn filter-reg-ex
   "Returns the `app-state`'s `:filter-reg-ex` (`js/RegExp`). Returns
@@ -104,12 +98,23 @@
 
 ;; ################### controller ##########################
 
-(defn load-current-loggers [& _]
+(defn load-current-loggers
+  "Eventlistener that calls the web-service `ws/get-current-loggers`
+  and sets the `app-state`'s
+  `:loggers`-value. Call `(load-current-loggers)` from the REPL for
+  testing."
+  
+  [& _]
   (go
    (let [res (<! (http/get "ws/get-current-loggers"))]
      (swap! app-state assoc :loggers (get-in res [:body :loggers])))))
 
-(defn set-log-level! [logger-name log-level]
+(defn set-log-level!
+  "Calls the web-service `ws/set-log-level/<logger-name>/<log-level>`
+  and triggers an update of the GUI by finally
+  calling `(load-current-loggers)`."
+
+  [logger-name log-level]
   (go 
    (http/post (str "ws/set-log-level/" logger-name "/" log-level))
    (load-current-loggers)))
@@ -121,7 +126,7 @@
   entry `o` of `xs` then `:selected` is `true`."
 
   [xs x]
-  (map (fn [o] [:option {:selected (= x o)} o]) xs))
+  (map (fn [o] [:option {:key o :selected (= x o)} o]) xs))
 
 (defn top-of-page
   "Returns a Hiccup-vector for the top-of-page including a link to the
@@ -148,11 +153,11 @@
             :id "logger",
             :placeholder "Logger Name"}]
 
-   [:span {:style "padding:1em;"}]
+   [:span {:style {:padding "1em"}}]
    [:label {:for "level"} " LEVEL:"]
    [:select {:id "level"} (make-options log-levels "INFO")]
    
-   [:span {:style "padding:1em;"}]
+   [:span {:style {:padding "1em"}}]
    [:input {:type "submit"
             :value "SET LOG-LEVEL"
             :on-click
@@ -169,18 +174,18 @@
   to hide loggers with `(= log-level NOT-SET!)`."
 
   []
-  [:div#loggers-form
+  [:div
    [:table#loggers
     [:tr
      [:th "LOGGER"
       [:input {:type "text"
                :id "filter"
-               :value (-> (filter-reg-ex) (reg-ex->str))
+               :default-value (-> (filter-reg-ex) (reg-ex->str))
                :placeholder "Filter Reg-Ex"
-               :style "float: right;"
+               :style {:float "right"}
                :on-change set-filter-reg-ex!}]]
      [:th "LEVEL"
-      [:span {:style "float: right;"}
+      [:span {:style {:float "right"}}
        [:label {:for "hide"} " Hide NOT-SET!:"]
        [:input {:type "checkbox"
                 :id "hide"
@@ -188,7 +193,7 @@
                 :on-change set-hide!}]]]]
     
     (for [{:keys [logger-name log-level]} (loggers)]
-      [:tr
+      [:tr {:key logger-name}
        [:td logger-name]
        [:td [:select
              {:on-change
@@ -203,15 +208,6 @@
 
 ;; ################### main ##########################
 
-(defn ^:export render-loggers
-  "Creates the DOM for `(loggers-form)` and mounts it at
-  `id=\"loggers-form\"`. So this (re)renders the loggers-form."
-
-  [& _] 
-  (-> js/document
-      (.getElementById "loggers-form")
-      (.replaceWith (hipo/create (loggers-form) nil))))
-
 (defn main
   "Main entry point of the SPA.
 
@@ -219,25 +215,21 @@
   at `id=\"main\"`. So the initial hosting page must contain such an
   `id=\"main\"-node. Then calls `(load-current-loggers)`.
 
-  The `main`-DOM contains the `(loggers-form)`-DOM with
-  `id=\"loggers-form\"` so that this sub-DOM can be _updated_ via
-  `render-loggers` whenever the `app-state` changes.
-
   Note: this function builds a DOM-node with `id=\"main\"` __at__ the
   node with `id=\"main\"`. So this function can be called
   __repeatedly__! That's important if you want to be able to
   __reload__ this namespace and to re-run `(main)`."
 
   []
-  (let [root (hipo/create [:div#main
-                           (top-of-page)
-                           (set-log-level-form)
-                           (loggers-form)]
-                          nil)]
-    (-> js/document
-        (.getElementById "main")
-        (.replaceWith root))
-
+  (let [root (fn [_]
+               [:div#main
+                [top-of-page]
+                [set-log-level-form]
+                [loggers-form]])]
+    
+    (r/render-component [root]
+                        (js/document.getElementById "main"))
+    
     (load-current-loggers)))
 
 ;; Whenever this namespace is (re)loaded the DOM will be (re-)created

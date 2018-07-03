@@ -2170,7 +2170,51 @@ __TBD__
 # Step Eleven: React, Reagent, solo.client.reagent
 ------------------------------------------------------------------------
 
+__Recap__
 
+We've been using Hipo to create the DOM for _Solo_ (the __view__). We
+start by creating (almost) the complete DOM and _mount_ it into the
+__current__ DOM __at__ the node with `id=main`.
+
+      (let [root (hipo/create [:div#main
+                                 (top-of-page)
+                                 (set-log-level-form)
+                                 (loggers-form)]
+                                nil)]
+        (-> js/document
+            (.getElementById "main")
+            (.replaceWith root))
+    
+Initially the HTML/DOM (which contains the node with `id=main`) comes
+from the _Solo_ backend `spa/`. After that the _mounted_
+Hipo-created-DOM also contains a node with `id=main` (see
+`:div#main`). So the Hipo-created-DOM can be mounted again and
+again. We need this in development when Figwheel reloads `solo.spa`
+namespace on code changes -- not in production (_reloadable code_).
+
+When using the _Solo_ SPA we change the __model__ `solo.spa/app-state`
+(either by interacting with the GUI or via REPL) and that will trigger
+an __update__ of the GUI/view in `solo.spa/render-loggers`:
+
+    (defonce app-state  
+      (let [s (atom {})]
+        (add-watch s :i-need-no-key #'render-loggers)
+        s))
+
+The update creates a DOM with the table of all loggers
+`(loggers-form)` (sorted, filtered) and _mounts_ that at the node with
+`id=loggers-form` (which is created in `(main)`). This DOM's top node
+has `id=loggers-form` so `render-loggers` can be used repeatedly to
+re-draw the table of loggers.
+
+    (defn render-loggers [& _] 
+      (-> js/document
+          (.getElementById "loggers-form")
+          (.replaceWith (hipo/create (loggers-form) nil))))
+
+__app-state__ is singe point of truth
+
+__Updating just what has to be updated__
 
 
 
