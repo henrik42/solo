@@ -10,6 +10,8 @@
             [reagent.core :as r]
             [cljs-http.client :as http]))
 
+(declare main)
+
 (defn log
   "Prints to `js/console`."
 
@@ -203,9 +205,17 @@
     (for [{:keys [logger-name log-level]} (loggers)]
       ^{:key (:id logger-name)} [table-row logger-name log-level])
 
+    ;; RELOAD **re-mounts** the `id="main"`-DOM! So it does not only
+    ;; call `load-current-loggers` which would just trigger a
+    ;; reagent-update. Note that this will "wipe" all text-fields in
+    ;; the GUI and set them to the current app-state value. This means
+    ;; that (1) the "LOGGER" text-field will be empty and (2) the
+    ;; "filter-reg-ex" text-field will be set to the `(:filter-reg-ex
+    ;; @app-state)` value which may differ from the currently
+    ;; displayed value (try entering `**` and then RELOAD).
     [:input {:type "submit"
-             :on-click load-current-loggers
-             :value "REFRESH"}]]])
+             :on-click main 
+             :value "RELOAD"}]]])
 
 ;; ################### main ##########################
 
