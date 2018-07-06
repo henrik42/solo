@@ -268,8 +268,7 @@
             ;; levels instead of just a single string. So in this case
             ;; we just take the first.
             level (if (string? level) level (first level))]
-        (if (set-log-level? logger-name level)
-          (core/set-log-level! logger-name level))))
+        (set-log-level! logger-name level)))
     (response/redirect (make-redirect-url req)))
   (route/resources "/")
   (route/not-found "Page not found"))
