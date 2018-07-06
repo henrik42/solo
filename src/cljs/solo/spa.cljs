@@ -84,12 +84,6 @@
   (let [filter-reg-ex (filter-reg-ex)
         hide (hide?)]
     (->> (:loggers @app-state)
-         (map 
-          (fn [{:keys [logger-name log-level] :as logger}]
-            (cond
-              (= "" log-level) (assoc logger :log-level "NOT-SET!")
-              (not (log-levels log-level)) (assoc logger :log-level "UNKNOWN!")
-              :else logger)))
          (filter 
           #(and (re-find filter-reg-ex (:logger-name %))
                 (if hide
@@ -115,7 +109,7 @@
   calling `(load-current-loggers)`."
 
   [logger-name log-level]
-  (go 
+  (go
    (http/post (str "ws/set-log-level/" logger-name "/" log-level))
    (load-current-loggers)))
 
@@ -166,6 +160,20 @@
                     level (-> js/document (.getElementById "level") (.-value))]
                 (set-log-level! logger level)))}]])
 
+(defn table-row [logger-name log-level]
+  [:tr {:key logger-name}
+   [:td logger-name]
+   [:td
+    [:select
+     {:on-change
+      (fn [evt]
+        (let [log-level (-> evt .-target .-value)]
+          ;; Bug: wenn man hier NOT-SET! auswählt, ändert sich
+          ;; das Modell app-state nicht und dadurch erfolgt
+          ;; kein redraw-der Selectbox!!
+          (set-log-level! logger-name log-level)))}
+     (make-options log-levels log-level)]]])
+
 (defn loggers-form
   "Returns a Hiccup-vector for the *loggers form* which allows the
   user to select a log-level for each of the `loggers`. Within this
@@ -193,14 +201,7 @@
                 :on-change set-hide!}]]]]
     
     (for [{:keys [logger-name log-level]} (loggers)]
-      [:tr {:key logger-name}
-       [:td logger-name]
-       [:td [:select
-             {:on-change
-              (fn [evt]
-                (let [log-level (-> evt .-target .-value)]
-                  (set-log-level! logger-name log-level)))}
-             (make-options log-levels log-level)]]])
+      ^{:key (:id logger-name)} [table-row logger-name log-level])
 
     [:input {:type "submit"
              :on-click load-current-loggers
