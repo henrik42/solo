@@ -18,11 +18,18 @@
   [& xs]
   (.log js/console (apply str "SOLO:" xs)))
 
+(def non-log-levels
+  "Log-Levels that are needed for presenting log-levels for loggers
+  with `UNKNOWN!` log-level and for log-levels that are `NOT-SET!`."
+  
+  #{"UNKNOWN!" "NOT-SET!"})
+
 (def log-levels
-    "The set of known log-levels (incl. `\"UNKNOWN!\"` and
+    "The set of all known log-levels (incl. `\"UNKNOWN!\"` and
     `\"NOT-SET!\"`)."
 
-    #{"UNKNOWN!" "NOT-SET!" "DEBUG" "INFO" "WARN" "ERROR" "OFF"})
+    (into #{"DEBUG" "INFO" "WARN" "ERROR" "OFF"}
+          non-log-levels))
 
 ;; ################### model ##########################
 
@@ -30,7 +37,8 @@
 ;; will re-draw whatever has to be re-drawn.
 (defonce app-state
   (let [s (r/atom {})]
-    (add-watch s :foo (fn [_ a & _] (println (str "app-state : " @a))))
+    ;; for testing
+    #_ (add-watch s :foo (fn [& _] (println (str "SOLO: app-state : " @s))))
     s))
 
 (defn filter-reg-ex
@@ -121,18 +129,21 @@
 ;; ################### view ##########################
 
 (defn options
-  "Returns `:option` Hiccup-vector-seq for `xs`. If `(= x o)` for
-  entry `o` of `xs` then `:selected` is `true`."
+  "Reagent `:option` component."
 
   [xs]
   (for [x xs]
-    ^{:key x} [:option {:key x :value x} x]))
+    ^{:key x}
+    [:option {:key x
+              :value x
+              :disabled (non-log-levels x)}
+     x]))
 
 (defn top-of-page
-  "Returns a Hiccup-vector for the top-of-page including a link to the
-  Codox-generated API (HTML) documentation, the Marginalia-formatted
-  code (both contained in _Solo_) and a link to the _Solo_ github
-  page."
+  "Returns a Reagent-vector for the top-of-page including a link to
+  the Codox-generated API (HTML) documentation, the
+  Marginalia-formatted code (both contained in _Solo_) and a link to
+  the _Solo_ github page."
 
   []
   [:div#top-of-page "SOLO Web App" " -- "
@@ -143,7 +154,7 @@
    [:a {:href "https://github.com/henrik42/solo/"} "github"]])
 
 (defn set-log-level-form
-  "Returns a Hiccup-vector for the *set log-level form* which allows
+  "Returns a Reagent-vector for the *set log-level form* which allows
   the user to enter a logger-name and select a log-level."
 
   []
@@ -155,7 +166,8 @@
 
    [:span {:style {:padding "1em"}}]
    [:label {:for "level"} " LEVEL:"]
-   [:select {:id "level" :value "INFO"} (options log-levels)]
+   [:select {:id "level" :value "INFO"}
+    (options (remove non-log-levels log-levels))]
    
    [:span {:style {:padding "1em"}}]
    [:input {:type "submit"
@@ -166,7 +178,13 @@
                     level (-> js/document (.getElementById "level") (.-value))]
                 (set-log-level! logger level)))}]])
 
-(defn table-row [logger-name log-level]
+(defn table-row
+  "Reagent `tr` (\"table-row\") component. The table-row contains the
+  `logger-name` and a drop-down `:select` with `(options log-levels)`
+  and value `log-level`. Selecting a log-level will fire an event and
+  call `set-log-level`."
+
+  [logger-name log-level]
   [:tr 
    [:td logger-name]
    [:td
@@ -179,7 +197,7 @@
      (options log-levels)]]])
 
 (defn loggers-form
-  "Returns a Hiccup-vector for the *loggers form* which allows the
+  "Returns a Reagent-vector for the *loggers form* which allows the
   user to select a log-level for each of the `loggers`. Within this
   form the user may also enter a `filter-reg-ex` (which will be used
   to `re-find`-match loggers by their `:logger-name`) and check-select
