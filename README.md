@@ -2220,16 +2220,17 @@ __time-travel__ back and forth through the state-history of the app.
 ------------------------------------------------------------------------
 
 The incremental CLJS compile is nice but we still have to do a
-complete reload of the app to see the changes in the client. We would
-like to be able to make changes to individual functions and reload
-just them without losing the app-state (see __time-traveling__ above).
+complete reload of the app to see the changes in the
+client/browser. We would like to be able to make changes to individual
+functions and reload just them without losing the app-state (see
+__time-traveling__ above).
 
 With Figwheel [1] you get:
 
 * a browser REPL
-* CSS reload
-* incremental CLJS build and reload of changed __namespaces__ (not
-  __individiual__ __functions__)
+* automatic CSS reload
+* incremental CLJS build and automatic reload of changed
+  __namespaces__ (not __individiual__ __functions__)
 * and more
 
 For running Figwheel we have:
@@ -2304,8 +2305,8 @@ look at `resources/public/js/compiled/assets/figwheel/connect.cljs`:
 
 In this set-up we're still using a seperate JVM to run _Solo's_
 backend. Figwheel can host a Ring handler (like `solo.web.spa/app`) so
-that you really only need one Leiningen JVM for all this. But then you
-have to manage both REPLs in one terminal [3].
+that you really only need one Leiningen JVM for all this. In addition
+you can access the Figwheel REPL through nREPL [3].
 
 When you have everything running you can change the `background-color`
 in `resources/public/css/solo.css` to `red`:
@@ -2348,42 +2349,95 @@ reload. It depends an what you are trying to achive.
 __Note:__ the Figwheel compiler will __not__ produce the same output
 as the standard CLJS compiler (see above). So for production builts
 and when you want to change the CLJS code and __commit__ it to your
-git you should run `lein make-spa` before committing. That will remove
-the Figwheel extra code from the CLJS/JS.
+git repo you should run `lein make-spa` before committing. That will
+remove the Figwheel extra code from the CLJS/JS.
 
-## dev-cards
-
-__TBD__
-
-[1] Figwheel  
-[2] Web-Sockets__
-[3] Piggyback?  
+[1] https://github.com/bhauman/lein-figwheel  
+[2] https://en.wikipedia.org/wiki/WebSocket  
+[3] https://github.com/nrepl/piggieback  
 
 ------------------------------------------------------------------------
 # Step Eleven: React, Reagent
 ------------------------------------------------------------------------
 
-## Updating just what has to be updated
+__Updating just what has to be updated__
 
-Reagent [1] is the ClojureScript wrapper around React [2]. It uses a
-special kind of _atom_ to determine/track which parts of the DOM
-depend on that __state__. When the state changes Reagent creates the
-(new) DOM internally and compares it to the previous DOM and then
-decides which parts of the "real" DOM have to be re-drawn and then
-applies only the neccessary changes to the "real" DOM.
+Reagent [1] is a ClojureScript wrapper around Facebook's React [2]. It
+uses a special kind of `atom` [3, 4] to determine/track which parts of
+the DOM depend on that __state__. When the `atom` (i.e. "state")
+changes Reagent creates the (new) DOM internally and compares it to
+the current DOM and then decides which parts of the "real" DOM have to
+be re-drawn and then applies only the neccessary minimal changes to
+the "real" DOM.
 
+With Reagent you create the GUI by rendering "components" which are
+just functions that return a Hiccup-like nested-vector. With Hiccup we
+gave the vectors to Hiccup. With Reagent we give functions and vectors
+with functions to Reagent. Reagent needs to call the functions when
+traversing the nested-vector structure since it has to find out at
+which point in the nested structure the `atom` is de-referenced. Only
+so can it closely relate the vector-structure to the resulting DOM.
 
-* kein Hipo! Sondern Reagent components!
-* kein render loggers event handler! Wir brauchen uns nicht um GUI/DOM
-  updates zu kümmern! 
-* :key!
-* default-value anstatt value weil faktisches two-way-binding zu
-  problemen führt!!!
+For reference here is the `main` function and the
+`loggers-form`-component. In Reagent these functions are called
+_components_ because they should be __reusable__ things that can be
+used in other contexts. In this case the `logges-form` function can be
+used only for this one special use-case. So it is not reusable.
 
-[1] Reagent  
-[2] React  
-[events] https://www.quirksmode.org/js/introevents.html
-https://github.com/Day8/re-frame/issues/39  
+Note that `loggers-form` is contained in the `root` component as a
+function and __not__ called/evaluated to a vector.
+
+Again `(main)` mounts the complete DOM at `id=main`-node.
+
+    (defn loggers-form []
+      [:div
+       [:table#loggers
+        [:thead
+         [:tr
+          [:th "LOGGER"
+           [:input {:type "text"
+                    :id "filter"
+                    :placeholder "Filter Reg-Ex"
+                    :style {:float "right"}
+                    :default-value (-> (filter-reg-ex) (reg-ex->str))
+                    :on-change set-filter-reg-ex!}]]
+          [:th "LEVEL"
+           [:span {:style {:float "right"}}
+            [:label {:for "hide"} " Hide NOT-SET!:"]
+            [:input {:type "checkbox"
+                     :id "hide"
+                     :checked (hide?)
+                     :on-change set-hide!}]]]]]
+        [:tbody 
+         (for [{:keys [logger-name log-level]} (loggers)]
+           ^{:key logger-name} [table-row logger-name log-level])]
+        [:tfoot
+         [:tr
+          [:td {:col-span 2}
+           [:input {:type "submit"
+                    :on-click main 
+                    :value "RELOAD"}]]]]]])
+    
+    (defn main []
+      (let [root (fn [_]
+                   [:div#main
+                    [top-of-page]
+                    [set-log-level-form]
+                    [loggers-form]])]
+        (r/render-component [root]
+                            (js/document.getElementById "main"))
+        (load-current-loggers)))
+    
+    (main)
+
+Note that in `solo.spa` there is no "re-render the DOM watcher" on
+`app-state` -- Reagent takes care of that. All we need to do is use
+event-handler to cause state-changes of `app-state`.
+
+[1] http://reagent-project.github.io/  
+[2] https://reactjs.org/  
+[3] https://clojure.org/reference/atoms  
+[4] http://reagent-project.github.io/docs/master/reagent.core.html#var-atom  
 
 ------------------------------------------------------------------------
 # Step 12: chord, sente, solo.client.websockets
