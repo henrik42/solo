@@ -222,36 +222,37 @@
   []
   [:div
    [:table#loggers
-    [:tr
-     [:th "LOGGER"
-      [:input {:type "text"
-               :id "filter"
-               :placeholder "Filter Reg-Ex"
-               :style {:float "right"}
+    [:thead
+     [:tr
+      [:th "LOGGER"
+       [:input {:type "text"
+                :id "filter"
+                :placeholder "Filter Reg-Ex"
+                :style {:float "right"}
                
-               ;; If we used :value instead :default-value Reagent
-               ;; would keep our model and the text-field in-sync all
-               ;; the time. While that could be a feature for other
-               ;; times here it makes the field behave "unexpected":
-               ;; when we remove/backspace all characters we will get
-               ;; `(?:)` when removing the last char. By using
-               ;; :default-value we're using the field just for
-               ;; writing the DOM/view-state/value into the app-state
-               ;; via :on-change but we will not sync-back the
-               ;; app-state into the DOM.
+                ;; If we used :value instead :default-value Reagent
+                ;; would keep our model and the text-field in-sync all
+                ;; the time. While that could be a feature for other
+                ;; times here it makes the field behave "unexpected":
+                ;; when we remove/backspace all characters we will get
+                ;; `(?:)` when removing the last char. By using
+                ;; :default-value we're using the field just for
+                ;; writing the DOM/view-state/value into the app-state
+                ;; via :on-change but we will not sync-back the
+                ;; app-state into the DOM.
                
-               :default-value (-> (filter-reg-ex) (reg-ex->str))
-               :on-change set-filter-reg-ex!}]]
-     [:th "LEVEL"
-      [:span {:style {:float "right"}}
-       [:label {:for "hide"} " Hide NOT-SET!:"]
-       [:input {:type "checkbox"
-                :id "hide"
-                :checked (hide?)
-                :on-change set-hide!}]]]]
-    
-    (for [{:keys [logger-name log-level]} (loggers)]
-      ^{:key logger-name} [table-row logger-name log-level])
+                :default-value (-> (filter-reg-ex) (reg-ex->str))
+                :on-change set-filter-reg-ex!}]]
+      [:th "LEVEL"
+       [:span {:style {:float "right"}}
+        [:label {:for "hide"} " Hide NOT-SET!:"]
+        [:input {:type "checkbox"
+                 :id "hide"
+                 :checked (hide?)
+                 :on-change set-hide!}]]]]]
+    [:tbody 
+     (for [{:keys [logger-name log-level]} (loggers)]
+       ^{:key logger-name} [table-row logger-name log-level])]
 
     ;; RELOAD **re-mounts** the `id="main"`-DOM! So it does not only
     ;; call `load-current-loggers` which would just trigger a
@@ -261,9 +262,12 @@
     ;; "filter-reg-ex" text-field will be set to the `(:filter-reg-ex
     ;; @app-state)` value which may differ from the currently
     ;; displayed value (try entering `**` and then RELOAD).
-    [:input {:type "submit"
-             :on-click main 
-             :value "RELOAD"}]]])
+    [:tfoot
+     [:tr
+      [:td {:col-span 2}
+       [:input {:type "submit"
+                :on-click main 
+                :value "RELOAD"}]]]]]])
 
 ;; ################### main ##########################
 
