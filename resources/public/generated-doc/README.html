@@ -961,10 +961,7 @@ solo.jetty=&gt;
        (hf/submit-button "SET LOG-LEVELS")))
 </code></pre>
 <ul>
-  <li>
-  <p><strong>TODO</strong>: paging</p></li>
-  <li>
-  <p><strong>TODO</strong>: submit only changed entries</p></li>
+  <li><strong>TODO</strong>: paging</li>
 </ul>
 <h2><a href="#testing" name="testing"></a>Testing</h2>
 <p><strong>TODO</strong>: how to test solo.web?</p>
@@ -1057,22 +1054,22 @@ Created [...]/solo-project/target/make-web-war+web-deps+uberjar/solo-web.war
 <hr />
 <h1><a href="#step-eight-clojurescript-solo-spa-solo-web-spa" name="step-eight-clojurescript-solo-spa-solo-web-spa"></a>Step Eight: clojurescript, solo.spa, solo.web.spa</h1>
 <hr />
-<p>For client side logic I use ClojureScript/CLJS [1]. CLJS is a compiled/transpiled language [2] which is very similar to Clojure. CLJS is compiled to JavaScript/JS, the compiler is written in Clojure. Internally CLJS uses the <strong>Google Closure compiler</strong> [xx].</p>
+<p>For client side logic I use ClojureScript/CLJS [1]. CLJS is a compiled/transpiled language [2] which is very similar to Clojure. CLJS is compiled to JavaScript/JS, the compiler is written in Clojure. Internally CLJS uses the <strong>Google Closure compiler</strong> [3].</p>
 <p>Until now <code>solo.web</code> uses no client-side scripting. All client interaction with the backend is based on plain HTML <em>controls</em> and HTML-<code>form</code> <em>POST-backs</em>. While we’re introducing client-side scripting we’ll re-structure the logic a little:</p>
 <ul>
   <li>
-  <p>In <code>src/clj/solo/web/spa.clj</code> we publish web-services  (<code>/ws/get-current-loggers</code> and <code>/ws/set-log-level</code>) on the  server-side. These will use JSON [JSON] (**TODO:** what about EDN?)  as message format. That makes it easy to use these web-services from  the browser/CLJS/JavaScript.</p></li>
+  <p>In <code>src/clj/solo/web/spa.clj</code> we publish web-services  (<code>/ws/get-current-loggers</code> and <code>/ws/set-log-level</code>) on the  server-side. These will use JSON [4] as message format. That makes  it easy to use/consume these web-services from the  browser/CLJS/JavaScript.</p></li>
   <li>
-  <p>In <code>src/cljs/solo/spa.cljs</code> we consume/use these web-services on the  client-side. We’ll use CLJS to (1) retrieve the loggers via  <code>/ws/get-current-loggers</code>, (2) do filtering/sorting and (3) render  the data to the DOM. For mutation we’ll (4) call  <code>/ws/set-log-level</code>.</p></li>
+  <p>In <code>src/cljs/solo/spa.cljs</code> we use/consume these web-services on the  client-side. We’ll use CLJS to (1) retrieve the loggers via  <code>/ws/get-current-loggers</code>, (2) do filtering and (3) render the data  to the DOM. For mutation we’ll (4) call <code>/ws/set-log-level</code>.</p></li>
 </ul>
 <p>So we move most of the MVC-logic away from the server and put it into the client. Not only will the client (<code>solo.spa</code>) do the rendering (which it has done before already) but also do <em>smart</em> things like <strong>create</strong> the markup/DOM and do filtering etc. The backend (<code>solo.web.spa</code>) becomes just a thin (technical) proxy/adapter for the bare <em>core</em> <em>logic</em> (<code>solo.core</code>).</p>
-<p>[1] <a href="https://clojurescript.org/">https://clojurescript.org/</a><br />[2] <a href="https://github.com/clojure/clojurescript">https://github.com/clojure/clojurescript</a><br />[JSON] JSON URL<br />[x] <a href="https://developers.google.com/closure/compiler/">https://developers.google.com/closure/compiler/</a></p>
+<p>[1] <a href="https://clojurescript.org/">https://clojurescript.org/</a><br />[2] <a href="https://github.com/clojure/clojurescript">https://github.com/clojure/clojurescript</a><br />[3] <a href="https://developers.google.com/closure/compiler/">https://developers.google.com/closure/compiler/</a> [4] <a href="https://en.wikipedia.org/wiki/JSON">https://en.wikipedia.org/wiki/JSON</a> </p>
 <h2><a href="#build" name="build"></a>Build</h2>
 <p>Before we look into the CLJS sources let’s have a look at the build.</p>
 <p>We put the CLJS sources into <code>src/cljs/solo/spa.cljs</code>. You can compile these sources with:</p>
 <pre><code>solo-project$ lein make-spa
 </code></pre>
-<p><strong>Note:</strong> The Clojure/ClojureScript compiler/<code>reader</code> supports mixed source formats via <em>reader</em> <em>conditionals</em> [mixed source] (not used in <em>Solo</em>). So you can put source into <code>*.cljx</code> files and let both compilers compile these sources. Thus you have <em>single</em> <em>source</em> and you can use these namespaces from Clojure and ClojureScript. No code duplication!</p>
+<p><strong>Note:</strong> The Clojure/ClojureScript compiler/<code>reader</code> supports mixed source formats via <em>reader</em> <em>conditionals</em> [1] (not used in <em>Solo</em>). So you can put source into <code>*.cljc</code> files and let both compilers compile these sources. Thus you have <em>single</em> <em>source</em> and you can use these namespaces from Clojure and ClojureScript. No code duplication!</p>
 <p><code>make-spa</code> will run the CLJS compiler which produces JavaScript code into <code>resources/public/js/compiled/</code>. You should see something like this:</p>
 <pre><code>Compiling ClojureScript...
 Compiling ["resources/public/js/compiled/solo-spa.js"] from ["src/cljs"]...
@@ -1119,9 +1116,9 @@ document.write('&lt;script&gt;goog.require("solo.spa");&lt;/script&gt;');
 <p>It’s a <strong>loader</strong> <strong>script</strong> that will pull in all libraries that CLJS and <code>solo.spa</code> depend on and in the end it will <em>load</em> (i.e. <code>require</code>) namespace <code>solo.spa</code> (cf. <code>:compiler {:main
 solo.spa</code>) – it’s <strong>not</strong> a function call that “starts your program”, it is just the “loading of your namespace” that has to start-up whatever you want to have started</p>
 <p><strong>Note:</strong> you can refactor the code so that you do have a function-call that starts up you application. But here we go with “start-up via <code>require</code>”.</p>
-<p>Note that the <em>loader</em> uses <code>document.write</code> (so it really <strong>writes</strong> <code>script</code> <strong>elements</strong> into the hosting HTML page while it is loading) to make the <strong>browser</strong> load the JavaScript sources. It does <strong>not</strong> use a JS API to dynamically load JS sources (except for the last two lines that call <code>require</code>). And some of the referenced JS files do also use <code>document.write</code>. This makes it difficult to load these JavaScript sources after the hosting HTML page has been loaded initially, because writing to the document <strong>after</strong> the inital load has completed will wipe-out the current document and do a new page-load so you’ll lose the loaded document (DOM and any <strong>state</strong> that may exist in your CLJS namespaces!) which is usually not what you want.</p>
-<p>Many more files are written to <code>resources/public/js/compiled/assets/</code> (cf. <code>:output-dir "resources/public/js/compiled/assets"</code>). CLJS uses the <strong>Google Closure Library</strong> [1] so that makes up for some of the generated JS files.</p>
-<p>[1] <strong>Google Closure Library</strong><br />[x] <a href="https://github.com/clojure/clojurescript-site/blob/master/content/reference/compiler-options.adoc">https://github.com/clojure/clojurescript-site/blob/master/content/reference/compiler-options.adoc</a><br />[mixed source] URL for using cljx </p>
+<p>Note that the <em>loader</em> uses <code>document.write</code> (so it really <strong>writes</strong> <code>script</code> <strong>elements</strong> into the hosting HTML page while it is loading) to make the <strong>browser</strong> load the JavaScript sources. It does <strong>not</strong> use a JS API to dynamically load JS sources (except for the last two lines that call <code>require</code>). And some of the referenced JS files do also use <code>document.write</code>. This makes it difficult to load these JavaScript sources after the hosting HTML page has been loaded initially, because writing to the document <strong>after</strong> the inital load has completed will wipe-out the current document and do a new page-load so you’ll lose the loaded document (DOM and any <strong>state</strong> that may exist in your CLJS namespaces!) which is usually not what you want [3].</p>
+<p>Many more files are written to <code>resources/public/js/compiled/assets/</code> (cf. <code>:output-dir "resources/public/js/compiled/assets"</code>). CLJS uses the <strong>Google Closure Library</strong> [4] so that makes up for some of the generated JS files.</p>
+<p>[1] <a href="https://clojure.org/guides/reader_conditionals">https://clojure.org/guides/reader_conditionals</a><br />[2] <a href="https://github.com/clojure/clojurescript-site/blob/master/content/reference/compiler-options.adoc">https://github.com/clojure/clojurescript-site/blob/master/content/reference/compiler-options.adoc</a><br />[3] <a href="https://github.com/google/closure-library/issues/844">https://github.com/google/closure-library/issues/844</a><br />[4] <strong>Google Closure Library</strong> </p>
 <h2><a href="#hosting-html-page-web-services-solo-web-spa" name="hosting-html-page-web-services-solo-web-spa"></a>Hosting HTML Page, web-services, solo.web-spa</h2>
 <p>We want to run <code>solo.spa</code> in the browser. In order to load the compiled JS into the browser we’ll use a <em>hosting</em> HTML page that contains a <code>&lt;script&gt;</code> element that references the JS file <code>resources/public/js/compiled/solo-spa.js</code>.</p>
 <p>You could use a static <code>index.html</code> file and load that via <code>file://</code> or <code>http://</code> URL. Instead we will create the HTML page <strong>dynamically</strong> via <em>Solo’s</em> server side. In <code>src/clj/solo/web/spa.clj</code> you find the web-app that we’ll use for the SPA.</p>
@@ -1354,12 +1351,12 @@ user=&gt; (solo.spa/set-log-level! "foo" "INFO")
 <hr />
 <h1><a href="#step-ten-figwheel" name="step-ten-figwheel"></a>Step Ten: Figwheel</h1>
 <hr />
-<p>The incremental CLJS compile is nice but we still have to do a complete reload of the app to see the changes in the client. We would like to be able to make changes to individual functions and reload just them without losing the app-state (see <strong>time-traveling</strong> above).</p>
+<p>The incremental CLJS compile is nice but we still have to do a complete reload of the app to see the changes in the client/browser. We would like to be able to make changes to individual functions and reload just them without losing the app-state (see <strong>time-traveling</strong> above).</p>
 <p>With Figwheel [1] you get:</p>
 <ul>
   <li>a browser REPL</li>
-  <li>CSS reload</li>
-  <li>incremental CLJS build and reload of changed <strong>namespaces</strong> (not  <strong>individiual</strong> <strong>functions</strong>)</li>
+  <li>automatic CSS reload</li>
+  <li>incremental CLJS build and automatic reload of changed  <strong>namespaces</strong> (not <strong>individiual</strong> <strong>functions</strong>)</li>
   <li>and more</li>
 </ul>
 <p>For running Figwheel we have:</p>
@@ -1412,7 +1409,7 @@ figwheel.client.start.call(null,config);
     (when (:devcards config)
       (js/devcards.core.start-devcard-ui!*))))
 </code></pre>
-<p>In this set-up we’re still using a seperate JVM to run <em>Solo’s</em> backend. Figwheel can host a Ring handler (like <code>solo.web.spa/app</code>) so that you really only need one Leiningen JVM for all this. But then you have to manage both REPLs in one terminal [3].</p>
+<p>In this set-up we’re still using a seperate JVM to run <em>Solo’s</em> backend. Figwheel can host a Ring handler (like <code>solo.web.spa/app</code>) so that you really only need one Leiningen JVM for all this. In addition you can access the Figwheel REPL through nREPL [3].</p>
 <p>When you have everything running you can change the <code>background-color</code> in <code>resources/public/css/solo.css</code> to <code>red</code>:</p>
 <pre><code>#top-of-page {
     border-width: 3px;
@@ -1431,22 +1428,62 @@ figwheel.client.start.call(null,config);
 </code></pre>
 <p>When you save this Figwheel will (1) compile the source and (2) reload/<code>require</code> <code>solo.spa</code>. Since we have <code>(main)</code> as a top-level form the reload will re-create/mount the <em>Solo</em> DOM which will run <code>load-current-loggers</code> and (via the <code>:post</code>) output the current loggers to the CLJS REPL. You can use <code>(enable-console-print!)</code> to make the output go to the browser console instead or use <code>solo.spa/log</code> instead of <code>println</code>.</p>
 <p><strong>Note:</strong> since Figwheel does <strong>not</strong> (re-)define individual functions but reloads <strong>namespaces</strong> you have to write the code such that <strong>reloading</strong> your namespaces will do what you want. In <code>solo.spa</code> I wanted to rebuild the DOM on reload so that changes to the view-functions will show-up automagically. That’s why I put <code>(main)</code> in there. I could have used a <code>defonce</code> to shield the DOM against the reload. It depends an what you are trying to achive.</p>
-<p><strong>Note:</strong> the Figwheel compiler will <strong>not</strong> produce the same output as the standard CLJS compiler (see above). So for production builts and when you want to change the CLJS code and <strong>commit</strong> it to your git you should run <code>lein make-spa</code> before committing. That will remove the Figwheel extra code from the CLJS/JS.</p>
-<h2><a href="#dev-cards" name="dev-cards"></a>dev-cards</h2>
-<p><strong>TBD</strong></p>
-<p>[1] Figwheel<br />[2] Web-Sockets__ [3] Piggyback? </p>
+<p><strong>Note:</strong> the Figwheel compiler will <strong>not</strong> produce the same output as the standard CLJS compiler (see above). So for production builts and when you want to change the CLJS code and <strong>commit</strong> it to your git repo you should run <code>lein make-spa</code> before committing. That will remove the Figwheel extra code from the CLJS/JS.</p>
+<p>[1] <a href="https://github.com/bhauman/lein-figwheel">https://github.com/bhauman/lein-figwheel</a><br />[2] <a href="https://en.wikipedia.org/wiki/WebSocket">https://en.wikipedia.org/wiki/WebSocket</a><br />[3] <a href="https://github.com/nrepl/piggieback">https://github.com/nrepl/piggieback</a> </p>
 <hr />
 <h1><a href="#step-eleven-react-reagent" name="step-eleven-react-reagent"></a>Step Eleven: React, Reagent</h1>
 <hr />
 <h2><a href="#updating-just-what-has-to-be-updated" name="updating-just-what-has-to-be-updated"></a>Updating just what has to be updated</h2>
-<p>Reagent [1] is the ClojureScript wrapper around React [2]. It uses a special kind of <em>atom</em> to determine/track which parts of the DOM depend on that <strong>state</strong>. When the state changes Reagent creates the (new) DOM internally and compares it to the previous DOM and then decides which parts of the “real” DOM have to be re-drawn and then applies only the neccessary changes to the “real” DOM.</p>
-<ul>
-  <li>kein Hipo! Sondern Reagent components!</li>
-  <li>kein render loggers event handler! Wir brauchen uns nicht um GUI/DOM  updates zu kümmern!</li>
-  <li>:key!</li>
-  <li>default-value anstatt value weil faktisches two-way-binding zu  problemen führt!!!</li>
-</ul>
-<p>[1] Reagent<br />[2] React<br />[events] <a href="https://www.quirksmode.org/js/introevents.html">https://www.quirksmode.org/js/introevents.html</a> <a href="https://github.com/Day8/re-frame/issues/39">https://github.com/Day8/re-frame/issues/39</a> </p>
+<p>Reagent [1] is a ClojureScript wrapper around Facebook’s React [2]. It uses a special kind of <code>atom</code> [3, 4] to determine/track which parts of the DOM depend on that <strong>state</strong>. When the <code>atom</code> (i.e. “state”) changes Reagent creates the (new) DOM internally and compares it to the current DOM and then decides which parts of the “real” DOM have to be re-drawn and then applies only the neccessary minimal changes to the “real” DOM.</p>
+<p>With Reagent you create the GUI by rendering “components” which are just functions that return a Hiccup-like nested-vector. With Hiccup we gave the vectors to Hiccup. With Reagent we give functions and vectors with functions to Reagent. Reagent needs to call the functions when traversing the nested-vector structure since it has to find out at which point in the nested structure the <code>atom</code> is de-referenced. Only so can it closely relate the vector-structure to the resulting DOM.</p>
+<p>For reference here is the <code>main</code> function and the <code>loggers-form</code>-component. In Reagent these functions are called <em>components</em> because they should be <strong>reusable</strong> things that can be used in other contexts. In this case the <code>logges-form</code> function can be used only for this one special use-case. So it is not reusable.</p>
+<p>Note that <code>loggers-form</code> is contained in the <code>root</code> component as a function and <strong>not</strong> called/evaluated to a vector.</p>
+<p>Again <code>(main)</code> mounts the complete DOM at <code>id=main</code>-node.</p>
+<pre><code>(defn loggers-form []
+  [:div
+   [:table#loggers
+    [:thead
+     [:tr
+      [:th "LOGGER"
+       [:input {:type "text"
+                :id "filter"
+                :placeholder "Filter Reg-Ex"
+                :style {:float "right"}
+                :default-value (-&gt; (filter-reg-ex) (reg-ex-&gt;str))
+                :on-change set-filter-reg-ex!}]]
+      [:th "LEVEL"
+       [:span {:style {:float "right"}}
+        [:label {:for "hide"} " Hide NOT-SET!:"]
+        [:input {:type "checkbox"
+                 :id "hide"
+                 :checked (hide?)
+                 :on-change set-hide!}]]]]]
+    [:tbody 
+     (for [{:keys [logger-name log-level]} (loggers)]
+       ^{:key logger-name} [table-row logger-name log-level])]
+    [:tfoot
+     [:tr
+      [:td {:col-span 2}
+       [:input {:type "submit"
+                :on-click main 
+                :value "RELOAD"}]]]]]])
+
+(defn main []
+  (let [root (fn [_]
+               [:div#main
+                [top-of-page]
+                [set-log-level-form]
+                [loggers-form]])]
+    (r/render-component [root]
+                        (js/document.getElementById "main"))
+    (load-current-loggers)))
+
+(main)
+</code></pre>
+<p>Note that in <code>solo.spa</code> there is no “re-render the DOM watcher” on <code>app-state</code> – Reagent takes care of that. All we need to do is use event-handler to cause state-changes of <code>app-state</code>.</p>
+<h2><a href="#development-with-devcards" name="development-with-devcards"></a>Development with Devcards</h2>
+<p><strong>TBD</strong></p>
+<p>[1] <a href="http://reagent-project.github.io/">http://reagent-project.github.io/</a><br />[2] <a href="https://reactjs.org/">https://reactjs.org/</a><br />[3] <a href="https://clojure.org/reference/atoms">https://clojure.org/reference/atoms</a><br />[4] <a href="http://reagent-project.github.io/docs/master/reagent.core.html#var-atom">http://reagent-project.github.io/docs/master/reagent.core.html#var-atom</a><br />[5] <a href="https://github.com/bhauman/devcards">https://github.com/bhauman/devcards</a> </p>
 <hr />
 <h1><a href="#step-12-chord-sente-solo-client-websockets" name="step-12-chord-sente-solo-client-websockets"></a>Step 12: chord, sente, solo.client.websockets</h1>
 <hr />

@@ -1485,8 +1485,6 @@ So I've added a few things to `web.clj`:
                   
 * __TODO__: paging
 
-* __TODO__: submit only changed entries
-
 ## Testing
 
 __TODO__: how to test solo.web?
@@ -1664,7 +1662,7 @@ jetty-and-log4j-example app which uses log4j.
 For client side logic I use ClojureScript/CLJS [1]. CLJS is a
 compiled/transpiled language [2] which is very similar to
 Clojure. CLJS is compiled to JavaScript/JS, the compiler is written in
-Clojure. Internally CLJS uses the __Google Closure compiler__ [xx].
+Clojure. Internally CLJS uses the __Google Closure compiler__ [3].
 
 Until now `solo.web` uses no client-side scripting. All client
 interaction with the backend is based on plain HTML _controls_ and
@@ -1673,15 +1671,14 @@ scripting we'll re-structure the logic a little:
 
 * In `src/clj/solo/web/spa.clj` we publish web-services
   (`/ws/get-current-loggers` and `/ws/set-log-level`) on the
-  server-side. These will use JSON [JSON] (**TODO:** what about EDN?)
-  as message format. That makes it easy to use these web-services from
-  the browser/CLJS/JavaScript.
+  server-side. These will use JSON [4] as message format. That makes
+  it easy to use/consume these web-services from the
+  browser/CLJS/JavaScript.
 
-* In `src/cljs/solo/spa.cljs` we consume/use these web-services on the
+* In `src/cljs/solo/spa.cljs` we use/consume these web-services on the
   client-side. We'll use CLJS to (1) retrieve the loggers via
-  `/ws/get-current-loggers`, (2) do filtering/sorting and (3) render
-  the data to the DOM. For mutation we'll (4) call
-  `/ws/set-log-level`.
+  `/ws/get-current-loggers`, (2) do filtering and (3) render the data
+  to the DOM. For mutation we'll (4) call `/ws/set-log-level`.
 
 So we move most of the MVC-logic away from the server and put it into
 the client. Not only will the client (`solo.spa`) do the rendering
@@ -1692,8 +1689,8 @@ bare _core_ _logic_ (`solo.core`).
 
 [1] https://clojurescript.org/  
 [2] https://github.com/clojure/clojurescript  
-[JSON] JSON URL  
-[x] https://developers.google.com/closure/compiler/
+[3] https://developers.google.com/closure/compiler/
+[4] https://en.wikipedia.org/wiki/JSON  
 
 ## Build
 
@@ -1705,8 +1702,8 @@ these sources with:
     solo-project$ lein make-spa
 
 __Note:__ The Clojure/ClojureScript compiler/`reader` supports mixed
-source formats via _reader_ _conditionals_ [mixed source] (not used in
-_Solo_). So you can put source into `*.cljx` files and let both
+source formats via _reader_ _conditionals_ [1] (not used in
+_Solo_). So you can put source into `*.cljc` files and let both
 compilers compile these sources. Thus you have _single_ _source_ and
 you can use these namespaces from Clojure and ClojureScript. No code
 duplication!
@@ -1783,16 +1780,17 @@ initially, because writing to the document __after__ the inital load
 has completed will wipe-out the current document and do a new
 page-load so you'll lose the loaded document (DOM and any __state__
 that may exist in your CLJS namespaces!) which is usually not what you
-want.
+want [3].
 
 Many more files are written to `resources/public/js/compiled/assets/`
 (cf. `:output-dir "resources/public/js/compiled/assets"`). CLJS uses
-the __Google Closure Library__ [1] so that makes up for some of the
+the __Google Closure Library__ [4] so that makes up for some of the
 generated JS files.
 
-[1] __Google Closure Library__  
-[x] https://github.com/clojure/clojurescript-site/blob/master/content/reference/compiler-options.adoc  
-[mixed source] URL for using cljx  
+[1] https://clojure.org/guides/reader_conditionals  
+[2] https://github.com/clojure/clojurescript-site/blob/master/content/reference/compiler-options.adoc  
+[3] https://github.com/google/closure-library/issues/844  
+[4] __Google Closure Library__  
 
 ## Hosting HTML Page, web-services, solo.web-spa
 
@@ -2360,7 +2358,7 @@ remove the Figwheel extra code from the CLJS/JS.
 # Step Eleven: React, Reagent
 ------------------------------------------------------------------------
 
-__Updating just what has to be updated__
+## Updating just what has to be updated
 
 Reagent [1] is a ClojureScript wrapper around Facebook's React [2]. It
 uses a special kind of `atom` [3, 4] to determine/track which parts of
@@ -2434,10 +2432,15 @@ Note that in `solo.spa` there is no "re-render the DOM watcher" on
 `app-state` -- Reagent takes care of that. All we need to do is use
 event-handler to cause state-changes of `app-state`.
 
+## Development with Devcards
+
+__TBD__
+
 [1] http://reagent-project.github.io/  
 [2] https://reactjs.org/  
 [3] https://clojure.org/reference/atoms  
 [4] http://reagent-project.github.io/docs/master/reagent.core.html#var-atom  
+[5] https://github.com/bhauman/devcards  
 
 ------------------------------------------------------------------------
 # Step 12: chord, sente, solo.client.websockets
