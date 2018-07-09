@@ -128,14 +128,23 @@
 
 ;; ################### view ##########################
 
-(defn options
-  "Reagent `:option` component."
+(defn log-level-options
+  "Reagent `:option` component. Entries which are in `non-log-levels`
+  will be `disabled`."
 
   [xs]
   (for [x xs]
-    ^{:key x}
-    [:option {:key x
-              :value x
+
+    ;; When you want Reagent to keep the DOM/view-value/state in-sync
+    ;; with the app-state you must (a) use :value here and (b) use
+    ;; :value in the :select (see `table-row`). To see that try
+    ;; changing here to `:disabled false` and then change a loggers
+    ;; log-level to `NOT-SET!`. You'll see, that the app-state will
+    ;; **not** be set to `NOT-SET!` but the app-state's state will not
+    ;; be sync-ed back into the DOM.
+    
+    ^{:key x} 
+    [:option {:value x
               :disabled (non-log-levels x)}
      x]))
 
@@ -166,8 +175,15 @@
 
    [:span {:style {:padding "1em"}}]
    [:label {:for "level"} " LEVEL:"]
-   [:select {:id "level" :value "INFO"}
-    (options (remove non-log-levels log-levels))]
+   
+   ;; could use :value instead but react-dom.inc complains:
+   ;; "Warning: Failed prop type: You provided a `value` prop to a form
+   ;; field without an `onChange` handler. This will render a
+   ;; read-only field. If the field should be mutable use
+   ;; `defaultValue`. Otherwise, set either `onChange` or `readOnly`."
+   
+   [:select {:id "level" :default-value "INFO"}
+    (log-level-options (remove non-log-levels log-levels))]
    
    [:span {:style {:padding "1em"}}]
    [:input {:type "submit"
@@ -180,9 +196,9 @@
 
 (defn table-row
   "Reagent `tr` (\"table-row\") component. The table-row contains the
-  `logger-name` and a drop-down `:select` with `(options log-levels)`
-  and value `log-level`. Selecting a log-level will fire an event and
-  call `set-log-level`."
+  `logger-name` and a drop-down `:select` with `(log-level-options
+  log-levels)` and value `log-level`. Selecting a log-level will fire
+  an event and call `set-log-level`."
 
   [logger-name log-level]
   [:tr 
@@ -194,7 +210,7 @@
       (fn [evt]
         (let [log-level (-> evt .-target .-value)]
           (set-log-level! logger-name log-level)))}
-     (options log-levels)]]])
+     (log-level-options log-levels)]]])
 
 (defn loggers-form
   "Returns a Reagent-vector for the *loggers form* which allows the
@@ -210,9 +226,21 @@
      [:th "LOGGER"
       [:input {:type "text"
                :id "filter"
-               :default-value (-> (filter-reg-ex) (reg-ex->str))
                :placeholder "Filter Reg-Ex"
                :style {:float "right"}
+               
+               ;; If we used :value instead :default-value Reagent
+               ;; would keep our model and the text-field in-sync all
+               ;; the time. While that could be a feature for other
+               ;; times here it makes the field behave "unexpected":
+               ;; when we remove/backspace all characters we will get
+               ;; `(?:)` when removing the last char. By using
+               ;; :default-value we're using the field just for
+               ;; writing the DOM/view-state/value into the app-state
+               ;; via :on-change but we will not sync-back the
+               ;; app-state into the DOM.
+               
+               :default-value (-> (filter-reg-ex) (reg-ex->str))
                :on-change set-filter-reg-ex!}]]
      [:th "LEVEL"
       [:span {:style {:float "right"}}
