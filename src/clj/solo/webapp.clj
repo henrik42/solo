@@ -17,6 +17,7 @@
   JAR will be part of the JEE host-application (EAR-`/lib`)."
   
   (:require [solo.nrepl :as nrepl]
+            [solo.swank :as swank]
             [ring.util.response :as response]))
 
 (declare ^:no-doc app)
@@ -50,20 +51,32 @@
     (eval (read-string "solo.web.spa/app"))))
   
 (defn init
-  "Initialize the `Servlet`. __Asynchronously__ starts nREPL server
-  and sets `nrepl-server` atom. This method should not throw an
-  exception if the nREPL server cannot start. This may happen, when
-  the port is already opened. So we will just keep on going in this
-  case."
+  "Initialize the `Servlet`.
+
+  If system property `solo.nrepl.port` is set __asynchronously__
+  starts nREPL server on that port and sets `nrepl-server` atom. This
+  method should not throw an exception if the nREPL server cannot
+  start. This may happen, when the port is already opened. So we will
+  just keep on going in this case.
+
+  If system property `solo.swank.port` is set __asynchronously__
+  starts Swank server on that port."
 
   []
   (load-solo-web!)
-  (future 
-    (try 
-      (reset! nrepl-server
-              (nrepl/start-server :port 7888))
-      (catch Throwable t
-        (.println System/err t)))))
+  (if-let [port (System/getProperty "solo.nrepl.port")]
+    (future 
+      (try 
+        (reset! nrepl-server
+                (nrepl/start-server :port (Integer/parseInt port)))
+        (catch Throwable t
+          (.println System/err t)))))
+  (if-let [port (System/getProperty "solo.swank.port")]
+    (future 
+      (try 
+        (swank/start-server :port (Integer/parseInt port))
+        (catch Throwable t
+          (.println System/err t))))))
 
 (defn destroy
   "Sets `nrepl-server` atom to `nil` and then tries to `(.close
