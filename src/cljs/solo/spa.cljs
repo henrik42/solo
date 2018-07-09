@@ -28,7 +28,10 @@
 
 ;; THE STATE of the application. Whenever this state changes Reagent
 ;; will re-draw whatever has to be re-drawn.
-(defonce app-state (r/atom {}))
+(defonce app-state
+  (let [s (r/atom {})]
+    (add-watch s :foo (fn [_ a & _] (println (str "app-state : " @a))))
+    s))
 
 (defn filter-reg-ex
   "Returns the `app-state`'s `:filter-reg-ex` (`js/RegExp`). Returns
@@ -117,12 +120,13 @@
 
 ;; ################### view ##########################
 
-(defn make-options
+(defn options
   "Returns `:option` Hiccup-vector-seq for `xs`. If `(= x o)` for
   entry `o` of `xs` then `:selected` is `true`."
 
-  [xs x]
-  (map (fn [o] [:option {:key o :selected (= x o)} o]) xs))
+  [xs]
+  (for [x xs]
+    ^{:key x} [:option {:key x :value x} x]))
 
 (defn top-of-page
   "Returns a Hiccup-vector for the top-of-page including a link to the
@@ -151,7 +155,7 @@
 
    [:span {:style {:padding "1em"}}]
    [:label {:for "level"} " LEVEL:"]
-   [:select {:id "level"} (make-options log-levels "INFO")]
+   [:select {:id "level" :value "INFO"} (options log-levels)]
    
    [:span {:style {:padding "1em"}}]
    [:input {:type "submit"
@@ -163,18 +167,16 @@
                 (set-log-level! logger level)))}]])
 
 (defn table-row [logger-name log-level]
-  [:tr {:key logger-name}
+  [:tr 
    [:td logger-name]
    [:td
     [:select
-     {:on-change
+     {:value log-level
+      :on-change
       (fn [evt]
         (let [log-level (-> evt .-target .-value)]
-          ;; Bug: wenn man hier NOT-SET! auswählt, ändert sich
-          ;; das Modell app-state nicht und dadurch erfolgt
-          ;; kein redraw-der Selectbox!!
           (set-log-level! logger-name log-level)))}
-     (make-options log-levels log-level)]]])
+     (options log-levels)]]])
 
 (defn loggers-form
   "Returns a Hiccup-vector for the *loggers form* which allows the
@@ -203,7 +205,7 @@
                 :on-change set-hide!}]]]]
     
     (for [{:keys [logger-name log-level]} (loggers)]
-      ^{:key (:id logger-name)} [table-row logger-name log-level])
+      ^{:key logger-name} [table-row logger-name log-level])
 
     ;; RELOAD **re-mounts** the `id="main"`-DOM! So it does not only
     ;; call `load-current-loggers` which would just trigger a
