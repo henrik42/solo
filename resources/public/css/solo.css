@@ -29,11 +29,13 @@
     padding: 8px;
 }
 
-#loggers tr:nth-child(even){background-color: #f2f2f2;}
+#loggers tbody > tr:nth-child(even){background-color: #f2f2f2;}
 
-#loggers tr:hover {background-color: #ddd;}
+#loggers tbody > tr:nth-child(odd){background-color: #fffff0;}
 
-#loggers th {
+#loggers tbody > tr:hover {background-color: #ddd;}
+
+#loggers thead {
     padding-top: 12px;
     padding-bottom: 12px;
     text-align: left;
