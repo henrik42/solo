@@ -3458,8 +3458,7 @@ form-params (e.g. filter and hide settings).</li>
             ;; levels instead of just a single string. So in this case
             ;; we just take the first.
             level (if (string? level) level (first level))]
-        (if (set-log-level? logger-name level)
-          (core/set-log-level! logger-name level))))
+        (set-log-level! logger-name level)))
     (response/redirect (make-redirect-url req)))
   (route/resources &quot;/&quot;)
   (route/not-found &quot;Page not found&quot;))</pre></td></tr><tr><td class="docs"><p>Top-level Ring-handler (i.e. <em>THE APP</em>).</p>

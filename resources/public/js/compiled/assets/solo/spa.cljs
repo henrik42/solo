@@ -10,23 +10,36 @@
             [reagent.core :as r]
             [cljs-http.client :as http]))
 
+(declare main)
+
 (defn log
   "Prints to `js/console`."
 
   [& xs]
   (.log js/console (apply str "SOLO:" xs)))
 
+(def non-log-levels
+  "Log-Levels that are needed for presenting log-levels for loggers
+  with `UNKNOWN!` log-level and for log-levels that are `NOT-SET!`."
+  
+  #{"UNKNOWN!" "NOT-SET!"})
+
 (def log-levels
-    "The set of known log-levels (incl. `\"UNKNOWN!\"` and
+    "The set of all known log-levels (incl. `\"UNKNOWN!\"` and
     `\"NOT-SET!\"`)."
 
-    #{"UNKNOWN!" "NOT-SET!" "DEBUG" "INFO" "WARN" "ERROR" "OFF"})
+    (into #{"DEBUG" "INFO" "WARN" "ERROR" "OFF"}
+          non-log-levels))
 
 ;; ################### model ##########################
 
 ;; THE STATE of the application. Whenever this state changes Reagent
 ;; will re-draw whatever has to be re-drawn.
-(defonce app-state (r/atom {}))
+(defonce app-state
+  (let [s (r/atom {})]
+    ;; for testing
+    #_ (add-watch s :foo (fn [& _] (println (str "SOLO: app-state : " @s))))
+    s))
 
 (defn filter-reg-ex
   "Returns the `app-state`'s `:filter-reg-ex` (`js/RegExp`). Returns
@@ -84,12 +97,6 @@
   (let [filter-reg-ex (filter-reg-ex)
         hide (hide?)]
     (->> (:loggers @app-state)
-         (map 
-          (fn [{:keys [logger-name log-level] :as logger}]
-            (cond
-              (= "" log-level) (assoc logger :log-level "NOT-SET!")
-              (not (log-levels log-level)) (assoc logger :log-level "UNKNOWN!")
-              :else logger)))
          (filter 
           #(and (re-find filter-reg-ex (:logger-name %))
                 (if hide
@@ -115,24 +122,28 @@
   calling `(load-current-loggers)`."
 
   [logger-name log-level]
-  (go 
+  (go
    (http/post (str "ws/set-log-level/" logger-name "/" log-level))
    (load-current-loggers)))
 
 ;; ################### view ##########################
 
-(defn make-options
-  "Returns `:option` Hiccup-vector-seq for `xs`. If `(= x o)` for
-  entry `o` of `xs` then `:selected` is `true`."
+(defn options
+  "Reagent `:option` component."
 
-  [xs x]
-  (map (fn [o] [:option {:key o :selected (= x o)} o]) xs))
+  [xs]
+  (for [x xs]
+    ^{:key x}
+    [:option {:key x
+              :value x
+              :disabled (non-log-levels x)}
+     x]))
 
 (defn top-of-page
-  "Returns a Hiccup-vector for the top-of-page including a link to the
-  Codox-generated API (HTML) documentation, the Marginalia-formatted
-  code (both contained in _Solo_) and a link to the _Solo_ github
-  page."
+  "Returns a Reagent-vector for the top-of-page including a link to
+  the Codox-generated API (HTML) documentation, the
+  Marginalia-formatted code (both contained in _Solo_) and a link to
+  the _Solo_ github page."
 
   []
   [:div#top-of-page "SOLO Web App" " -- "
@@ -143,7 +154,7 @@
    [:a {:href "https://github.com/henrik42/solo/"} "github"]])
 
 (defn set-log-level-form
-  "Returns a Hiccup-vector for the *set log-level form* which allows
+  "Returns a Reagent-vector for the *set log-level form* which allows
   the user to enter a logger-name and select a log-level."
 
   []
@@ -155,7 +166,8 @@
 
    [:span {:style {:padding "1em"}}]
    [:label {:for "level"} " LEVEL:"]
-   [:select {:id "level"} (make-options log-levels "INFO")]
+   [:select {:id "level" :value "INFO"}
+    (options (remove non-log-levels log-levels))]
    
    [:span {:style {:padding "1em"}}]
    [:input {:type "submit"
@@ -166,8 +178,26 @@
                     level (-> js/document (.getElementById "level") (.-value))]
                 (set-log-level! logger level)))}]])
 
+(defn table-row
+  "Reagent `tr` (\"table-row\") component. The table-row contains the
+  `logger-name` and a drop-down `:select` with `(options log-levels)`
+  and value `log-level`. Selecting a log-level will fire an event and
+  call `set-log-level`."
+
+  [logger-name log-level]
+  [:tr 
+   [:td logger-name]
+   [:td
+    [:select
+     {:value log-level
+      :on-change
+      (fn [evt]
+        (let [log-level (-> evt .-target .-value)]
+          (set-log-level! logger-name log-level)))}
+     (options log-levels)]]])
+
 (defn loggers-form
-  "Returns a Hiccup-vector for the *loggers form* which allows the
+  "Returns a Reagent-vector for the *loggers form* which allows the
   user to select a log-level for each of the `loggers`. Within this
   form the user may also enter a `filter-reg-ex` (which will be used
   to `re-find`-match loggers by their `:logger-name`) and check-select
@@ -193,18 +223,19 @@
                 :on-change set-hide!}]]]]
     
     (for [{:keys [logger-name log-level]} (loggers)]
-      [:tr {:key logger-name}
-       [:td logger-name]
-       [:td [:select
-             {:on-change
-              (fn [evt]
-                (let [log-level (-> evt .-target .-value)]
-                  (set-log-level! logger-name log-level)))}
-             (make-options log-levels log-level)]]])
+      ^{:key logger-name} [table-row logger-name log-level])
 
+    ;; RELOAD **re-mounts** the `id="main"`-DOM! So it does not only
+    ;; call `load-current-loggers` which would just trigger a
+    ;; reagent-update. Note that this will "wipe" all text-fields in
+    ;; the GUI and set them to the current app-state value. This means
+    ;; that (1) the "LOGGER" text-field will be empty and (2) the
+    ;; "filter-reg-ex" text-field will be set to the `(:filter-reg-ex
+    ;; @app-state)` value which may differ from the currently
+    ;; displayed value (try entering `**` and then RELOAD).
     [:input {:type "submit"
-             :on-click load-current-loggers
-             :value "REFRESH"}]]])
+             :on-click main 
+             :value "RELOAD"}]]])
 
 ;; ################### main ##########################
 
