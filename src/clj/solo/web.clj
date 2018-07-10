@@ -206,21 +206,26 @@
   (hf/form-to
    [:post "/update-loggers"]
    [:table#loggers
-    [:tr
-     [:th "LOGGER"
-      (hf/text-field
-       {:placeholder "Filter Reg-Ex"
-        :style "float: right;"}
-       " FILTER" filter-reg-ex)]
-     [:th "LEVEL"
-      [:span {:style "float: right;"} 
-       (hf/label :hide " Hide NOT-SET!:")
-       (hf/check-box " HIDE" hide)]]]
-    (for [{:keys [logger-name log-level]} loggers]
-      [:tr
-       [:td logger-name]
-       [:td (hf/drop-down logger-name log-levels log-level)]])]
-   (hf/submit-button "SET LOG-LEVELS")))
+    [:thead
+     [:tr
+      [:th "LOGGER"
+       (hf/text-field
+        {:placeholder "Filter Reg-Ex"
+         :style "float: right;"}
+        " FILTER" filter-reg-ex)]
+      [:th "LEVEL"
+       [:span {:style "float: right;"} 
+        (hf/label :hide " Hide NOT-SET!:")
+        (hf/check-box " HIDE" hide)]]]]
+    [:tbody 
+     (for [{:keys [logger-name log-level]} loggers]
+       [:tr
+        [:td logger-name]
+        [:td (hf/drop-down logger-name log-levels log-level)]])]
+    [:tfoot
+     [:tr
+      [:td {:colSpan 2}
+       (hf/submit-button "SET LOG-LEVELS")]]]]))
 
 (defn the-page
   "Returns the HTML markup for the complete page (there is just one in

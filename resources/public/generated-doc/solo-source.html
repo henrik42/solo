@@ -3401,21 +3401,26 @@ form-params (e.g. filter and hide settings).</li>
   (hf/form-to
    [:post &quot;/update-loggers&quot;]
    [:table#loggers
-    [:tr
-     [:th &quot;LOGGER&quot;
-      (hf/text-field
-       {:placeholder &quot;Filter Reg-Ex&quot;
-        :style &quot;float: right;&quot;}
-       &quot; FILTER&quot; filter-reg-ex)]
-     [:th &quot;LEVEL&quot;
-      [:span {:style &quot;float: right;&quot;} 
-       (hf/label :hide &quot; Hide NOT-SET!:&quot;)
-       (hf/check-box &quot; HIDE&quot; hide)]]]
-    (for [{:keys [logger-name log-level]} loggers]
-      [:tr
-       [:td logger-name]
-       [:td (hf/drop-down logger-name log-levels log-level)]])]
-   (hf/submit-button &quot;SET LOG-LEVELS&quot;)))</pre></td></tr><tr><td class="docs"><p>Returns the HTML markup for the complete page (there is just one in
+    [:thead
+     [:tr
+      [:th &quot;LOGGER&quot;
+       (hf/text-field
+        {:placeholder &quot;Filter Reg-Ex&quot;
+         :style &quot;float: right;&quot;}
+        &quot; FILTER&quot; filter-reg-ex)]
+      [:th &quot;LEVEL&quot;
+       [:span {:style &quot;float: right;&quot;} 
+        (hf/label :hide &quot; Hide NOT-SET!:&quot;)
+        (hf/check-box &quot; HIDE&quot; hide)]]]]
+    [:tbody 
+     (for [{:keys [logger-name log-level]} loggers]
+       [:tr
+        [:td logger-name]
+        [:td (hf/drop-down logger-name log-levels log-level)]])]
+    [:tfoot
+     [:tr
+      [:td {:colSpan 2}
+       (hf/submit-button &quot;SET LOG-LEVELS&quot;)]]]]))</pre></td></tr><tr><td class="docs"><p>Returns the HTML markup for the complete page (there is just one in
   <em>Solo</em>).</p>
 
 <p>  Calls <code>(solo.web/get-current-loggers options)</code> to retrieve the list
@@ -3491,6 +3496,7 @@ form-params (e.g. filter and hide settings).</li>
   JAR will be part of the JEE host-application (EAR-<code>/lib</code>).</p>
 </td><td class="codes"><pre class="brush: clojure">(ns solo.webapp
   (:require [solo.nrepl :as nrepl]
+            [solo.swank :as swank]
             [ring.util.response :as response]))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(declare ^:no-doc app)</pre></td></tr><tr><td class="docs"><p>ring.util.response/resource-data does not know how to handle Apache
 VFS URLs which we find in JBoss/Wildfly.</p>
@@ -3512,20 +3518,32 @@ VFS URLs which we find in JBoss/Wildfly.</p>
   []
   (require 'solo.web.spa)
   (def app
-    (eval (read-string &quot;solo.web.spa/app&quot;))))</pre></td></tr><tr><td class="docs"><p>Initialize the <code>Servlet</code>. <strong>Asynchronously</strong> starts nREPL server
-  and sets <code>nrepl-server</code> atom. This method should not throw an
-  exception if the nREPL server cannot start. This may happen, when
-  the port is already opened. So we will just keep on going in this
-  case.</p>
+    (eval (read-string &quot;solo.web.spa/app&quot;))))</pre></td></tr><tr><td class="docs"><p>Initialize the <code>Servlet</code>.</p>
+
+<p>  If system property <code>solo.nrepl.port</code> is set <strong>asynchronously</strong>
+  starts nREPL server on that port and sets <code>nrepl-server</code> atom. This
+  method should not throw an exception if the nREPL server cannot
+  start. This may happen, when the port is already opened. So we will
+  just keep on going in this case.</p>
+
+<p>  If system property <code>solo.swank.port</code> is set <strong>asynchronously</strong>
+  starts Swank server on that port.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn init
   []
   (load-solo-web!)
-  (future 
-    (try 
-      (reset! nrepl-server
-              (nrepl/start-server :port 7888))
-      (catch Throwable t
-        (.println System/err t)))))</pre></td></tr><tr><td class="docs"><p>Sets <code>nrepl-server</code> atom to <code>nil</code> and then tries to `(.close
+  (if-let [port (System/getProperty &quot;solo.nrepl.port&quot;)]
+    (future 
+      (try 
+        (reset! nrepl-server
+                (nrepl/start-server :port (Integer/parseInt port)))
+        (catch Throwable t
+          (.println System/err t)))))
+  (if-let [port (System/getProperty &quot;solo.swank.port&quot;)]
+    (future 
+      (try 
+        (swank/start-server :port (Integer/parseInt port))
+        (catch Throwable t
+          (.println System/err t))))))</pre></td></tr><tr><td class="docs"><p>Sets <code>nrepl-server</code> atom to <code>nil</code> and then tries to `(.close
   server)<code>the running server. If this fails,</code>nrepl-server` atom will
   still be <code>nil</code> so that an <code>init</code> will try to start a new nREPL
   server. Hope this makes sense in most cases.</p>
