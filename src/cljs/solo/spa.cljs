@@ -13,7 +13,7 @@
 (declare main)
 
 (defn log
-  "Prints to `js/console`."
+  "Prints `xs` to `js/console`."
 
   [& xs]
   (.log js/console (apply str "SOLO:" xs)))
@@ -37,7 +37,8 @@
 ;; will re-draw whatever has to be re-drawn.
 (defonce app-state
   (let [s (r/atom {})]
-    ;; for testing
+    ;; for testing you can watch the state-transitions of your
+    ;; app-state
     #_ (add-watch s :foo (fn [& _] (println (str "SOLO: app-state : " @s))))
     s))
 
@@ -174,7 +175,7 @@
             :placeholder "Logger Name"}]
 
    [:span {:style {:padding "1em"}}]
-   [:label {:for "level"} " LEVEL:"]
+   [:label {:for "level"} "LEVEL:"]
    
    ;; could use :value instead but react-dom.inc complains:
    ;; "Warning: Failed prop type: You provided a `value` prop to a form
@@ -203,14 +204,13 @@
   [logger-name log-level]
   [:tr 
    [:td logger-name]
-   [:td
-    [:select
-     {:value log-level
-      :on-change
-      (fn [evt]
-        (let [log-level (-> evt .-target .-value)]
-          (set-log-level! logger-name log-level)))}
-     (log-level-options log-levels)]]])
+   [:td>select
+    {:value log-level
+     :on-change
+     (fn [evt]
+       (let [log-level (-> evt .-target .-value)]
+         (set-log-level! logger-name log-level)))}
+    (log-level-options log-levels)]])
 
 (defn loggers-form
   "Returns a Reagent-vector for the *loggers form* which allows the
@@ -245,7 +245,7 @@
       
      [:th "LEVEL"
       [:span {:style {:float "right"}}
-       [:label {:for "hide"} " Hide NOT-SET!:"]
+       [:label {:for "hide"} "Hide NOT-SET!:"]
        [:input {:type "checkbox"
                 :id "hide"
                 :checked (hide?)
@@ -263,12 +263,10 @@
    ;; "filter-reg-ex" text-field will be set to the `(:filter-reg-ex
    ;; @app-state)` value which may differ from the currently displayed
    ;; value (try entering `**` and then RELOAD).
-   [:tfoot
-    [:tr
-     [:td {:col-span 2}
-      [:input {:type "submit"
-               :on-click main 
-               :value "RELOAD"}]]]]])
+   [:tfoot>tr>td {:col-span 2}
+    [:input {:type "submit"
+             :on-click main 
+             :value "RELOAD"}]]])
 
 ;; ################### main ##########################
 
@@ -300,9 +298,9 @@
 ;; and (re)mounted at `id="main"`. The app-state will __not__ be reset
 ;; on reload (due to `defonce`).
 ;;
-;; There are cases when you want to keep the DOM on reload. In that
-;; case you could wrap the `(main`) call in a defonce.
+;; There may be cases when you want to keep the DOM on reload. In that
+;; case you could wrap the `(main)` in a defonce.
 ;;
 ;; If you want to reset the `app-state` just reload the page in the
-;; browser.
+;; browser or do a 
 (main)
