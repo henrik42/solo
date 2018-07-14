@@ -55,6 +55,36 @@
   (web/set-log-level! logger level)
   {:body {}})
 
+#_
+(eval-string "(+ 1 2) 42")
+
+(defn eval-string
+  "Eagerly parses `eval-string` one form at a time and `eval`'s each
+  form. If `eval` throws `eval-string` will throw
+  `RuntimeException`. Returns non-lazy seq of `eval` results.
+
+  Example: `(eval-string \"(+ 1 2) 42\") ;; --> (3 42)`"
+
+  [source-string]
+  (let [eof 'eof
+        rdr (java.io.PushbackReader. (java.io.StringReader. source-string))]
+    (doall
+     (for [f (repeatedly #(read {:eof eof} rdr))
+           :while (not (identical? eof f))]
+       (try
+         (eval f)
+         (catch Throwable t
+           (throw (RuntimeException.
+                   (format "eval-string for '%s' current form '%s' failed: %s" source-string f t)))))))))
+
+(defn eval! [req]
+  (let [source-string (get-in req [:query-params "eval"])]
+    (.println System/out (str "EVAL:" source-string))
+    {:body (eval-string source-string)}))
+
+#_
+(System/getProperties)
+
 ;; ################### view ##########################
 
 (defn the-page
@@ -92,7 +122,8 @@
     the URL. Try
 
         curl -X POST http://localhost:3000/ws/set-log-level/foo/info"
-  
+
+  (POST "/ws/eval/" req (eval! req))
   (GET  "/ws/get-current-loggers" _ (get-current-loggers))
   (POST "/ws/set-log-level/:logger/:level" [logger level] (set-log-level! logger level)))
 
