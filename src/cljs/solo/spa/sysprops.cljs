@@ -47,13 +47,13 @@
   "Asynchronuously sets the system property in the JVM backend."
 
   [name value]
-  (go (<! (eval-in-backend (str "(System/setProperty \"" name "\" \"" value "\")")))))
+  (go (<! (eval-in-backend (str "(System/setProperty " (pr-str name) " " (pr-str value) ")")))))
 
 (defn clear-property
   "Asynchronuously clears the system property in the JVM backend."
 
   [name]
-  (go (<! (eval-in-backend (str "(System/clearProperty \"" name "\")")))))
+  (go (<! (eval-in-backend (str "(System/clearProperty " (pr-str name) ")")))))
 
 ;; ----------------------------------------------------------------------
 
@@ -70,7 +70,7 @@
   :system-properties    : sorted/ordered [name value]-seq of system properties
   :filter-names-reg-ex  : reg-ex-string for filtering rows by name
   :filter-values-reg-ex : reg-ex-string for filtering rows by value
-  :selected-name        : mouse-over _selects_ a row 
+  :selected-name        : mouse-over _selects_ a row and sets :selected-name to the row's name/key!
   :editing              : property name when `EDIT` was clicked
   :value                : property value that is entered when `editing`"
   
@@ -92,18 +92,22 @@
     
     (fn [_]
       [:div#main ;; #loggers ;; "System-Properties: " (-> (str @state) (.substring 0 10)) [:br]
-       [:input {:type "submit"
-                :on-click update-state!
-                :value "RELOAD"}]
-
       [:table
        [:thead
         [:tr
          
          ;; Properties can be re-find-filtered by their name
          [:th "PROPERTY"
+          
+          [:input {:type "submit"
+                   :value "RELOAD"
+                   :on-click update-state!}]
+
+          [:input {:type "submit"
+                   :value "ADD"}]
+
           [:input {:type "text"
-                   :placeholder "Filter name"
+                   :placeholder "re-find-filter name"
                    :style {:float "right"}
                    :on-change
                    (fn [x]
@@ -113,7 +117,7 @@
          ;; Properties can be re-find-filtered by their value
          [:th "VALUE"
           [:input {:type "text"
-                   :placeholder "Filter value"
+                   :placeholder "re-find-filter value"
                    :style {:float "right"}
                    :on-change
                    (fn [x]
