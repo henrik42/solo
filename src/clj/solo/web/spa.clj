@@ -63,16 +63,21 @@
   Example: `(eval-string \"(+ 1 2) 42\") ;; --> (3 42)`"
 
   [source-string]
-  (let [eof 'eof
-        rdr (java.io.PushbackReader. (java.io.StringReader. source-string))]
-    (doall
-     (for [f (repeatedly #(read {:eof eof} rdr))
-           :while (not (identical? eof f))]
-       (try
-         (eval f)
-         (catch Throwable t
-           (throw (RuntimeException.
-                   (format "eval-string for '%s' current form '%s' failed: %s" source-string f t)))))))))
+  (try 
+    (let [eof 'eof
+          rdr (java.io.PushbackReader. (java.io.StringReader. source-string))]
+      (doall
+       (for [f (repeatedly #(read {:eof eof} rdr))
+             :while (not (identical? eof f))]
+         (try
+           (eval f)
+           (catch Throwable t
+             (throw (RuntimeException.
+                     (format "eval-string failed for form '%s': %s" (pr-str f) t))))))))
+    (catch Throwable t
+      (throw (RuntimeException.
+              (format "eval-string for '%s' failed: %s" (pr-str source-string) t))))))
+      
 
 ;; ################### view ##########################
 
