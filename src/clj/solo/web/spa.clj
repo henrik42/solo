@@ -55,9 +55,6 @@
   (web/set-log-level! logger level)
   {:body {}})
 
-#_
-(eval-string "(+ 1 2) 42")
-
 (defn eval-string
   "Eagerly parses `eval-string` one form at a time and `eval`'s each
   form. If `eval` throws `eval-string` will throw
@@ -76,14 +73,6 @@
          (catch Throwable t
            (throw (RuntimeException.
                    (format "eval-string for '%s' current form '%s' failed: %s" source-string f t)))))))))
-
-(defn eval! [req]
-  (let [source-string (get-in req [:query-params "eval"])]
-    (.println System/out (str "EVAL:" source-string))
-    {:body (eval-string source-string)}))
-
-#_
-(System/getProperties)
 
 ;; ################### view ##########################
 
@@ -121,9 +110,15 @@
     `:logger`. Note that the `POST` has no _message_ _content_ -- just
     the URL. Try
 
-        curl -X POST http://localhost:3000/ws/set-log-level/foo/info"
+        curl -X POST http://localhost:3000/ws/set-log-level/foo/info
 
-  (POST "/ws/eval/" req (eval! req))
+  * `POST /ws/eval/`: evals `eval` query param and returns seq of eval
+    results.
+
+        curl -X POST http://localhost:3000/ws/eval/?eval='(System/getProperties)'"
+
+  (POST "/ws/eval/" req (let [source-string (get-in req [:query-params "eval"])]
+                          {:body (eval-string source-string)}))
   (GET  "/ws/get-current-loggers" _ (get-current-loggers))
   (POST "/ws/set-log-level/:logger/:level" [logger level] (set-log-level! logger level)))
 
