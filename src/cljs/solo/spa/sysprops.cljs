@@ -67,12 +67,19 @@
 
   The component carries its own state with:
 
-  :system-properties    : sorted/ordered [name value]-seq of system properties
+  :data                 : sorted/ordered [name value]-seq of system properties
   :filter-names-reg-ex  : reg-ex-string for filtering rows by name
   :filter-values-reg-ex : reg-ex-string for filtering rows by value
   :selected-name        : mouse-over _selects_ a row and sets :selected-name to the row's name/key!
+  :mode                 : :create : enter a property name and value; :update : change a property's value
+  :property-name        : for :create/:update
+  :property-value       : for :create/:update
+  
   :editing              : property name when `EDIT` was clicked
-  :value                : property value that is entered when `editing`"
+
+  :value                : property value that is entered when `editing` and 'adding'
+  :new-property         : if non-nil in 'adding' mode. Will carry new property name.
+"
   
   []
   (let [;; THE STATE
@@ -83,7 +90,7 @@
         ;; asynchronuously queries the current system properties from
         ;; the JVM backend and sets the state.
         update-state! (fn [& _]
-                        (go (swap! state assoc :system-properties (<! (get-properties)))))]
+                        (go (swap! state assoc :data (<! (get-properties)))))]
 
     ;; NOTE: not an asynchronuous race!(?) Either state is set before
     ;; component is mounted/drawn or it is set after the component is
@@ -91,8 +98,7 @@
     (update-state!)
     
     (fn [_]
-      [:div#main ;; #loggers ;; "System-Properties: " (-> (str @state) (.substring 0 10)) [:br]
-      [:table
+      [:table#main
        [:thead
         [:tr
          
@@ -104,15 +110,18 @@
                    :on-click update-state!}]
 
           [:input {:type "submit"
-                   :value "ADD"}]
+                   :value "ADD"
+                   :on-click #(do
+                                (swap! state assoc :mode :create)
+                                (swap! state assoc :property-name "")
+                                (swap! state assoc :property-value ""))}]
 
           [:input {:type "text"
                    :placeholder "re-find-filter name"
                    :style {:float "right"}
                    :on-change
-                   (fn [x]
-                     (swap! state assoc :filter-names-reg-ex
-                            (-> x .-target .-value)))}]]
+                   #(swap! state assoc :filter-names-reg-ex
+                           (-> % .-target .-value))}]]
          
          ;; Properties can be re-find-filtered by their value
          [:th "VALUE"
@@ -120,20 +129,20 @@
                    :placeholder "re-find-filter value"
                    :style {:float "right"}
                    :on-change
-                   (fn [x]
-                     (swap! state assoc :filter-values-reg-ex
-                            (-> x .-target .-value)))}]]]]
+                   #(swap! state assoc :filter-values-reg-ex
+                           (-> % .-target .-value))}]]]]
     
        [:tbody
         ;; Read system properties from state and apply filtering on
         ;; names and value. Note that non-valid-re strings may be
         ;; contained in state, we convert/check here when querying
         ;; state, not when mutating it.
-        (for [[name value] (:system-properties @state)
+        (for [[name value & flag] (:data @state)
               :let [name-reg-ex (reg-ex-str->reg-ex (:filter-names-reg-ex @state))
                     value-reg-ex (reg-ex-str->reg-ex (:filter-values-reg-ex @state))]
-              :when (and (re-find name-reg-ex name)
-                         (re-find value-reg-ex value))]
+              :when (or flag
+                        (and (re-find name-reg-ex name)
+                             (re-find value-reg-ex value)))]
           
           ^{:key name} ;; Reagent needs this for lists
           [:tr
@@ -142,6 +151,9 @@
            {:on-mouse-over #(swap! state assoc :selected-name name)}
            
            [:td name ;; PROPERTY column
+            
+            ;; ********** TBD: nicht wenn :create Zeile
+            
             (when (= name (:selected-name @state))
               [:input {:type "submit"
                        :value "REMOVE!"
@@ -155,41 +167,48 @@
                          (<! (update-state!)))}])]
            
            [:td ;; VALUE column
-            (if (= name (:editing @state))
 
-              ;; editing: leaving the text-area will set (:value
-              ;; @state) and OK button will pull (:value @state) and
-              ;; use that for calling set-property. Note that we are
-              ;; not using any DOM lookup by id!
+            ;; EDIT button when selected row and not editing this row
+            (when (and
+                   (or (not= name (:property-name @state))
+                       (not (:mode @state)))
+                   (= name (:selected-name @state)))
+              [:input {:type "submit"
+                       :value "EDIT"
+                       :style {:float "left"}
+                       :on-click (fn [_]
+                                   ;; pre-set :value for case
+                                   ;; "OK without
+                                   ;; entering/leaving
+                                   ;; textarea"
+                                   (swap! state assoc :property-value value)
+                                   (swap! state assoc :property-name name)
+                                   (swap! state assoc :mode :update))}])
+
+            (if (and (= :update (:mode @state))
+                     (= name (:property-name @state)))
+
               [:span
+               
+              ;; editing: leaving the text-area will set
+              ;; (:property-value @state) and OK button will pull
+              ;; (:property-value @state) and use that for calling
+              ;; set-property. Note that we are not using any DOM
+              ;; lookup by id!
+               [:textarea {:default-value value
+                           :style {:float "left"}
+                           :on-change #(swap! state assoc :property-value (-> % .-target .-value))}]
+              
                [:input {:type "submit"
                         :value "OK"
-                        :style {:float "left"}
-                        :on-click #(go (<! (set-property name (:value @state)))
+                        :on-click #(go (<! (set-property name (:property-value @state)))
                                        (<! (update-state!))
-                                       (swap! state dissoc :editing))}]
+                                       (swap! state dissoc :mode))}]
                
                [:input {:type "submit"
                         :value "CANCLE"
-                        :style {:float "left"}
-                        :on-click #(swap! state dissoc :editing)}]
-
-               [:textarea {:default-value value 
-                           :on-change #(swap! state assoc :value (-> % .-target .-value))}]]
-
-              ;; EDIT button when selected row
-              [:span (when (= name (:selected-name @state))
-                       [:input {:type "submit"
-                                :value "EDIT"
-                                :style {:float "left"}
-                                :on-click (fn [_]
-                                            ;; pre-set :value for case
-                                            ;; "OK without
-                                            ;; entering/leaving
-                                            ;; textarea"
-                                            (swap! state assoc :value value)
-                                            (swap! state assoc :editing name))}])
-               value])]])]]])))
+                        :on-click #(swap! state dissoc :mode)}]]
+              value)]])]])))
 
 (defn main []
   (r/render [:div#main
