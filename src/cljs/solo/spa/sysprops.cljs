@@ -78,8 +78,7 @@
   :editing              : property name when `EDIT` was clicked
 
   :value                : property value that is entered when `editing` and 'adding'
-  :new-property         : if non-nil in 'adding' mode. Will carry new property name.
-"
+  :new-property         : if non-nil in 'adding' mode. Will carry new property name."
   
   []
   (let [;; THE STATE
@@ -89,8 +88,7 @@
 
         ;; asynchronuously queries the current system properties from
         ;; the JVM backend and sets the state.
-        update-state! (fn [& _]
-                        (go (swap! state assoc :data (<! (get-properties)))))]
+        update-state! #(go (swap! state assoc :data (<! (get-properties))))]
 
     ;; NOTE: not an asynchronuous race!(?) Either state is set before
     ;; component is mounted/drawn or it is set after the component is
@@ -98,7 +96,11 @@
     (update-state!)
     
     (fn [_]
-      [:table#main
+      [:table#main ;; see function `main` below!
+       
+       ;; for debugging
+       #_ (str "state : " (dissoc @state :data))
+       
        [:thead
         [:tr
          
@@ -107,11 +109,18 @@
           
           [:input {:type "submit"
                    :value "RELOAD"
-                   :on-click update-state!}]
+                   ;; RELOAD will cancle any editing activity
+                   :on-click #(do
+                                (swap! state dissoc :mode)
+                                (update-state!))}]
 
           [:input {:type "submit"
                    :value "ADD"
                    :on-click #(do
+                                ;; set up model for entering a new
+                                ;; property (name/value). Will
+                                ;; "insert" a new (first) row into the
+                                ;; table.
                                 (swap! state assoc :mode :create)
                                 (swap! state assoc :property-name "")
                                 (swap! state assoc :property-value ""))}]
@@ -134,27 +143,45 @@
     
        [:tbody
         ;; Read system properties from state and apply filtering on
-        ;; names and value. Note that non-valid-re strings may be
-        ;; contained in state, we convert/check here when querying
-        ;; state, not when mutating it.
-        (for [[name value & flag] (:data @state)
+        ;; names and value. Note that non-valid re-strings may be
+        ;; contained in state, we convert/check __here__ when querying
+        ;; state, not when __mutating__ it.
+        ;;
+        ;; When :create we insert a dynamic-property-row into the
+        ;; table.
+        (for [[name value & create-flag] (if (= :create (:mode @state))
+                                           (conj (:data @state) ["" "" "bar"])
+                                           (:data @state))
               :let [name-reg-ex (reg-ex-str->reg-ex (:filter-names-reg-ex @state))
                     value-reg-ex (reg-ex-str->reg-ex (:filter-values-reg-ex @state))]
-              :when (or flag
+              :when (or create-flag
                         (and (re-find name-reg-ex name)
                              (re-find value-reg-ex value)))]
-          
-          ^{:key name} ;; Reagent needs this for lists
+
+          ;; Reagent needs this for lists; prepend something so that
+          ;; we can construct a non-prefixed key for :create editing
+          ;; to prevent key-collissions
+          ^{:key (if create-flag create-flag (str "foo" name))} 
           [:tr
            ;; mouse-over will select row which will show "REMOVE" and
            ;; "EDIT" buttons.
            {:on-mouse-over #(swap! state assoc :selected-name name)}
            
-           [:td name ;; PROPERTY column
-            
-            ;; ********** TBD: nicht wenn :create Zeile
-            
-            (when (= name (:selected-name @state))
+           [:td ;; PROPERTY column
+
+            (if create-flag
+              [:input {:type "text"
+                       :placeholder "new property name"
+                       :style {:float "left"}
+                       :on-change #(do
+                                     (println (str "val=" (-> % .-target .-value)))
+                                     (swap! state assoc :property-name (-> % .-target .-value)))}]
+              name)
+
+            ;; don't show REMOVE in :create line 1
+            (when (and
+                   (not create-flag)
+                   (= name (:selected-name @state)))
               [:input {:type "submit"
                        :value "REMOVE!"
                        :style {:float "right"}
@@ -168,15 +195,20 @@
            
            [:td ;; VALUE column
 
-            ;; EDIT button when selected row and not editing this row
+            ;; EDIT button when selected row and not
+            ;; modifying/creating this row
             (when (and
-                   (or (not= name (:property-name @state))
-                       (not (:mode @state)))
+                   (not (and
+                         (= :create (:mode @state))
+                         create-flag))
+                   (not (and
+                         (= :update (:mode @state))
+                         (= name (:property-name @state))))
                    (= name (:selected-name @state)))
               [:input {:type "submit"
                        :value "EDIT"
                        :style {:float "left"}
-                       :on-click (fn [_]
+                       :on-click #(do
                                    ;; pre-set :value for case
                                    ;; "OK without
                                    ;; entering/leaving
@@ -185,8 +217,12 @@
                                    (swap! state assoc :property-name name)
                                    (swap! state assoc :mode :update))}])
 
-            (if (and (= :update (:mode @state))
-                     (= name (:property-name @state)))
+            ;; when in :mode :update or :create show textarea input
+            ;; and "OK" and "CANCLE" button
+            (if (or
+                 create-flag
+                 (and (= :update (:mode @state))
+                      (= name (:property-name @state))))
 
               [:span
                
@@ -198,16 +234,25 @@
                [:textarea {:default-value value
                            :style {:float "left"}
                            :on-change #(swap! state assoc :property-value (-> % .-target .-value))}]
-              
+
+               ;; TBD: would be nice if short values were entered into
+               ;; a text-field and long values in a textarea.
+               #_ [:input {:type "text"
+                           :default-value value
+                           :style {:float "left"}
+                           :on-change #(swap! state assoc :property-value (-> % .-target .-value))}]
+
                [:input {:type "submit"
                         :value "OK"
-                        :on-click #(go (<! (set-property name (:property-value @state)))
+                        :on-click #(go (<! (set-property (:property-name @state) (:property-value @state)))
                                        (<! (update-state!))
                                        (swap! state dissoc :mode))}]
                
                [:input {:type "submit"
                         :value "CANCLE"
                         :on-click #(swap! state dissoc :mode)}]]
+              
+              ;; else show just the value
               value)]])]])))
 
 (defn main []
