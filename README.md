@@ -1,3 +1,1 @@
-# Solo
-
-Experimental
+Just scratch

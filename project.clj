@@ -111,7 +111,7 @@
   :cljsbuild {:builds
               [{:id "dev"
                 :source-paths ["src/cljs"]
-                :compiler {:main #_ solo.spa solo.spa.sysprops
+                :compiler {:main solo.talk
                            :asset-path "out/assets"
                            :output-to "resources/public/js/compiled/solo-spa.js"
                            :output-dir "resources/public/js/compiled/assets"
