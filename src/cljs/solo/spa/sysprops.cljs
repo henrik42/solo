@@ -57,6 +57,12 @@
 
 ;; ----------------------------------------------------------------------
 
+(defn input-submit [value on-click]
+  [:input {:type "submit"
+           :value value
+           :on-click on-click}])
+
+
 (defn sysprops-component
   "Self-contained Reagent component for accessing the system
   properties in a JVM backend.

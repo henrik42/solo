@@ -11,9 +11,20 @@
 
 .title {
     background-color: lightblue;
-]
+    text-align: center;
+}
 
+.content {
+    margin-top: 50px;
+}
 
+ol {
+    list-style-type: upper-roman;
+}
+
+li {
+    margin-top: 10px;
+}
 
 
 

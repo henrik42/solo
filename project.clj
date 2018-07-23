@@ -182,6 +182,7 @@
 
                    :dependencies [[org.clojure/clojurescript "1.10.238"]
                                   [cljs-http "0.1.45"]
+                                  [secretary "1.2.3"]
                                   [org.clojure/core.async "0.4.474"]
                                   [reagent "0.8.1"]]}})
              
