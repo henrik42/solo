@@ -75,7 +75,8 @@
    ["-j" "--jetty [<host>:]<port>" "start Jetty server on <host>:<port>"
     :parse-fn #(parse-host:port %)]
    ["-s" "--swank [<host>:]<port>" "start Swank server on <host>:<port>"
-    :parse-fn #(parse-host:port %)]])
+    :parse-fn #(parse-host:port %)]
+   ["-i" "--interactive-repl" "run a local/interactive REPL"]])
 
 (defn usage
   "Prints usage info and `(System/exit 1)` exits the JVM."
@@ -90,6 +91,7 @@
 
   CLI options:
 
+      -i, --interactive-repl             run a local/interactive REPL
       -r, --remote-core [<host>:]<port>  intercept/delegate calls to solo.core to remote nREPL server)
       -n, --nrepl [<host>:]<port>        start nREPL server on <host>:<port> (<host> defaults to \"0.0.0.0\")
       -j, --jetty [<host>:]<port>        start Jetty server on <host>:<port>
@@ -98,7 +100,7 @@
   [& args]
   (let [{:keys [errors options arguments summary] :as opt} (parse-opts args cli-options)
         _ (when errors (usage errors summary))
-        {:keys [remote-core nrepl jetty swank]} options
+        {:keys [interactive-repl remote-core nrepl jetty swank]} options
         
         {jetty-port :port jetty-host :host :or {jetty-host "0.0.0.0"}} jetty
         _ (when-not jetty-port (usage "Invalid Jetty option" summary))
@@ -128,5 +130,7 @@
     (when swank-port (swank/start-server :port swank-port :host swank-host))
 
     (jetty/start-server :port jetty-port :host jetty-host)
-    
-    (.println System/out "CTRL-C to quit...")))
+
+    (if interactive-repl
+      (clojure.main/repl)
+      (.println System/out "CTRL-C to quit..."))))
