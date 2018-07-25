@@ -8,6 +8,38 @@
 
 (defonce state (r/atom {:slide 1}))
 
+;; ---------------------- Routing -----------------------------------
+
+(defn hook-browser-navigation! []
+  (doto (Html5History.)
+    (events/listen
+     EventType/NAVIGATE
+     (fn [evt]
+       (println (str "NAVIGATE:" (.-token evt)))
+       (secretary/dispatch! (.-token evt))))
+    (.setEnabled true)))
+
+(defn app-routes []
+  
+  (secretary/set-config! :prefix "#")
+  
+  (defroute "/:id" {id :id}
+    (println (str "going to " id))
+    (swap! state assoc :slide (js/parseInt id)))
+
+  #_
+  (defroute "/slide-1" []
+    (swap! state assoc :slide 1))
+  #_
+  (defroute "/slide-2" []
+    (swap! state assoc :slide 2))
+  (hook-browser-navigation!))
+
+(defonce foo
+  (app-routes))
+
+;; ---------------------------------------------------------
+
 (defn show-state []
   [:div (str @state)])
 
@@ -18,10 +50,13 @@
              :on-change #(reset! s (-> % .-target .-value))}]))
 
 (defn seiten-wahl []
-  [:select {:value (:slide @state)
-            :on-change #(swap! state assoc :slide (-> % .-target .-value js/parseInt))}
-   (for [i [1 2 3]]
-     [:option i])])
+  [:span
+   [:select {:value (:slide @state)
+             :on-change #(swap! state assoc :slide (-> % .-target .-value js/parseInt))}
+    (for [i [1 2 3]]
+      [:option i])]
+   " "
+   [:a {:href "#/1"} "slide-1"] " " [:a {:href "#/2"} "slide-2"] " " [:a {:href "#/3"} "slide-3"]])
 
 (defn *title [s]
   [:div.title.boxed s])
@@ -37,6 +72,7 @@
         state-b (r/cursor state [:slide1 :b])
         slide-2 (r/cursor state [:slide2 :a])]
     [:span [*title "Seite 1"]
+     
      ^{:key :foo} [:div.content
 
       "Dies ist eine interaktve Seite mit einem Textfeld :"
@@ -80,6 +116,9 @@
 (r/render [:div
            [show-state]
            [seiten-wahl]
-           [current-slide]]
+           [slide (:slide @state)]
+           #_ [current-slide]]
           (js/document.getElementById "main"))
 
+(defonce foo
+  (app-routes))
