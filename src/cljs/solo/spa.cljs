@@ -8,9 +8,11 @@
   (:require-macros [cljs.core.async.macros :refer [go]])
   (:require [cljs.core.async :refer [<!]]
             [reagent.core :as r]
-            [cljs-http.client :as http]))
+            [cljs-http.client :as http]
+            [solo.spa.sysprops :as sysprops]))
 
 (declare main)
+(declare navigation-widget)
 
 (defn log
   "Prints `xs` to `js/console`."
@@ -161,7 +163,8 @@
    " -- "
    [:a {:href "generated-doc/solo-source.html"} "source"]
    " -- "
-   [:a {:href "https://github.com/henrik42/solo/"} "github"]])
+   [:a {:href "https://github.com/henrik42/solo/"} "github"]
+   [navigation-widget]])
 
 (defn set-log-level-form
   "Returns a Reagent-vector for the *set log-level form* which allows
@@ -220,7 +223,7 @@
   to hide loggers with `(= log-level NOT-SET!)`."
 
   []
-  [:table#loggers
+  [:table
    [:thead
     [:tr
      [:th "LOGGER"
@@ -268,6 +271,28 @@
              :on-click main 
              :value "RELOAD"}]]])
 
+;; ################### navigation ##########################
+
+(defn current-page []
+  (condp = (:current-page @app-state :log4j)
+    :log4j [:span
+              [set-log-level-form]
+              [loggers-form]]
+    :sysprops [sysprops/sysprops-component]
+    [:span (str "Unknown page : " [:current-page @app-state])]))
+
+(defn navigate-to [p]
+  (swap! app-state assoc :current-page p))
+         
+(defn navigation-widget []
+  [:span {:style {:float "right"}}
+   [:input {:type "submit"
+            :value "log4j log-level"
+            :on-click #(navigate-to :log4j)}]
+   [:input {:type "submit"
+            :value "system properties"
+            :on-click #(navigate-to :sysprops)}]])
+
 ;; ################### main ##########################
 
 (defn main
@@ -286,9 +311,8 @@
   (let [root (fn [_]
                [:div#main
                 [top-of-page]
-                [set-log-level-form]
-                [loggers-form]])]
-    
+                [current-page]])]
+
     (r/render-component [root]
                         (js/document.getElementById "main"))
     

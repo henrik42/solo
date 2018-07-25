@@ -8,12 +8,14 @@
   (:require-macros [cljs.core.async.macros :refer [go]])
   (:require [cljs.core.async :refer [<!]]
             [reagent.core :as r]
-            [cljs-http.client :as http]))
+            [cljs-http.client :as http]
+            [solo.spa.sysprops :as sysprops]))
 
 (declare main)
+(declare navigation-widget)
 
 (defn log
-  "Prints to `js/console`."
+  "Prints `xs` to `js/console`."
 
   [& xs]
   (.log js/console (apply str "SOLO:" xs)))
@@ -37,7 +39,8 @@
 ;; will re-draw whatever has to be re-drawn.
 (defonce app-state
   (let [s (r/atom {})]
-    ;; for testing
+    ;; for testing you can watch the state-transitions of your
+    ;; app-state
     #_ (add-watch s :foo (fn [& _] (println (str "SOLO: app-state : " @s))))
     s))
 
@@ -160,7 +163,8 @@
    " -- "
    [:a {:href "generated-doc/solo-source.html"} "source"]
    " -- "
-   [:a {:href "https://github.com/henrik42/solo/"} "github"]])
+   [:a {:href "https://github.com/henrik42/solo/"} "github"]
+   [navigation-widget]])
 
 (defn set-log-level-form
   "Returns a Reagent-vector for the *set log-level form* which allows
@@ -174,7 +178,7 @@
             :placeholder "Logger Name"}]
 
    [:span {:style {:padding "1em"}}]
-   [:label {:for "level"} " LEVEL:"]
+   [:label {:for "level"} "LEVEL:"]
    
    ;; could use :value instead but react-dom.inc complains:
    ;; "Warning: Failed prop type: You provided a `value` prop to a form
@@ -203,14 +207,13 @@
   [logger-name log-level]
   [:tr 
    [:td logger-name]
-   [:td
-    [:select
-     {:value log-level
-      :on-change
-      (fn [evt]
-        (let [log-level (-> evt .-target .-value)]
-          (set-log-level! logger-name log-level)))}
-     (log-level-options log-levels)]]])
+   [:td>select
+    {:value log-level
+     :on-change
+     (fn [evt]
+       (let [log-level (-> evt .-target .-value)]
+         (set-log-level! logger-name log-level)))}
+    (log-level-options log-levels)]])
 
 (defn loggers-form
   "Returns a Reagent-vector for the *loggers form* which allows the
@@ -220,7 +223,7 @@
   to hide loggers with `(= log-level NOT-SET!)`."
 
   []
-  [:table#loggers
+  [:table
    [:thead
     [:tr
      [:th "LOGGER"
@@ -245,7 +248,7 @@
       
      [:th "LEVEL"
       [:span {:style {:float "right"}}
-       [:label {:for "hide"} " Hide NOT-SET!:"]
+       [:label {:for "hide"} "Hide NOT-SET!:"]
        [:input {:type "checkbox"
                 :id "hide"
                 :checked (hide?)
@@ -263,12 +266,32 @@
    ;; "filter-reg-ex" text-field will be set to the `(:filter-reg-ex
    ;; @app-state)` value which may differ from the currently displayed
    ;; value (try entering `**` and then RELOAD).
-   [:tfoot
-    [:tr
-     [:td {:col-span 2}
-      [:input {:type "submit"
-               :on-click main 
-               :value "RELOAD"}]]]]])
+   [:tfoot>tr>td {:col-span 2}
+    [:input {:type "submit"
+             :on-click main 
+             :value "RELOAD"}]]])
+
+;; ################### navigation ##########################
+
+(defn current-page []
+  (condp = (:current-page @app-state :log4j)
+    :log4j [:span
+              [set-log-level-form]
+              [loggers-form]]
+    :sysprops [sysprops/sysprops-component]
+    [:span (str "Unknown page : " [:current-page @app-state])]))
+
+(defn navigate-to [p]
+  (swap! app-state assoc :current-page p))
+         
+(defn navigation-widget []
+  [:span {:style {:float "right"}}
+   [:input {:type "submit"
+            :value "log4j log-level"
+            :on-click #(navigate-to :log4j)}]
+   [:input {:type "submit"
+            :value "system properties"
+            :on-click #(navigate-to :sysprops)}]])
 
 ;; ################### main ##########################
 
@@ -288,9 +311,8 @@
   (let [root (fn [_]
                [:div#main
                 [top-of-page]
-                [set-log-level-form]
-                [loggers-form]])]
-    
+                [current-page]])]
+
     (r/render-component [root]
                         (js/document.getElementById "main"))
     
@@ -300,9 +322,9 @@
 ;; and (re)mounted at `id="main"`. The app-state will __not__ be reset
 ;; on reload (due to `defonce`).
 ;;
-;; There are cases when you want to keep the DOM on reload. In that
-;; case you could wrap the `(main`) call in a defonce.
+;; There may be cases when you want to keep the DOM on reload. In that
+;; case you could wrap the `(main)` in a defonce.
 ;;
 ;; If you want to reset the `app-state` just reload the page in the
-;; browser.
+;; browser or do a 
 (main)

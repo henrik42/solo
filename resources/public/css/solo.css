@@ -17,25 +17,25 @@
     box-sizing: border-box;
 }
 
-#loggers, #new-logger, #top-of-page {
+table {
     font-family: "Lucida Console", Monaco, monospace;
     font-size: small;
     border-collapse: collapse;
     width: 100%;
 }
 
-#loggers td, #loggers th {
+td, th {
     border: 1px solid #ddd;
     padding: 8px;
 }
 
-#loggers tbody > tr:nth-child(even){background-color: #f2f2f2;}
+tbody > tr:nth-child(even){background-color: #f2f2f2;}
 
-#loggers tbody > tr:nth-child(odd){background-color: #fffff0;}
+tbody > tr:nth-child(odd){background-color: #fffff0;}
 
-#loggers tbody > tr:hover {background-color: #ddd;}
+tbody > tr:hover {background-color: #ddd;}
 
-#loggers thead {
+thead {
     padding-top: 12px;
     padding-bottom: 12px;
     text-align: left;
