@@ -2365,7 +2365,7 @@ uses a special kind of `atom` [3, 4] to determine/track which parts of
 the DOM depend on that __state__. When the `atom` (i.e. "state")
 changes Reagent creates the (new) DOM internally and compares it to
 the current DOM and then decides which parts of the "real" DOM have to
-be re-drawn and then applies only the neccessary minimal changes to
+be _re-drawn_ and then applies only the neccessary minimal changes to
 the "real" DOM.
 
 With Reagent you create the GUI by rendering "components" which are
@@ -2383,13 +2383,14 @@ used in other contexts. In this case the `logges-form` function can be
 used only for this one special use-case. So it is not reusable.
 
 Note that `loggers-form` is contained in the `root` component as a
-function and __not__ called/evaluated to a vector.
+function and __not__ called/evaluated to a vector (that is done be
+Reagent when the component is _mounted_).
 
 Again `(main)` mounts the complete DOM at `id=main`-node.
 
     (defn loggers-form []
       [:div
-       [:table#loggers
+       [:table
         [:thead
          [:tr
           [:th "LOGGER"
@@ -2431,6 +2432,87 @@ Again `(main)` mounts the complete DOM at `id=main`-node.
 Note that in `solo.spa` there is no "re-render the DOM watcher" on
 `app-state` -- Reagent takes care of that. All we need to do is use
 event-handler to cause state-changes of `app-state`.
+
+## Changing system properties with solo.spa.sysprops
+
+While writing all this I realized that `solo.spa` is not a good
+example for building re-usable things for GUI construction with
+Reagent. So I created `solo.spa.sysprops`.
+
+It delivers just one component `sysprops-component`. This
+_component-function_ returns a __function__ which is called "form 2"
+in Reagent. We use this to encapsulate (by a closure) the __state__ of
+this component __in__ the component. This way we do not leak the state
+into the globally visable namespace (like we did it with
+`solo.spa/app-state`).
+
+And just for the fun of it I introduced a _generic_ eval-web-service
+in `solo.web.spa`:
+
+    (defroutes ws-routes
+      (POST "/ws/eval/" req (let [source-string (get-in req [:query-params "eval"])]
+                              {:body (eval-string source-string)}))
+
+With this we can now access _Solo_'s backend system properties from
+`solo.spa.sysprops` without creating a dedicated web-service. This is
+just for trying it out. We should have named functions in _Solo_'s
+backend for things like this (testing, documentation).
+
+    (defn eval-in-backend [source-string]
+      (go
+       (let [response (<! (http/post "ws/eval/" {:query-params {:eval source-string}}))
+             result (:body response)]
+         result)))
+    
+    (defn get-properties []
+      (go (->>
+           (<! (eval-in-backend "(System/getProperties)"))
+           first
+           (map (fn [[k v] ]
+                  [(if (keyword? k) (name k) k) v]))
+           (sort-by first))))
+    
+    (defn set-property [name value]
+      (go (<! (eval-in-backend (str "(System/setProperty " (pr-str name) " " (pr-str value) ")")))))
+    
+    (defn clear-property [name]
+      (go (<! (eval-in-backend (str "(System/clearProperty " (pr-str name) ")")))))
+
+So now we have two "pages" in our app and we have to "navigate". For
+now we're using a very simple navigation bar (just two buttons).
+
+    (defn current-page []
+      (condp = (:current-page @app-state :log4j)
+        :log4j [:span
+                  [set-log-level-form]
+                  [loggers-form]]
+        :sysprops [sysprops/sysprops-component]
+        [:span (str "Unknown page : " [:current-page @app-state])]))
+    
+    (defn navigate-to [p]
+      (swap! app-state assoc :current-page p))
+             
+    (defn navigation-widget []
+      [:span {:style {:float "right"}}
+       [:input {:type "submit"
+                :value "log4j log-level"
+                :on-click #(navigate-to :log4j)}]
+       [:input {:type "submit"
+                :value "system properties"
+                :on-click #(navigate-to :sysprops)}]])
+    
+And include that in the "main app":
+
+    (defn main []
+      (let [root (fn [_]
+                   [:div#main
+                    [top-of-page]
+                    [current-page]])]
+    
+        (r/render-component [root]
+                            (js/document.getElementById "main"))
+        
+        (load-current-loggers)))
 
 ## Development with Devcards
 
