@@ -1434,14 +1434,14 @@ figwheel.client.start.call(null,config);
 <h1><a href="#step-eleven-react-reagent" name="step-eleven-react-reagent"></a>Step Eleven: React, Reagent</h1>
 <hr />
 <h2><a href="#updating-just-what-has-to-be-updated" name="updating-just-what-has-to-be-updated"></a>Updating just what has to be updated</h2>
-<p>Reagent [1] is a ClojureScript wrapper around Facebook’s React [2]. It uses a special kind of <code>atom</code> [3, 4] to determine/track which parts of the DOM depend on that <strong>state</strong>. When the <code>atom</code> (i.e. “state”) changes Reagent creates the (new) DOM internally and compares it to the current DOM and then decides which parts of the “real” DOM have to be re-drawn and then applies only the neccessary minimal changes to the “real” DOM.</p>
+<p>Reagent [1] is a ClojureScript wrapper around Facebook’s React [2]. It uses a special kind of <code>atom</code> [3, 4] to determine/track which parts of the DOM depend on that <strong>state</strong>. When the <code>atom</code> (i.e. “state”) changes Reagent creates the (new) DOM internally and compares it to the current DOM and then decides which parts of the “real” DOM have to be <em>re-drawn</em> and then applies only the neccessary minimal changes to the “real” DOM.</p>
 <p>With Reagent you create the GUI by rendering “components” which are just functions that return a Hiccup-like nested-vector. With Hiccup we gave the vectors to Hiccup. With Reagent we give functions and vectors with functions to Reagent. Reagent needs to call the functions when traversing the nested-vector structure since it has to find out at which point in the nested structure the <code>atom</code> is de-referenced. Only so can it closely relate the vector-structure to the resulting DOM.</p>
 <p>For reference here is the <code>main</code> function and the <code>loggers-form</code>-component. In Reagent these functions are called <em>components</em> because they should be <strong>reusable</strong> things that can be used in other contexts. In this case the <code>logges-form</code> function can be used only for this one special use-case. So it is not reusable.</p>
-<p>Note that <code>loggers-form</code> is contained in the <code>root</code> component as a function and <strong>not</strong> called/evaluated to a vector.</p>
+<p>Note that <code>loggers-form</code> is contained in the <code>root</code> component as a function and <strong>not</strong> called/evaluated to a vector (that is done be Reagent when the component is <em>mounted</em>).</p>
 <p>Again <code>(main)</code> mounts the complete DOM at <code>id=main</code>-node.</p>
 <pre><code>(defn loggers-form []
   [:div
-   [:table#loggers
+   [:table
     [:thead
      [:tr
       [:th "LOGGER"
@@ -1481,6 +1481,68 @@ figwheel.client.start.call(null,config);
 (main)
 </code></pre>
 <p>Note that in <code>solo.spa</code> there is no “re-render the DOM watcher” on <code>app-state</code> – Reagent takes care of that. All we need to do is use event-handler to cause state-changes of <code>app-state</code>.</p>
+<h2><a href="#changing-system-properties-with-solo-spa-sysprops" name="changing-system-properties-with-solo-spa-sysprops"></a>Changing system properties with solo.spa.sysprops</h2>
+<p>While writing all this I realized that <code>solo.spa</code> is not a good example for building re-usable things for GUI construction with Reagent. So I created <code>solo.spa.sysprops</code>.</p>
+<p>It delivers just one component <code>sysprops-component</code>. This <em>component-function</em> returns a <strong>function</strong> which is called “form 2” in Reagent. We use this to encapsulate (by a closure) the <strong>state</strong> of this component <strong>in</strong> the component. This way we do not leak the state into the globally visable namespace (like we did it with <code>solo.spa/app-state</code>).</p>
+<p>And just for the fun of it I introduced a <em>generic</em> eval-web-service in <code>solo.web.spa</code>:</p>
+<pre><code>(defroutes ws-routes
+  (POST "/ws/eval/" req (let [source-string (get-in req [:query-params "eval"])]
+                          {:body (eval-string source-string)}))
+</code></pre>
+<p>With this we can now access <em>Solo</em>’s backend system properties from <code>solo.spa.sysprops</code> without creating a dedicated web-service. This is just for trying it out. We should have named functions in <em>Solo</em>’s backend for things like this (testing, documentation).</p>
+<pre><code>(defn eval-in-backend [source-string]
+  (go
+   (let [response (&lt;! (http/post "ws/eval/" {:query-params {:eval source-string}}))
+         result (:body response)]
+     result)))
+
+(defn get-properties []
+  (go (-&gt;&gt;
+       (&lt;! (eval-in-backend "(System/getProperties)"))
+       first
+       (map (fn [[k v] ]
+              [(if (keyword? k) (name k) k) v]))
+       (sort-by first))))
+
+(defn set-property [name value]
+  (go (&lt;! (eval-in-backend (str "(System/setProperty " (pr-str name) " " (pr-str value) ")")))))
+
+(defn clear-property [name]
+  (go (&lt;! (eval-in-backend (str "(System/clearProperty " (pr-str name) ")")))))
+</code></pre>
+<p>So now we have two “pages” in our app and we have to “navigate”. For now we’re using a very simple navigation bar (just two buttons).</p>
+<pre><code>(defn current-page []
+  (condp = (:current-page @app-state :log4j)
+    :log4j [:span
+              [set-log-level-form]
+              [loggers-form]]
+    :sysprops [sysprops/sysprops-component]
+    [:span (str "Unknown page : " [:current-page @app-state])]))
+
+(defn navigate-to [p]
+  (swap! app-state assoc :current-page p))
+
+(defn navigation-widget []
+  [:span {:style {:float "right"}}
+   [:input {:type "submit"
+            :value "log4j log-level"
+            :on-click #(navigate-to :log4j)}]
+   [:input {:type "submit"
+            :value "system properties"
+            :on-click #(navigate-to :sysprops)}]])
+</code></pre>
+<p>And include that in the “main app”:</p>
+<pre><code>(defn main []
+  (let [root (fn [_]
+               [:div#main
+                [top-of-page]
+                [current-page]])]
+
+    (r/render-component [root]
+                        (js/document.getElementById "main"))
+
+    (load-current-loggers)))
+</code></pre>
 <h2><a href="#development-with-devcards" name="development-with-devcards"></a>Development with Devcards</h2>
 <p><strong>TBD</strong></p>
 <p>[1] <a href="http://reagent-project.github.io/">http://reagent-project.github.io/</a><br />[2] <a href="https://reactjs.org/">https://reactjs.org/</a><br />[3] <a href="https://clojure.org/reference/atoms">https://clojure.org/reference/atoms</a><br />[4] <a href="http://reagent-project.github.io/docs/master/reagent.core.html#var-atom">http://reagent-project.github.io/docs/master/reagent.core.html#var-atom</a><br />[5] <a href="https://github.com/bhauman/devcards">https://github.com/bhauman/devcards</a> </p>

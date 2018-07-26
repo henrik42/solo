@@ -3024,7 +3024,27 @@ net.brehaut.ClojureTools = (function (SH) {
   [logger level]
   #_ {:post [(or (.println System/out (format &quot;(set-log-level! %s %s) --&gt; %s&quot; logger level %)) true)]}
   (web/set-log-level! logger level)
-  {:body {}})</pre></td></tr><tr><td class="docs"><h6>############# view ####################</h6>
+  {:body {}})</pre></td></tr><tr><td class="docs"><p>Eagerly parses <code>eval-string</code> one form at a time and <code>eval</code>'s each
+  form. If <code>eval</code> throws <code>eval-string</code> will throw
+  <code>RuntimeException</code>. Returns non-lazy seq of <code>eval</code> results.</p>
+
+<p>  Example: <code>(eval-string "(+ 1 2) 42") ;; --&gt; (3 42)</code></p>
+</td><td class="codes"><pre class="brush: clojure">(defn eval-string
+  [source-string]
+  (try 
+    (let [eof 'eof
+          rdr (java.io.PushbackReader. (java.io.StringReader. source-string))]
+      (doall
+       (for [f (repeatedly #(read {:eof eof} rdr))
+             :while (not (identical? eof f))]
+         (try
+           (eval f)
+           (catch Throwable t
+             (throw (RuntimeException.
+                     (format &quot;eval-string failed for form '%s': %s&quot; (pr-str f) t))))))))
+    (catch Throwable t
+      (throw (RuntimeException.
+              (format &quot;eval-string for '%s' failed: %s&quot; (pr-str source-string) t))))))</pre></td></tr><tr><td class="docs"><h6>############# view ####################</h6>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Returns the HTML markup for the SPA.</p>
 
 <p>  The markup contains a <code>script</code> element that makes the browser load
@@ -3057,8 +3077,15 @@ the URL. Try</p>
 
 <pre><code>curl -X POST http://localhost:3000/ws/set-log-level/foo/info
 </code></pre></li>
+<li><p><code>POST /ws/eval/</code>: evals <code>eval</code> query param and returns seq of eval
+results.</p>
+
+<pre><code>curl -X POST http://localhost:3000/ws/eval/?eval='(System/getProperties)'
+</code></pre></li>
 </ul>
 </td><td class="codes"><pre class="brush: clojure">(defroutes ws-routes
+  (POST &quot;/ws/eval/&quot; req (let [source-string (get-in req [:query-params &quot;eval&quot;])]
+                          {:body (eval-string source-string)}))
   (GET  &quot;/ws/get-current-loggers&quot; _ (get-current-loggers))
   (POST &quot;/ws/set-log-level/:logger/:level&quot; [logger level] (set-log-level! logger level)))</pre></td></tr><tr><td class="docs"><p>The Ring-handler for all the routes that <em>Solo</em> supports:</p>
 
@@ -3149,7 +3176,8 @@ backend/log4j.</p></li>
    [&quot;-j&quot; &quot;--jetty [&lt;host&gt;:]&lt;port&gt;&quot; &quot;start Jetty server on &lt;host&gt;:&lt;port&gt;&quot;
     :parse-fn #(parse-host:port %)]
    [&quot;-s&quot; &quot;--swank [&lt;host&gt;:]&lt;port&gt;&quot; &quot;start Swank server on &lt;host&gt;:&lt;port&gt;&quot;
-    :parse-fn #(parse-host:port %)]])</pre></td></tr><tr><td class="docs"><p>Prints usage info and <code>(System/exit 1)</code> exits the JVM.</p>
+    :parse-fn #(parse-host:port %)]
+   [&quot;-i&quot; &quot;--interactive-repl&quot; &quot;run a local/interactive REPL&quot;]])</pre></td></tr><tr><td class="docs"><p>Prints usage info and <code>(System/exit 1)</code> exits the JVM.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn usage
   [msg summary]
   (.println System/out (format &quot;USAGE: [options]\n%s\n%s&quot; msg summary))
@@ -3158,7 +3186,8 @@ backend/log4j.</p></li>
 
 <p>  CLI options:</p>
 
-<pre><code>  -r, --remote-core [&lt;host&gt;:]&lt;port&gt;  intercept/delegate calls to solo.core to remote nREPL server)
+<pre><code>  -i, --interactive-repl             run a local/interactive REPL
+  -r, --remote-core [&lt;host&gt;:]&lt;port&gt;  intercept/delegate calls to solo.core to remote nREPL server)
   -n, --nrepl [&lt;host&gt;:]&lt;port&gt;        start nREPL server on &lt;host&gt;:&lt;port&gt; (&lt;host&gt; defaults to "0.0.0.0")
   -j, --jetty [&lt;host&gt;:]&lt;port&gt;        start Jetty server on &lt;host&gt;:&lt;port&gt;
   -s, --swank [&lt;host&gt;:]&lt;port&gt;        start Swank server on &lt;host&gt;:&lt;port&gt;
@@ -3167,7 +3196,7 @@ backend/log4j.</p></li>
   [&amp; args]
   (let [{:keys [errors options arguments summary] :as opt} (parse-opts args cli-options)
         _ (when errors (usage errors summary))
-        {:keys [remote-core nrepl jetty swank]} options
+        {:keys [interactive-repl remote-core nrepl jetty swank]} options
         {jetty-port :port jetty-host :host :or {jetty-host &quot;0.0.0.0&quot;}} jetty
         _ (when-not jetty-port (usage &quot;Invalid Jetty option&quot; summary))
         {nrepl-port :port nrepl-host :host :or {nrepl-host &quot;0.0.0.0&quot;}} nrepl
@@ -3188,7 +3217,9 @@ backend/log4j.</p></li>
     (when nrepl-port (nrepl/start-server :port nrepl-port :host nrepl-host))
     (when swank-port (swank/start-server :port swank-port :host swank-host))
     (jetty/start-server :port jetty-port :host jetty-host)
-    (.println System/out &quot;CTRL-C to quit...&quot;)))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#solo.jetty" name="solo.jetty"><h1 class="project-name">solo.jetty</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Functions around Jetty.</p>
+    (if interactive-repl
+      (clojure.main/repl)
+      (.println System/out &quot;CTRL-C to quit...&quot;))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#solo.jetty" name="solo.jetty"><h1 class="project-name">solo.jetty</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Functions around Jetty.</p>
 </td><td class="codes"><pre class="brush: clojure">(ns solo.jetty
   (require [ring.adapter.jetty :as jetty]
            [solo.web.spa :as web]))</pre></td></tr><tr><td class="docs"><p>Starts a Jetty server on given port/host serving

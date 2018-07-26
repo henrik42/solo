@@ -4,7 +4,8 @@
 <p>Use it for testing when you don’t need the host-application that you’re usually targeting with <em>Solo</em> (note that you’ll have to supply log4j JAR which usually comes with the host-application).</p>
 <p>The second use-case is connecting to a remote <em>Solo</em> via nREPL and delegating/routing calls to <code>solo.core</code> to the remote site. The remote site can be a <em>Solo</em> <em>module</em> (possibly running in a JEE app-server) that runs the nREPL server but does not supply a web-interface by itself.</p></div></div><div class="public anchor" id="var--main"><h3>-main</h3><div class="usage"><code>(-main &amp; args)</code></div><div class="doc"><div class="markdown"><p>Starts a Jetty server (and optionally nREPL &amp; Swank) with <code>solo.web.spa/app</code>.</p>
 <p>CLI options:</p>
-<pre><code>-r, --remote-core [&lt;host&gt;:]&lt;port&gt;  intercept/delegate calls to solo.core to remote nREPL server)
+<pre><code>-i, --interactive-repl             run a local/interactive REPL
+-r, --remote-core [&lt;host&gt;:]&lt;port&gt;  intercept/delegate calls to solo.core to remote nREPL server)
 -n, --nrepl [&lt;host&gt;:]&lt;port&gt;        start nREPL server on &lt;host&gt;:&lt;port&gt; (&lt;host&gt; defaults to "0.0.0.0")
 -j, --jetty [&lt;host&gt;:]&lt;port&gt;        start Jetty server on &lt;host&gt;:&lt;port&gt;
 -s, --swank [&lt;host&gt;:]&lt;port&gt;        start Swank server on &lt;host&gt;:&lt;port&gt;
