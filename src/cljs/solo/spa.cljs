@@ -9,6 +9,7 @@
   (:require [cljs.core.async :refer [<!]]
             [reagent.core :as r]
             [cljs-http.client :as http]
+            [fokus.fokus :as fokus]
             [solo.spa.sysprops :as sysprops]))
 
 (declare main)
@@ -278,7 +279,9 @@
     :log4j [:span
               [set-log-level-form]
               [loggers-form]]
-    :sysprops [sysprops/sysprops-component]
+    :sysprops #_ [sysprops/sysprops-component]
+    #_ [fokus/autofocus-test]
+    [fokus/set-focus-test]
     [:span (str "Unknown page : " [:current-page @app-state])]))
 
 (defn navigate-to [p]

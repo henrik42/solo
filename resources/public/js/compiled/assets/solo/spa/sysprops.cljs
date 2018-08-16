@@ -7,11 +7,6 @@
 ;; ----------------------------------------------------------------------
 ;; TBD: refactor into separate namespace
 
-(def initial-focus
-  (with-meta identity
-    {:component-did-mount
-     #(.focus (r/dom-node %))}))
-
 (defn eval-in-backend
   "Asynchronuously evaluates `source-string` in the backend JVM via
   web-service `POST ws/eval/` (see `solo.spa/eval-string`)."
@@ -61,6 +56,57 @@
   (go (<! (eval-in-backend (str "(System/clearProperty " (pr-str name) ")")))))
 
 ;; ----------------------------------------------------------------------
+;; Focus handling
+;; ----------------------------------------------------------------------
+
+(def !focus-targets
+  (let [s (atom {})]
+    s))
+
+(def !focus
+  (let [s (atom nil)]
+    (add-watch s :foo
+               #(println (str "*** focus changed to " @s)))
+    s))
+
+(defn apply-focus []
+  (when-let [c (get @!focus-targets @!focus)]
+    (println (str "*** apply-focus " @!focus " to " c))
+    #_ (.focus (r/dom-node c))
+    (.focus c)
+    #_ (reset! !focus nil)))
+
+(defn with-focus [target]
+  
+  ;; Diese Funktion wird nur einmal aufgerufen, falls man sie im let
+  ;; Block aufruft, aber ständig, falls man sie IN der Komponente
+  ;; definiert.
+  (println (str "*** with-focus " target " called"))
+  (with-meta
+    
+    ;; Diese Funktion wird ständig von Reagent aufgerufen, wohl um den
+    ;; virtual DOM zu erstellen.
+    (fn [& xs]
+      (println (str "*** with-focus COMPONENT " target " called"))
+      (into [] xs))
+    
+    {:component-did-mount
+     ;; Diese Funktion wird auch immer wieder aufgerufen, falls man
+     ;; (with-focus) innerhalb der Komponente aufruft. Denn in dem
+     ;; Fall ändert sich scheinbar der virtual DOM für
+     ;; React. Ansonsten nur, wenn sich etwas ändert.
+     (fn [this]
+       (println (str "*** :component-did-mount " target " called : " this))
+       #_ (swap! !focus-targets assoc target this)
+       (swap! !focus-targets assoc target (r/dom-node this))
+       (apply-focus))}))
+
+(defn set-focus! [target]
+  (println (str "*** set-focus! " target " called"))
+  (reset! !focus target)
+  (apply-focus))
+
+;; ----------------------------------------------------------------------
 
 (defn sysprops-component
   "Self-contained Reagent component for accessing the system
@@ -86,7 +132,11 @@
   :new-property         : if non-nil in 'adding' mode. Will carry new property name."
   
   []
-  (let [;; THE STATE
+  (let [with-focus-add (with-focus :add)
+        with-focus-property-name (with-focus :property-name)
+        with-focus-property-value (with-focus :property-value)
+        
+        ;; THE STATE
         state (let [s (r/atom nil)]
                 ;;(add-watch s :foo (fn [& _] (println (str "sysprops-component/state : " @s))))
                 s)
@@ -99,6 +149,7 @@
     ;; component is mounted/drawn or it is set after the component is
     ;; mounted and then it will be re-drawn by Reagent.
     (update-state!)
+    (set-focus! :add)
     
     (fn [_]
       [:table
@@ -114,21 +165,25 @@
 
           [:span {:style {:float "right"}}
            
-           [initial-focus
-            [:input {:type "submit"
-                     :value "RELOAD"
-                     ;; RELOAD will cancle any editing activity
-                     :on-click #(do
-                                  (swap! state dissoc :mode)
-                                  (update-state!))}]]
-
            [:input {:type "submit"
+                    :value "RELOAD"
+                    ;; RELOAD will cancle any editing activity
+                    :on-click #(do
+                                 (swap! state dissoc :mode)
+                                 (update-state!))}]
+
+           [#_ ;; don't do this!
+            (with-focus :add)
+            with-focus-add
+            
+            :input {:type "submit"
                     :value "ADD"
                     :on-click #(do
                                  ;; set up model for entering a new
                                  ;; property (name/value). Will
                                  ;; "insert" a new (first) row into the
                                  ;; table.
+                                 (set-focus! :property-name)
                                  (swap! state assoc :mode :create)
                                  (swap! state assoc :property-name "")
                                  (swap! state assoc :property-value ""))}]]
@@ -179,12 +234,11 @@
             [:td ;; PROPERTY column
              
              (if create-flag
-               [:span #_ initial-focus
-                [:input {:type "text"
-                         :placeholder "new property name"
-                         :style {:float "left"}
-                         :on-change #(do
-                                       (swap! state assoc :property-name (-> % .-target .-value)))}]]
+               [with-focus-property-name
+                :input {:type "text"
+                        :placeholder "new property name"
+                        :style {:float "left"}
+                        :on-change #(swap! state assoc :property-name (-> % .-target .-value))}]
                name)
 
              ;; don't show REMOVE in :create line 1
@@ -198,7 +252,8 @@
                         ;; NOTE! you **must** use `go` or else
                         ;; `(update-state!)` may run before system
                         ;; properties have been changed (race!).
-                        #(go 
+                        #(go
+                          (set-focus! :add)
                           (<! (clear-property name))
                           (<! (update-state!)))}])]
            
@@ -221,6 +276,7 @@
                                      ;; pre-set :value for case "OK
                                      ;; without entering/leaving
                                      ;; textarea"
+                                     (set-focus! :property-value)
                                      (swap! state assoc :property-value value)
                                      (swap! state assoc :property-name name)
                                      (swap! state assoc :mode :update))}])
@@ -239,10 +295,10 @@
                 ;; (:property-value @state) and use that for calling
                 ;; set-property. Note that we are not using any DOM
                 ;; lookup by id!
-                [:span #_ initial-focus
-                 [:textarea {:default-value value
-                             :style {:float "left"}
-                             :on-change #(swap! state assoc :property-value (-> % .-target .-value))}]]
+                [with-focus-property-value
+                 :textarea {:default-value value
+                            :style {:float "left"}
+                            :on-change #(swap! state assoc :property-value (-> % .-target .-value))}]
 
                 ;; TBD: would be nice if short values were entered into
                 ;; a text-field and long values in a textarea.
@@ -253,13 +309,17 @@
 
                 [:input {:type "submit"
                          :value "OK"
-                         :on-click #(go (<! (set-property (:property-name @state) (:property-value @state)))
-                                        (<! (update-state!))
-                                        (swap! state dissoc :mode))}]
+                         :on-click #(go
+                                     (set-focus! :add)
+                                     (<! (set-property (:property-name @state) (:property-value @state)))
+                                     (<! (update-state!))
+                                     (swap! state dissoc :mode))}]
                
                 [:input {:type "submit"
                          :value "CANCLE"
-                         :on-click #(swap! state dissoc :mode)}]]
+                         :on-click #(do
+                                      (set-focus! :add)
+                                      (swap! state dissoc :mode))}]]
               
                ;; else show just the value
                value)]]))]])))

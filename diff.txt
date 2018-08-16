@@ -1,0 +1,178 @@
+diff --git a/src/cljs/solo/spa/sysprops.cljs b/src/cljs/solo/spa/sysprops.cljs
+index e8ab80e..e4ccae2 100644
+--- a/src/cljs/solo/spa/sysprops.cljs
++++ b/src/cljs/solo/spa/sysprops.cljs
+@@ -7,11 +7,6 @@
+ ;; ----------------------------------------------------------------------
+ ;; TBD: refactor into separate namespace
+ 
+-(def initial-focus
+-  (with-meta identity
+-    {:component-did-mount
+-     #(.focus (r/dom-node %))}))
+-
+ (defn eval-in-backend
+   "Asynchronuously evaluates `source-string` in the backend JVM via
+   web-service `POST ws/eval/` (see `solo.spa/eval-string`)."
+@@ -62,6 +57,72 @@
+ 
+ ;; ----------------------------------------------------------------------
+ 
++(defn focus-which [state]
++  (let [mode (:mode @state)]
++    ;;(println (str "mode = " mode "  state = " (dissoc @state :data)))
++    (condp = mode
++     nil :reload
++     :create :property-name
++     :update :property-value)))
++
++(defn with-focus [f k]
++  (with-meta (fn [& xs] (into [] xs))
++    {:component-did-mount #(reset! f {k (r/dom-node %)})}))
++
++
++;; Es gibt zwei Situationen, in denen man .focus aufrufen muss:
++;;
++;; (1) der Focus wird gerade auf ein Feld gesetzt und es wurde der
++;; Focus bisher nicht schon auf das Feld gesetzt. Achtung: der Fokus
++;; wird durch den Watcher ständig immer wieder gesetzt. Dadurch
++;; erreicht man, dass der Fokus immer nur einmal auf ein Feld gesetzt
++;; wird und nicht immer wieder. Man muss sich also merken, DASS der
++;; Focus schon auf das Feld gesetzt wurde.
++;;
++;; (2) Ein DOM-Knoten wird registriert und der Fokus soll auf diesem
++;; Feld gesetzt werden und wurde noch nicht gesetzt.
++;;
++;; Problem: falls mehrfach Fall (2) eintritt. Jedesmal, wenn ein
++;; DOM-Knoten registriert wird und es sich um den Focus handelt, muss
++;; .focus aufgerufen werden und der DOM muss gemerkt werden.
++;;
++;; Problem: wenn man das Feld verlässt, auf dem der Fokus liegt und
++;; das Feld neu gemountet wird, dann wird der Fokus wieder auf das
++;; Feld gelegt! Man ...
++
++(defn make-focus []
++  (let [nodes (atom {})
++        latest (atom nil)
++        f (atom nil)
++        set-focus (fn [x]
++                    (println (str "setting focus to " x  " latest = " @latest))
++                    (when x
++                      (let [[kw nd] @latest
++                            [kw nd] (when (or (not= kw x) (nil? nd)) [x (x @nodes)])]
++                        (println (str "SETTING kw/nd " [kw nd]))
++                        (when kw 
++                          (reset! latest [kw nd])
++                          (when nd (.focus nd))))))]
++    (add-watch f :_ #(if (keyword? @f)
++                       (set-focus @f)
++                       (let [[kw nd] @latest
++                             [nkw nnd] (-> @f seq first)]
++                         (swap! nodes merge @f)
++                         (when (= kw nkw)
++                           (println (str "SETTING nkw/nnd " [nkw nnd]))
++                           (reset! latest [nkw nnd])
++                           (.focus nnd)))))
++    f))
++
++(defn reload-button [state update-state! focus]
++  [(with-focus focus :reload)
++   :input {:type "submit"
++           :value "RELOAD!"
++           ;; RELOAD will cancle any editing activity
++           :on-click #(do
++                        (swap! state dissoc :mode)
++                        (update-state!))}])
++
+ (defn sysprops-component
+   "Self-contained Reagent component for accessing the system
+   properties in a JVM backend.
+@@ -86,11 +147,16 @@
+   :new-property         : if non-nil in 'adding' mode. Will carry new property name."
+   
+   []
+-  (let [;; THE STATE
++  (let [focus (make-focus)
++        
++        ;; THE STATE
+         state (let [s (r/atom nil)]
+-                ;;(add-watch s :foo (fn [& _] (println (str "sysprops-component/state : " @s))))
++                (add-watch s :_ #(reset! focus (focus-which s)))
+                 s)
+ 
++        c nil #_ (let [e (r/cursor state [:mode])]
++            (add-watch e :_ #(reset! focus (focus-which state))))
++            
+         ;; asynchronuously queries the current system properties from
+         ;; the JVM backend and sets the state.
+         update-state! #(go (swap! state assoc :data (<! (get-properties))))]
+@@ -113,14 +179,8 @@
+          [:th "PROPERTY"
+ 
+           [:span {:style {:float "right"}}
+-           
+-           [initial-focus
+-            [:input {:type "submit"
+-                     :value "RELOAD"
+-                     ;; RELOAD will cancle any editing activity
+-                     :on-click #(do
+-                                  (swap! state dissoc :mode)
+-                                  (update-state!))}]]
++
++           [reload-button state update-state! focus]
+ 
+            [:input {:type "submit"
+                     :value "ADD"
+@@ -134,11 +194,11 @@
+                                  (swap! state assoc :property-value ""))}]]
+ 
+           [:div>input {:type "text"
+-                   :placeholder "re-find-filter name"
+-                   :style {:float "left"}
+-                   :on-change
+-                   #(swap! state assoc :filter-names-reg-ex
+-                           (-> % .-target .-value))}]]
++                       :placeholder "re-find-filter name"
++                       :style {:float "left"}
++                       :on-change
++                       #(swap! state assoc :filter-names-reg-ex
++                               (-> % .-target .-value))}]]
+          
+          ;; Properties can be re-find-filtered by their value
+          [:th "VALUE"
+@@ -179,12 +239,13 @@
+             [:td ;; PROPERTY column
+              
+              (if create-flag
+-               [:span #_ initial-focus
+-                [:input {:type "text"
+-                         :placeholder "new property name"
+-                         :style {:float "left"}
+-                         :on-change #(do
+-                                       (swap! state assoc :property-name (-> % .-target .-value)))}]]
++               [(with-focus focus :property-name)
++                :input {:type "text"
++                        :placeholder "new property name"
++                        :default-value (:property-name @state)
++                        :style {:float "left"}
++                        :on-blur #(do
++                                    (swap! state assoc :property-name (-> % .-target .-value)))}]
+                name)
+ 
+              ;; don't show REMOVE in :create line 1
+@@ -239,10 +300,11 @@
+                 ;; (:property-value @state) and use that for calling
+                 ;; set-property. Note that we are not using any DOM
+                 ;; lookup by id!
+-                [:span #_ initial-focus
+-                 [:textarea {:default-value value
+-                             :style {:float "left"}
+-                             :on-change #(swap! state assoc :property-value (-> % .-target .-value))}]]
++                [(with-focus focus :property-value)
++                 :textarea {:default-value value
++                            ;;:autofocus "autofocus"
++                            :style {:float "left"}
++                            :on-change #(swap! state assoc :property-value (-> % .-target .-value))}]
+ 
+                 ;; TBD: would be nice if short values were entered into
+                 ;; a text-field and long values in a textarea.
