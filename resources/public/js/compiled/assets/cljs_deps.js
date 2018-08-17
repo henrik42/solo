@@ -46,5 +46,6 @@ goog.addDependency("../cljs/core/async/impl/timers.js", ['cljs.core.async.impl.t
 goog.addDependency("../cljs/core/async.js", ['cljs.core.async'], ['cljs.core.async.impl.channels', 'cljs.core.async.impl.dispatch', 'cljs.core', 'cljs.core.async.impl.buffers', 'cljs.core.async.impl.protocols', 'cljs.core.async.impl.ioc_helpers', 'cljs.core.async.impl.timers']);
 goog.addDependency("../cljs_http/core.js", ['cljs_http.core'], ['goog.net.Jsonp', 'goog.net.XhrIo', 'cljs.core', 'cljs_http.util', 'cljs.core.async', 'goog.net.EventType', 'clojure.string', 'goog.net.ErrorCode']);
 goog.addDependency("../cljs_http/client.js", ['cljs_http.client'], ['cljs_http.core', 'no.en.core', 'goog.Uri', 'cljs.core', 'cljs_http.util', 'cljs.core.async', 'clojure.string', 'cljs.reader']);
-goog.addDependency("../solo/spa/sysprops.js", ['solo.spa.sysprops'], ['reagent.core', 'cljs.core', 'cljs_http.client', 'cljs.core.async']);
+goog.addDependency("../solo/spa/focus.js", ['solo.spa.focus'], ['reagent.core', 'cljs.core']);
+goog.addDependency("../solo/spa/sysprops.js", ['solo.spa.sysprops'], ['reagent.core', 'cljs.core', 'cljs_http.client', 'solo.spa.focus', 'cljs.core.async']);
 goog.addDependency("../solo/spa.js", ['solo.spa'], ['solo.spa.sysprops', 'reagent.core', 'cljs.core', 'cljs_http.client', 'cljs.core.async']);

@@ -2,6 +2,7 @@
   (:require-macros [cljs.core.async.macros :refer [go]])
   (:require [cljs.core.async :refer [<!]]
             [reagent.core :as r]
+            [solo.spa.focus :as focus]
             [cljs-http.client :as http]))
 
 ;; ----------------------------------------------------------------------
@@ -33,7 +34,7 @@
 
 (defn get-properties
   "Returns the system properties of the JVM backend as a `[name
-  value]`-seq (both strings)."
+  value]`-seq (both strings) ordered on `name`."
 
   []
   (go (->>
@@ -56,56 +57,7 @@
   (go (<! (eval-in-backend (str "(System/clearProperty " (pr-str name) ")")))))
 
 ;; ----------------------------------------------------------------------
-;; Focus handling
-;; ----------------------------------------------------------------------
-
-(def !focus-targets
-  (let [s (atom {})]
-    s))
-
-(def !focus
-  (let [s (atom nil)]
-    (add-watch s :foo
-               #(println (str "*** focus changed to " @s)))
-    s))
-
-(defn apply-focus []
-  (when-let [c (get @!focus-targets @!focus)]
-    (println (str "*** apply-focus " @!focus " to " c))
-    #_ (.focus (r/dom-node c))
-    (.focus c)
-    #_ (reset! !focus nil)))
-
-(defn with-focus [target]
-  
-  ;; Diese Funktion wird nur einmal aufgerufen, falls man sie im let
-  ;; Block aufruft, aber ständig, falls man sie IN der Komponente
-  ;; definiert.
-  (println (str "*** with-focus " target " called"))
-  (with-meta
-    
-    ;; Diese Funktion wird ständig von Reagent aufgerufen, wohl um den
-    ;; virtual DOM zu erstellen.
-    (fn [& xs]
-      (println (str "*** with-focus COMPONENT " target " called"))
-      (into [] xs))
-    
-    {:component-did-mount
-     ;; Diese Funktion wird auch immer wieder aufgerufen, falls man
-     ;; (with-focus) innerhalb der Komponente aufruft. Denn in dem
-     ;; Fall ändert sich scheinbar der virtual DOM für
-     ;; React. Ansonsten nur, wenn sich etwas ändert.
-     (fn [this]
-       (println (str "*** :component-did-mount " target " called : " this))
-       #_ (swap! !focus-targets assoc target this)
-       (swap! !focus-targets assoc target (r/dom-node this))
-       (apply-focus))}))
-
-(defn set-focus! [target]
-  (println (str "*** set-focus! " target " called"))
-  (reset! !focus target)
-  (apply-focus))
-
+;; main 
 ;; ----------------------------------------------------------------------
 
 (defn sysprops-component
@@ -113,30 +65,29 @@
   properties in a JVM backend.
 
   The component displays a table with rows (name and value), it
-  supports re-find-filtering rows by name and value, clearing and
-  changing existing properties and entering new properties.
+  supports re-find-filtering rows by name and value, removing and
+  changing existing properties and entering new properties (if you
+  enter an existing property name the current value will be
+  changed. So it behaves like 'changing an existing property' -- no
+  error/warning etc. is given to the user). The component puts focus
+  on sensible HTML elements so that it can be controled via keyboard
+  easily.
 
-  The component carries its own state with:
+  The component carries its own state (map) with:
 
   :data                 : sorted/ordered [name value]-seq of system properties
   :filter-names-reg-ex  : reg-ex-string for filtering rows by name
   :filter-values-reg-ex : reg-ex-string for filtering rows by value
   :selected-name        : mouse-over _selects_ a row and sets :selected-name to the row's name/key!
   :mode                 : :create : enter a property name and value; :update : change a property's value
-  :property-name        : for :create/:update
-  :property-value       : for :create/:update
-  
-  :editing              : property name when `EDIT` was clicked
-
-  :value                : property value that is entered when `editing` and 'adding'
-  :new-property         : if non-nil in 'adding' mode. Will carry new property name."
+  :property-name        : property name of row for :create/:update
+  :property-value       : property value of row for :create/:update
+  :mode                 : current editing mode: `nil`     : not edting
+                                                `:create` : adding new property 
+                                                `:update` : changing existing property"
   
   []
-  (let [with-focus-add (with-focus :add)
-        with-focus-property-name (with-focus :property-name)
-        with-focus-property-value (with-focus :property-value)
-        
-        ;; THE STATE
+  (let [;; THE STATE
         state (let [s (r/atom nil)]
                 ;;(add-watch s :foo (fn [& _] (println (str "sysprops-component/state : " @s))))
                 s)
@@ -149,7 +100,7 @@
     ;; component is mounted/drawn or it is set after the component is
     ;; mounted and then it will be re-drawn by Reagent.
     (update-state!)
-    (set-focus! :add)
+    (focus/set-focus ::add)
     
     (fn [_]
       [:table
@@ -172,10 +123,7 @@
                                  (swap! state dissoc :mode)
                                  (update-state!))}]
 
-           [#_ ;; don't do this!
-            (with-focus :add)
-            with-focus-add
-            
+           [(focus/register-focus-target ::add)
             :input {:type "submit"
                     :value "ADD"
                     :on-click #(do
@@ -183,10 +131,11 @@
                                  ;; property (name/value). Will
                                  ;; "insert" a new (first) row into the
                                  ;; table.
-                                 (set-focus! :property-name)
-                                 (swap! state assoc :mode :create)
-                                 (swap! state assoc :property-name "")
-                                 (swap! state assoc :property-value ""))}]]
+                                 (focus/set-focus ::property-name)
+                                 (swap! state assoc
+                                        :mode :create    
+                                        :property-name ""
+                                        :property-value ""))}]]
 
           [:div>input {:type "text"
                    :placeholder "re-find-filter name"
@@ -234,7 +183,7 @@
             [:td ;; PROPERTY column
              
              (if create-flag
-               [with-focus-property-name
+               [(focus/register-focus-target ::property-name)
                 :input {:type "text"
                         :placeholder "new property name"
                         :style {:float "left"}
@@ -253,7 +202,7 @@
                         ;; `(update-state!)` may run before system
                         ;; properties have been changed (race!).
                         #(go
-                          (set-focus! :add)
+                          (focus/set-focus ::add)
                           (<! (clear-property name))
                           (<! (update-state!)))}])]
            
@@ -276,10 +225,11 @@
                                      ;; pre-set :value for case "OK
                                      ;; without entering/leaving
                                      ;; textarea"
-                                     (set-focus! :property-value)
-                                     (swap! state assoc :property-value value)
-                                     (swap! state assoc :property-name name)
-                                     (swap! state assoc :mode :update))}])
+                                     (focus/set-focus ::property-value)
+                                     (swap! state assoc
+                                            :property-value value
+                                            :property-name name
+                                            :mode :update))}])
 
              ;; when in :mode :update or :create show textarea input
              ;; and "OK" and "CANCLE" button
@@ -295,7 +245,7 @@
                 ;; (:property-value @state) and use that for calling
                 ;; set-property. Note that we are not using any DOM
                 ;; lookup by id!
-                [with-focus-property-value
+                [(focus/register-focus-target ::property-value)
                  :textarea {:default-value value
                             :style {:float "left"}
                             :on-change #(swap! state assoc :property-value (-> % .-target .-value))}]
@@ -310,7 +260,7 @@
                 [:input {:type "submit"
                          :value "OK"
                          :on-click #(go
-                                     (set-focus! :add)
+                                     (focus/set-focus ::add)
                                      (<! (set-property (:property-name @state) (:property-value @state)))
                                      (<! (update-state!))
                                      (swap! state dissoc :mode))}]
@@ -318,7 +268,7 @@
                 [:input {:type "submit"
                          :value "CANCLE"
                          :on-click #(do
-                                      (set-focus! :add)
+                                      (focus/set-focus ::add)
                                       (swap! state dissoc :mode))}]]
               
                ;; else show just the value
