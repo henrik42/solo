@@ -65,11 +65,11 @@
             "run-web-jar" ["with-profile" "+make-web-jar" "trampoline" "run"]
 
             ;; run CLJS compiler once
-            "make-spa" ["with-profile" "+spa" "do" ["clean"] ["trampoline" "cljsbuild" "once"]]
+            "make-spa" ["with-profile" "+spa" "do" ["clean"] ["trampoline" "cljsbuild" "once" "dev"]]
 
             ;; run CLJS compiler in incremental mode, compile files as
             ;; soon as they change
-            "make-spa-auto" ["with-profile" "+spa" "do" ["clean"] ["trampoline" "cljsbuild" "auto"]]
+            "make-spa-auto" ["with-profile" "+spa" "do" ["clean"] ["trampoline" "cljsbuild" "auto" "dev"]]
 
             ;; run JVM/Clojure REPL connected to browser REPL via long
             ;; polling from the browser
@@ -86,9 +86,7 @@
             ;; same as "run-figwheel" but runs a second watch/compile
             ;; for src/cljs/solo/devcards.cljs. So you can run the
             ;; Solo app AND use devcards in a second tab.
-            "run-devcards" ["with-profile" "+spa" "trampoline" "do" ["clean"] ["figwheel" "devcards" "dev"]]
-
-            }
+            "run-devcards" ["with-profile" "+spa" "trampoline" "do" ["clean"] ["figwheel" "devcards" "dev"]]}
 
   ;; Ring configuration -- for `lein ring` and `lein make-web-war`
   :ring {:handler solo.web.spa/app
