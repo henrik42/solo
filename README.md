@@ -1100,6 +1100,9 @@ web GUI.
 So after running `lein make-doc` you will usually commit the generated
 files into your git repo.
 
+__TBD:__ create documentation for clojure and clojurescript in one run
+into the same output files.
+
 __Building solo-module.jar__
 
 Now we have to build the JAR, that contains _Solo's_ core logic and
@@ -2516,7 +2519,73 @@ And include that in the "main app":
 
 ## Development with Devcards
 
-__TBD__
+Devcards [5] let's you define _cards_ that hold just one Reagent
+component each. This lets you develop and test your components in
+isolation without the need to build a complete app for this.
+
+To `project.clj` we add a new `:cljsbuild :builds`:
+
+       {:id "devcards"
+        :source-paths ["src/cljs" "test/cljs"]
+        :compiler {:main solo.devcards
+                   :asset-path "js/compiled_devcards/assets"
+                   :output-to "resources/public/js/compiled_devcards/solo-devcards.js"
+                   :output-dir "resources/public/js/compiled_devcards/assets"
+                   :source-map-timestamp true}
+        :figwheel {:devcards true
+                   :websocket-host :js-client-host}}
+
+And a new alias:
+
+    run-devcards" ["with-profile" "+spa" "trampoline" "do" ["clean"] ["figwheel" "devcards" "dev"]]
+
+And a new `:spa :dependencies`:
+
+      [devcards "0.2.5"
+       :exclusions [cljsjs/react
+                    cljsjs/react-dom
+                    org.clojure/clojurescript]]
+
+Now you can run Figwheel with Devcards support with `rlwrap lein run-devcards`.
+
+    [...]
+    Figwheel: Cutting some fruit, just a sec ...
+    Figwheel: Validating the configuration found in project.clj
+    Figwheel: Configuration Valid ;)
+    Figwheel: Starting server at http://0.0.0.0:3448
+    Figwheel: Watching build - dev
+    Figwheel: Cleaning build - dev
+    Compiling build :dev to "resources/public/js/compiled/solo-spa.js" from ["src/cljs"]...
+    Successfully compiled build :dev to "resources/public/js/compiled/solo-spa.js" in 65.029 seconds.
+    Figwheel: Watching build - devcards
+    Figwheel: Cleaning build - devcards
+    Compiling build :devcards to "resources/public/js/compiled_devcards/solo-devcards.js" from ["src/cljs" "test/cljs"]...
+    Successfully compiled build :devcards to "resources/public/js/compiled_devcards/solo-devcards.js" in 69.403 seconds.
+    Figwheel: Starting CSS Watcher for paths  ["resources/public/css"]
+    [...]
+
+Now open `http://localhost:3448/`. This will show you the Devcards
+GUI.
+
+Now you can edit your _cards_ in `test/cljs/solo/devcards.cljs`. Of
+course you can also edit any code you have under `src/cljs/solo/`
+(since Figwheel is watching builds `dev` and `devcards` all changs
+will trigger a compile and a code reload; see above) which you may
+`require` in `test/cljs/solo/devcards.cljs`. So you use the _cards_ as
+micro-integration points and these use the reusable components your
+creating for production.
+
+For `src/cljs/solo/spa/sysprops.cljs` I did not do anything to be able
+to devcards-use it. The component `sysprops-component` has no way of
+passing in _state_. You cannot pass in functions for accessing the
+_model_ -- i.e. the calls to `get-properties`, `set-property` and
+`clear-property` are backed-in. So if you want to be able to
+devcards-test your code you have to provide _hooks_ which you can
+control in your _cards_ and probably in your app.
+
+Note: while you're using Devcards as outlined above you can also use
+_Solo_ SPA with the backend. So you can use Devcards in one browser
+tab and your production app in another.
 
 [1] http://reagent-project.github.io/  
 [2] https://reactjs.org/  

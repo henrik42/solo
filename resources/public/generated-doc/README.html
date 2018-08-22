@@ -692,6 +692,7 @@ Started nREPL server on {:port 7888, :host "0.0.0.0"}.
 <p>We use Marginalia [4] to convert Clojure source into one big HTML with a two-column layout with comments/doc-strings and Clojure code.</p>
 <p>In this case we generate the documenation into <code>resources/public/generated-doc/</code>. So this is at “development time” – <strong>not</strong> <strong>compile-time</strong>. At compile-time we include the generated documentation as <em>static</em> <em>content</em> and package it into the JAR or WAR. Later we will deliver the HTML files to end users via <em>Solo’s</em> web GUI.</p>
 <p>So after running <code>lein make-doc</code> you will usually commit the generated files into your git repo.</p>
+<p><strong>TBD:</strong> create documentation for clojure and clojurescript in one run into the same output files.</p>
 <p><strong>Building solo-module.jar</strong></p>
 <p>Now we have to build the JAR, that contains <em>Solo’s</em> core logic and all the classes that are needed to run <em>Solo’s</em> backend. This is not a web-application. It’s just the backend that we will talk to via nREPL client.</p>
 <pre><code>solo-project$ lein make-module-jar &amp;&amp; \
@@ -1544,7 +1545,48 @@ figwheel.client.start.call(null,config);
     (load-current-loggers)))
 </code></pre>
 <h2><a href="#development-with-devcards" name="development-with-devcards"></a>Development with Devcards</h2>
-<p><strong>TBD</strong></p>
+<p>Devcards [5] let’s you define <em>cards</em> that hold just one Reagent component each. This lets you develop and test your components in isolation without the need to build a complete app for this.</p>
+<p>To <code>project.clj</code> we add a new <code>:cljsbuild :builds</code>:</p>
+<pre><code>   {:id "devcards"
+    :source-paths ["src/cljs" "test/cljs"]
+    :compiler {:main solo.devcards
+               :asset-path "js/compiled_devcards/assets"
+               :output-to "resources/public/js/compiled_devcards/solo-devcards.js"
+               :output-dir "resources/public/js/compiled_devcards/assets"
+               :source-map-timestamp true}
+    :figwheel {:devcards true
+               :websocket-host :js-client-host}}
+</code></pre>
+<p>And a new alias:</p>
+<pre><code>run-devcards" ["with-profile" "+spa" "trampoline" "do" ["clean"] ["figwheel" "devcards" "dev"]]
+</code></pre>
+<p>And a new <code>:spa :dependencies</code>:</p>
+<pre><code>  [devcards "0.2.5"
+   :exclusions [cljsjs/react
+                cljsjs/react-dom
+                org.clojure/clojurescript]]
+</code></pre>
+<p>Now you can run Figwheel with Devcards support with <code>rlwrap lein run-devcards</code>.</p>
+<pre><code>[...]
+Figwheel: Cutting some fruit, just a sec ...
+Figwheel: Validating the configuration found in project.clj
+Figwheel: Configuration Valid ;)
+Figwheel: Starting server at http://0.0.0.0:3448
+Figwheel: Watching build - dev
+Figwheel: Cleaning build - dev
+Compiling build :dev to "resources/public/js/compiled/solo-spa.js" from ["src/cljs"]...
+Successfully compiled build :dev to "resources/public/js/compiled/solo-spa.js" in 65.029 seconds.
+Figwheel: Watching build - devcards
+Figwheel: Cleaning build - devcards
+Compiling build :devcards to "resources/public/js/compiled_devcards/solo-devcards.js" from ["src/cljs" "test/cljs"]...
+Successfully compiled build :devcards to "resources/public/js/compiled_devcards/solo-devcards.js" in 69.403 seconds.
+Figwheel: Starting CSS Watcher for paths  ["resources/public/css"]
+[...]
+</code></pre>
+<p>Now open <code>http://localhost:3448/</code>. This will show you the Devcards GUI.</p>
+<p>Now you can edit your <em>cards</em> in <code>test/cljs/solo/devcards.cljs</code>. Of course you can also edit any code you have under <code>src/cljs/solo/</code> (since Figwheel is watching builds <code>dev</code> and <code>devcards</code> all changs will trigger a compile and a code reload; see above) which you may <code>require</code> in <code>test/cljs/solo/devcards.cljs</code>. So you use the <em>cards</em> as micro-integration points and these use the reusable components your creating for production.</p>
+<p>For <code>src/cljs/solo/spa/sysprops.cljs</code> I did not do anything to be able to devcards-use it. The component <code>sysprops-component</code> has no way of passing in <em>state</em>. You cannot pass in functions for accessing the <em>model</em> – i.e. the calls to <code>get-properties</code>, <code>set-property</code> and <code>clear-property</code> are backed-in. So if you want to be able to devcards-test your code you have to provide <em>hooks</em> which you can control in your <em>cards</em> and probably in your app.</p>
+<p>Note: while you’re using Devcards as outlined above you can also use <em>Solo</em> SPA with the backend. So you can use Devcards in one browser tab and your production app in another.</p>
 <p>[1] <a href="http://reagent-project.github.io/">http://reagent-project.github.io/</a><br />[2] <a href="https://reactjs.org/">https://reactjs.org/</a><br />[3] <a href="https://clojure.org/reference/atoms">https://clojure.org/reference/atoms</a><br />[4] <a href="http://reagent-project.github.io/docs/master/reagent.core.html#var-atom">http://reagent-project.github.io/docs/master/reagent.core.html#var-atom</a><br />[5] <a href="https://github.com/bhauman/devcards">https://github.com/bhauman/devcards</a> </p>
 <hr />
 <h1><a href="#step-12-chord-sente-solo-client-websockets" name="step-12-chord-sente-solo-client-websockets"></a>Step 12: chord, sente, solo.client.websockets</h1>

@@ -8,7 +8,6 @@
    [solo.spa :as spa]
    [solo.spa.sysprops :as sysprops]))
 
-;; TODO: how to load CSS for this test?
 (defcard-rg spa-top-of-page
   (spa/top-of-page))
 
