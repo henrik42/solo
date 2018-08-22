@@ -81,7 +81,12 @@
             ;; JS into the client. We do a "clean" so that changes to
             ;; the project.clj will have an effect (reproduceable
             ;; build!)
-            "run-figwheel" ["with-profile" "+spa" "trampoline" "do" ["clean"] ["figwheel"]]
+            "run-figwheel" ["with-profile" "+spa" "trampoline" "do" ["clean"] ["figwheel" "dev"]]
+
+            ;; same as "run-figwheel" but runs a second watch/compile
+            ;; for src/cljs/solo/devcards.cljs. So you can run the
+            ;; Solo app AND use devcards in a second tab.
+            "run-devcards" ["with-profile" "+spa" "trampoline" "do" ["clean"] ["figwheel" "devcards" "dev"]]
 
             }
 
@@ -129,9 +134,21 @@
                 ;; so we can run Figwheel on a server and connect with
                 ;; a browser from your desktop
                 ;; e.g. http://myserver:3448/figwheel-ws/dev
-                :figwheel {:websocket-host :js-client-host}}]}
+                :figwheel {:websocket-host :js-client-host}}
 
-  :profiles {;; for `lein repl` -- loads/requires `solo.jetty` and
+               {:id "devcards"
+                :source-paths ["src/cljs" "test/cljs"]
+                :compiler {:main solo.devcards
+                           :asset-path "js/compiled_devcards/assets"
+                           :output-to "resources/public/js/compiled_devcards/solo-devcards.js"
+                           :output-dir "resources/public/js/compiled_devcards/assets"
+                           :source-map-timestamp true}
+                :figwheel {:devcards true
+                           :websocket-host :js-client-host}}]}
+
+  :profiles {:test {:source-paths ["test/clj"]}
+
+             ;; for `lein repl` -- loads/requires `solo.jetty` and
              ;; makes it the current namespace
              :repl {:main solo.jetty}
              
@@ -175,14 +192,20 @@
 
              ;; Configuration for CLJS build
              :spa {:plugins [[lein-figwheel "0.5.16"]
-                             [lein-cljsbuild "1.1.7" :exclusions [[org.clojure/clojure]]]]
+                             [lein-cljsbuild "1.1.7"
+                              :exclusions [[org.clojure/clojure]]]]
                                 
                    :clean-targets ^{:protect false} ["resources/public/js/compiled"
+                                                     "resources/public/js/compiled_devcards"
                                                      :target-path]
 
                    :dependencies [[org.clojure/clojurescript "1.10.238"]
                                   [cljs-http "0.1.45"]
                                   [org.clojure/core.async "0.4.474"]
+                                  [devcards "0.2.5"
+                                   :exclusions [cljsjs/react
+                                                cljsjs/react-dom
+                                                org.clojure/clojurescript]]
                                   [reagent "0.8.1"]]}})
              
 
