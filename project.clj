@@ -32,9 +32,9 @@
                          "jumpstart/src"]]
 
             ;; build WAR that can be deployed side-by-side with JEE
-            ;; host application. Contains Solo Web-App & Core & nREPL
-            ;; Server (not log4j JAR -- which must come with host
-            ;; application)
+            ;; host application. Contains Solo Web-App incl. CLJS SPA
+            ;; & Core & nREPL Server (not log4j JAR -- which must come
+            ;; with host application)
             "make-web-war" ["with-profile" "+make-web-war,+web-deps" "ring" "uberwar" "solo-web.war"]
 
             ;; build JAR that contains Solo's backend --
@@ -65,6 +65,14 @@
             "run-web-jar" ["with-profile" "+make-web-jar" "trampoline" "run"]
 
             ;; run CLJS compiler once
+            ;;
+            ;; Use **before** production build (make-web-war,
+            ;; make-web-jar).
+            ;;
+            ;; Note: run-figwheel & run-devcards compile into same
+            ;; destination folders! So you **must** run make-spa or
+            ;; else you'll end up with figwheel integration code in
+            ;; your app.
             "make-spa" ["with-profile" "+spa" "do" ["clean"] ["trampoline" "cljsbuild" "once" "dev"]]
 
             ;; run CLJS compiler in incremental mode, compile files as
@@ -80,12 +88,22 @@
             ;; connected (via web-socket) it will reload the changed
             ;; JS into the client. We do a "clean" so that changes to
             ;; the project.clj will have an effect (reproduceable
-            ;; build!)
+            ;; build!).
+            ;;
+            ;; Note: make-spa(-auto) compiles into same destination
+            ;; folders! So for production builds you **must** run
+            ;; make-spa or else you'll end up with figwheel
+            ;; integration code in your app.
             "run-figwheel" ["with-profile" "+spa" "trampoline" "do" ["clean"] ["figwheel" "dev"]]
 
             ;; same as "run-figwheel" but runs a second watch/compile
             ;; for src/cljs/solo/devcards.cljs. So you can run the
             ;; Solo app AND use devcards in a second tab.
+            ;;
+            ;; Note: make-spa(-auto) compiles into same destination
+            ;; folders! So for production builds you **must** run
+            ;; make-spa or else you'll end up with figwheel
+            ;; integration code in your app.
             "run-devcards" ["with-profile" "+spa" "trampoline" "do" ["clean"] ["figwheel" "devcards" "dev"]]}
 
   ;; Ring configuration -- for `lein ring` and `lein make-web-war`
@@ -110,7 +128,7 @@
   
   ;; CLJS build configuration -- for `lein run-brepl`, `lein
   ;; make-spa-auto` and `lein make-spa` and for Figwheel `lein
-  ;; run-figwheel`
+  ;; run-figwheel` and `run-devcards`
   :cljsbuild {:builds
               [{:id "dev"
                 :source-paths ["src/cljs"]
@@ -134,6 +152,12 @@
                 ;; e.g. http://myserver:3448/figwheel-ws/dev
                 :figwheel {:websocket-host :js-client-host}}
 
+               ;; run-devcards compiles the devcards stuff into a
+               ;; different folder than the "dev" compile. So you can
+               ;; use both in parallel which means you can develop &
+               ;; run Solo SPA and develop & run Devcards (which
+               ;; includes the test/cljs sources!) at the same
+               ;; time. They won't interfer.
                {:id "devcards"
                 :source-paths ["src/cljs" "test/cljs"]
                 :compiler {:main solo.devcards
@@ -144,7 +168,8 @@
                 :figwheel {:devcards true
                            :websocket-host :js-client-host}}]}
 
-  :profiles {:test {:source-paths ["test/clj"]}
+  :profiles {;; for `lein test`
+             :test {:source-paths ["test/clj"]}
 
              ;; for `lein repl` -- loads/requires `solo.jetty` and
              ;; makes it the current namespace

@@ -135,8 +135,8 @@ Try changing the last line to
 
     (get-current-loggers)
 
-Now re-run the command from above. It won't print anything. Now run
-this instead:
+Now re-run the command from above. __It won't print anything__. Now
+run this instead:
 
     solo-project$ java -cp lib/\*:src/clj clojure.main -e '(load-file "scripts/script-one.clj")'
 
@@ -198,7 +198,8 @@ Which gives you:
 
 __Note:__ `log4j.debug=true` has nothing to do with `DEBUG`
 log-levels! It just means, that log4j prints some `log4j:`
-log-messages to STDOUT when settings up log4j etc.
+log-messages to STDOUT when settings up log4j etc. So in general you
+should use it. 
 
 [1] I'm using the old log4j 1.2 but you should be able to switch
 to 2.x http://central.maven.org/maven2/log4j/log4j/1.2.17/log4j-1.2.17.jar  
@@ -406,9 +407,9 @@ classpath scanning.
 __Note__: Spring has a mechanism that lets you use `clojure.RT` to
 execute Clojure __source__ [7].
 
-So we have to use `gen-class` to deliver that class. This class is
-just used for __loading__ your namespace and __calling__ a `jumpstart`
-function!
+So we have to use `gen-class` to generate/deliver that class. This
+class is just used for __loading__ your namespace and __calling__ a
+`jumpstart` function!
 
 But it does not suffice to just deliver the classes for your
 jumpstart-namespace. You also have to deliver the JARs under
