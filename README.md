@@ -2598,9 +2598,69 @@ tab and your production app in another.
 # Step 12: chord, sente, solo.client.websockets
 ------------------------------------------------------------------------
 
-__TODO__: full-duplex-async client-server communication
+Until now we've been (asynchronously) calling web-services in the Solo
+backend from ClojureScript/Browser. So the client (Solo SPA) initiates
+the communication and __pulls__ data from the server.
 
-* solo.websockets
+Now we want to __push__ data __from the server to the client__.
+
+This can be done via _long_ _polling_. In that case the __client__
+still _pulls_ data from the server, but the server will __wait__ with
+its response until it wants to send (think _push_) something to the
+client. When the client (that has been waiting for the response)
+finally receives that response it will put the data somewhere (like an
+`atom` or a `core.async` channel or a call-back function) and will
+then _pull_ the server again.
+
+So viewed from the outside this behaves as if the server was
+__pushing__ data to the client. Of course the client may also send
+data to the server when doing the long polling call and it does not
+need to wait for the server to respond before doing the next request
+(maybe using more than one connection at a time or closing the one
+that was opened first).
+
+Long polling has some draw-backs [ref?]. A standard has been
+established that lets a server and a client exchange data both ways:
+
+__Web Sockets__
+
+Web socket connections are (as with long polling) created/initiated on
+the client. The client _connects_ to the server via HTTP GET request
+(and then _switches_ protocol [ref?]).
+
+Browsers support web sockets through JavaScript and on the server side
+there are web-containers that support them (like http-kit).
+
+Once a web socket connection has been established the client and the
+server can both (asynchronously) send messages through that
+socket. None has to wait for the other, exchange is done in parallel.
+
+Viewed from CLJS sending & receiving data through a web socket is kind
+of like using `<!`and `>!` on a `core.async` channel. That's why some
+CLJS libs that support web sockets use `core.async` channels in their
+API. 
+
+__Chord__
+
+For the __client side__ Chord [ref] gives you `chord.client.ws-ch`
+which (asynchronously) connects to an URL and returns a channel from
+which you read the communication channel (and an error indicator). You
+can then just use that channel for two-way data exchange with the
+server.
+
+On the serve side you have to supply a Ring-handler for the URL. You
+can use `chord.http-kit/wrap-websocket-handler` which will put the
+`core.async` channels in the Ring request-map so you can just fetch it
+from there. You can then use that channel for two-way data exchange
+with the client.
+
+Note:
+
+* the Ring handler returns (in response to the GET) synchronously to
+  the client. I.e. the GET request does only __establish__ the web
+  socket. Using the web socket is done there after.
+
+* there can be more than one web sockets open/established at a time.
 
 ------------------------------------------------------------------------
 # Step 13: Package, Release, Deploy
