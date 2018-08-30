@@ -2598,69 +2598,120 @@ tab and your production app in another.
 # Step 12: chord, sente, solo.client.websockets
 ------------------------------------------------------------------------
 
-Until now we've been (asynchronously) calling web-services in the Solo
-backend from ClojureScript/Browser. So the client (Solo SPA) initiates
-the communication and __pulls__ data from the server.
+Until now we've been __asynchronously__ (i.e. concurrently -- viewed
+from the JavaScript event thread) calling __synchronous__ web-services
+(HTTP request/response) in the _Solo_ backend from CLJS/browser. So
+the client (_Solo_ SPA) initiates the communication and __pulls__ data
+from the server (like reading log4j log-levels) and __pushes__ data to
+the server (like setting log4j log-levels).
 
-Now we want to __push__ data __from the server to the client__.
+Now we want to (actively) __push__ data __from the server to the
+client__.
 
 This can be done via _long_ _polling_. In that case the __client__
-still _pulls_ data from the server, but the server will __wait__ with
-its response until it wants to send (think _push_) something to the
-client. When the client (that has been waiting for the response)
-finally receives that response it will put the data somewhere (like an
-`atom` or a `core.async` channel or a call-back function) and will
-then _pull_ the server again.
+still __pulls__ data from the server, but the server will __wait__
+with its response until it wants to send (think _push_) something to
+the client. When the client (which may have been waiting for the
+response for some time) finally receives that response it will put the
+received data somewhere (like an `atom` or a `core.async` channel or a
+call-back function) and will then `loop`/`recur` and _pull_ the server
+again.
 
-So viewed from the outside this behaves as if the server was
-__pushing__ data to the client. Of course the client may also send
-data to the server when doing the long polling call and it does not
-need to wait for the server to respond before doing the next request
-(maybe using more than one connection at a time or closing the one
-that was opened first).
+So, viewed from the outside this behaves as if the server was
+__pushing__ data to the client (call it the "perceived direction of
+data flow"). Of course the client may also send data to the server
+when doing the _long polling_ call and it does not even need to wait
+for the server to respond before doing the next request (maybe using
+more than one connection at a time or closing the one that was opened
+first or whatever; there many options).
 
-Long polling has some draw-backs [ref?]. A standard has been
+_Long polling_ has some draw-backs [ref?]. A standard has been
 established that lets a server and a client exchange data both ways:
 
 __Web Sockets__
 
-Web socket connections are (as with long polling) created/initiated on
-the client. The client _connects_ to the server via HTTP GET request
-(and then _switches_ protocol [ref?]).
+Web socket connections are (as with _long polling_) created/initiated
+on the client. The client _connects_ to the server via a HTTP GET
+request (and then _switches_ protocol [ref?]).
 
 Browsers support web sockets through JavaScript and on the server side
 there are web-containers that support them (like http-kit).
 
 Once a web socket connection has been established the client and the
-server can both (asynchronously) send messages through that
-socket. None has to wait for the other, exchange is done in parallel.
+server can both send messages through that web socket. None has to
+wait for the other for an answer (so it's not request/response, it's
+more like _event propagation_ or _message passing_ -- like with
+JMS). Exchange is done in parallel (is it?).
+
+Note that each HTTP GET request to the web socket URL establishes a
+__new__ __web__ __socket__. So when building an app you may (1) use
+one _long living_ web socket or (2) use many _short living_ web
+sockets. Of course you can mix both options in your app. For (1) you
+may have to deal with web sockets being closed unexpectedly on
+timeouts (eg. by firewalls, proxys or the JavaScript runtime). For (2)
+you have to keep an eye on the number of simultaniously
+open/established web sockets which may be limited by the runtime, so
+you have to make sure they get closed at the right time.
 
 Viewed from CLJS sending & receiving data through a web socket is kind
 of like using `<!`and `>!` on a `core.async` channel. That's why some
-CLJS libs that support web sockets use `core.async` channels in their
-API. 
+(all?) CLJS libs that support web sockets use `core.async` channels in
+their API as an interface to the web socket.
 
 __Chord__
 
 For the __client side__ Chord [ref] gives you `chord.client.ws-ch`
-which (asynchronously) connects to an URL and returns a channel from
-which you read the communication channel (and an error indicator). You
-can then just use that channel for two-way data exchange with the
-server.
+which (asynchronously) connects to a web socket URL and returns a
+`core.async` channel from which you read the
+`core.async`_communication channel_ (and an error indicator). You can
+then just use that _communication channel_ for two-way data/message
+exchange with the server.
 
-On the serve side you have to supply a Ring-handler for the URL. You
-can use `chord.http-kit/wrap-websocket-handler` which will put the
-`core.async` channels in the Ring request-map so you can just fetch it
-from there. You can then use that channel for two-way data exchange
-with the client.
+__TODO: code example__
+
+On the __server side__ you have to supply a Ring-handler for the web
+socket URL which will be used by the client to establish the web
+socket. You can use the Ring-mideleware
+`chord.http-kit/wrap-websocket-handler` which will put the
+`core.async` _communication channel_ in the Ring request-map so in
+your Ring-handler you can easily fetch it from there. You can then use
+that _communication channel_ for __asynchronous__ or __synchronous__
+two-way data exchange with the client.
+
+__TODO: code example__
 
 Note:
 
-* the Ring handler returns (in response to the GET) synchronously to
-  the client. I.e. the GET request does only __establish__ the web
-  socket. Using the web socket is done there after.
+* the Ring handler returns (in response to the HTTP GET)
+  __synchronously__ to the client. I.e. the HTTP GET request does only
+  __establish__ the web socket connection. No message exchange in done
+  with this request (but you could?). Exchanging messages/data through
+  that web socket is done there after.
 
-* there can be more than one web sockets open/established at a time.
+* there can be more than one web socket open/established at a time
+  between a client and a server. And the client as well as the server
+  can have open web sockets to more than one server/client.
+
+* in browsers the JavaScript `WebSocket` class is controlled by the
+  JavaScript/browser environment. This may mean that the browser
+  decides to close a web socket that has been idle for 30 seconds. You
+  may have to re-establish web socket connections in some
+  environments.
+
+__solo.web.websocket__
+
+In `solo.web.websocket` you find the Ring-handler `websocket-handler`
+for the route `GET "/web-socket"`. It will connect all established web
+socket __communication channels__ to the channel `web-socket-ch`. So
+reading from `web-socket-ch` will read any/all messages from any/all
+clients and writing to `web-socket-ch` will send that message to all
+clients.
+
+__TODO: routing? no send to all clients?__
+
+__solo.web.spa.websocket__
+
+__TODO: how many web sockets to establish? how to interface with them?__ 
 
 ------------------------------------------------------------------------
 # Step 13: Package, Release, Deploy
