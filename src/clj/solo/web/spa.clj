@@ -20,7 +20,8 @@
             [hiccup.page :as hp]
             [compojure.handler :as handler]
             [compojure.route :as route]
-            [solo.web :as web]))
+            [solo.web :as web]
+            [solo.web.websocket :as ws]))
 
 ;; ################### model ##########################
 
@@ -134,6 +135,7 @@
    * `GET /out`: delivers compiled CLJS (i.e. JavaScript and source maps) sources (static _resources_)
    * `GET /ws/get-current-loggers` (see `ws-routes`)
    * `POST /ws/set-log-level/:logger/:level` (see `ws-routes`)
+   * `GET /web-socket`: establishes a web-socket connection
 
    In __addition__ all routes of `solo.web/main-routes` are served. So
    you can switch back and forth (or use multi-tab browsing) between
@@ -146,6 +148,7 @@
       (json/wrap-json-body)
       (json/wrap-json-params)
       (json/wrap-json-response))
+  #_ ws/websocket-handler
   web/app)
 
 (def app
