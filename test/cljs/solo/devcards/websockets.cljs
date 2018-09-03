@@ -1,21 +1,24 @@
 (ns solo.devcards.websockets
   (:require-macros
-   [cljs.core.async.macros :refer [go]]
+   [cljs.core.async.macros :refer [go go-loop]]
    [devcards.core :refer [defcard-rg]])
   (:require
    [devcards.core]
    [reagent.core :as r]
    [chord.client :refer [ws-ch]]
-   [cljs.core.async :refer [<! >! put! close!]]))
+   [cljs.core.async :refer [<! >! put! close! onto-chan chan]]))
+
+
+
 
 ;; Öffnet die Websocket "n". Falls sie erfolgreich geöffnet werden
 ;; kann, wird sie in !state hinterlegt. Ansonsten wird der Fehler
 ;; hinterlegt.
 (defn open-websocket [!state n]
-  ;;(println "starting websocket " n)
+  (println "starting websocket " n)
   (go 
     (let [start-ts (js/Date.)
-          {:keys [ws-channel error]} (<! (ws-ch "ws://localhost:3001/web-socket"))
+          {:keys [ws-channel error]} (<! (ws-ch (str "ws://localhost:3001/web-socket/" n)))
           connect-msec (- (js/Date.) start-ts)]
       (if error
         (swap! !state assoc-in [:websockets n] {:chan "error!"
@@ -32,10 +35,19 @@
 ;; Man sollte alternativ eine rekursive Lösung finden, bei der jeder
 ;; Rekursionsschritt einzeln asynchron verarbeitet wird.
 (defn start-websockts [!state]
-  (let [nr-of-websockets (if-let [nows (:nr-of-websockets @!state)] (js/parseInt nows) 0)]
-    ;;(println "starting " nr-of-websockets "websockts")
+  (let [nr-of-websockets (if-let [nows (:nr-of-websockets @!state)] (js/parseInt nows) 0)
+        counter-ch (chan nr-of-websockets)]
+    (println "starting " nr-of-websockets "websockts")
+    ;; #_ ;; loop asynchronuously 
+    (go 
+      (onto-chan counter-ch (range nr-of-websockets))
+      (loop []
+        (when-let [i (<! counter-ch)]
+          (open-websocket !state i)
+          (recur))))
+    #_ ;; loop synchronuously
     (doseq [n (range nr-of-websockets)]
-           (open-websocket !state n))))
+         (open-websocket !state n))))
 
 (defcard-rg websocket-load
   (let [!state (r/atom nil)]
@@ -59,6 +71,7 @@
        
         [:tr
          [:td "Number of websockets started"]
+         ;; optimize!!!
          [:td (count (:websockets @!state))]]]
 
        [:input {:type "submit"
