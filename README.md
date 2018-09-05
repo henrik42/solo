@@ -1674,13 +1674,12 @@ HTML-`form` _POST-backs_. While we're introducing client-side
 scripting we'll re-structure the logic a little:
 
 * In `src/clj/solo/web/spa.clj` we publish web-services
-  (`/ws/get-current-loggers` and `/ws/set-log-level`) on the
-  server-side. These will use JSON [4] as message format. That makes
-  it easy to use/consume these web-services from the
-  browser/CLJS/JavaScript.
+  (`/ws/get-current-loggers` and `/ws/set-log-level`) on the server
+  side. These will use JSON [4] as message format. That makes it easy
+  to use/consume these web-services from the browser/CLJS/JavaScript.
 
 * In `src/cljs/solo/spa.cljs` we use/consume these web-services on the
-  client-side. We'll use CLJS to (1) retrieve the loggers via
+  client side. We'll use CLJS to (1) retrieve the loggers via
   `/ws/get-current-loggers`, (2) do filtering and (3) render the data
   to the DOM. For mutation we'll (4) call `/ws/set-log-level`.
 
@@ -2130,7 +2129,7 @@ and _long_ _poll_ that URL:
     (:require [clojure.browser.repl :as repl])
     (defonce conn (repl/connect "http://localhost:9000/repl"))
 
-Then you need to start the server-side of the browser REPL:
+Then you need to start the server side of the browser REPL:
 
     solo-project$ rlwrap lein run-brepl
 
@@ -2577,16 +2576,16 @@ micro-integration points and these use the reusable components your
 creating for production.
 
 For `src/cljs/solo/spa/sysprops.cljs` I did not do anything to be able
-to devcards-use it. The component `sysprops-component` has no way of
+to _devcards-use_ it. The component `sysprops-component` has no way of
 passing in _state_. You cannot pass in functions for accessing the
 _model_ -- i.e. the calls to `get-properties`, `set-property` and
 `clear-property` are backed-in. So if you want to be able to
-devcards-test your code you have to provide _hooks_ which you can
+_devcards-test_ your code you have to provide _hooks_ which you can
 control in your _cards_ and probably in your app.
 
 Note: while you're using Devcards as outlined above you can also use
 _Solo_ SPA with the backend. So you can use Devcards in one browser
-tab and your production app in another.
+tab and your production app in another ... __so much power!!!!__
 
 [1] http://reagent-project.github.io/  
 [2] https://reactjs.org/  
@@ -2595,20 +2594,20 @@ tab and your production app in another.
 [5] https://github.com/bhauman/devcards  
 
 ------------------------------------------------------------------------
-# Step 12: chord, sente, solo.client.websockets
+# Step 12: chord, solo.client.websockets
 ------------------------------------------------------------------------
 
 Until now we've been __asynchronously__ (i.e. concurrently -- viewed
 from the JavaScript event thread) calling __synchronous__ web-services
 (HTTP request/response) in the _Solo_ backend from CLJS/browser. So
-the client (_Solo_ SPA) initiates the communication and __pulls__ data
-from the server (like reading log4j log-levels) and __pushes__ data to
-the server (like setting log4j log-levels).
+the client (_Solo_ SPA) __initiates__ the communication and __pulls__
+data from the server (like reading log4j log-levels) and __pushes__
+data to the server (like setting log4j log-levels).
 
 Now we want to (actively) __push__ data __from the server to the
 client__.
 
-This can be done via _long_ _polling_. In that case the __client__
+This can be done via _long polling_[1]. In this case the __client__
 still __pulls__ data from the server, but the server will __wait__
 with its response until it wants to send (think _push_) something to
 the client. When the client (which may have been waiting for the
@@ -2618,85 +2617,163 @@ call-back function) and will then `loop`/`recur` and _pull_ the server
 again.
 
 So, viewed from the outside this behaves as if the server was
-__pushing__ data to the client (call it the "perceived direction of
-data flow"). Of course the client may also send data to the server
-when doing the _long polling_ call and it does not even need to wait
-for the server to respond before doing the next request (maybe using
-more than one connection at a time or closing the one that was opened
-first or whatever; there many options).
+__pushing__ data to the client.
 
-_Long polling_ has some draw-backs [ref?]. A standard has been
+Of course the client may also send data to the server when doing the
+_long polling_ call and it does not even need to wait for the server
+to respond before doing the next request (maybe using more than one
+connection at a time or closing the one that was opened first or
+whatever; there many options).
+
+_Long polling_ has some draw-backs [2]. A standard has been
 established that lets a server and a client exchange data both ways:
 
-__Web Sockets__
+[1] https://en.wikipedia.org/wiki/Push_technology#Long_polling
+[2] https://blog.baasil.io/why-you-shouldnt-use-long-polling-fallbacks-for-websockets-c1fff32a064a
 
-Web socket connections are (as with _long polling_) created/initiated
-on the client. The client _connects_ to the server via a HTTP GET
-request (and then _switches_ protocol [ref?]).
+## Websockets
 
-Browsers support web sockets through JavaScript and on the server side
-there are web-containers that support them (like http-kit).
+Websocket [1,2] connections are (as with _long polling_)
+created/initiated on the client. The client _connects_ to the server
+via a HTTP(S) `GET` request (and then _switches_ protocol [3]).
 
-Once a web socket connection has been established the client and the
-server can both send messages through that web socket. None has to
-wait for the other for an answer (so it's not request/response, it's
-more like _event propagation_ or _message passing_ -- like with
-JMS). Exchange is done in parallel (is it?).
+Browsers support websockets through JavaScript and on the server side
+there are web-containers that support them (like `http-kit`
+[TBD:ref]). There is a Java API [4] and tutorial [5].
 
-Note that each HTTP GET request to the web socket URL establishes a
-__new__ __web__ __socket__. So when building an app you may (1) use
-one _long living_ web socket or (2) use many _short living_ web
-sockets. Of course you can mix both options in your app. For (1) you
-may have to deal with web sockets being closed unexpectedly on
-timeouts (eg. by firewalls, proxys or the JavaScript runtime). For (2)
-you have to keep an eye on the number of simultaniously
-open/established web sockets which may be limited by the runtime, so
-you have to make sure they get closed at the right time.
+Once a websocket connection has been established the client and the
+server can both send messages through that websocket (text and
+binary). None has to wait for the other for an answer (so it's not
+request/response, it's more like _event propagation_ or _message
+passing_). Exchange is done in parallel.
 
-Viewed from CLJS sending & receiving data through a web socket is kind
+Note that each HTTP(S) `GET` request to the websocket URL establishes
+a __new__ __websocket__. So when building an app you may (1) use one
+_long-lived_ websocket or (2) use many _short-lived_ websockets. Of
+course you can mix both options in your app. For (1) you may have to
+deal with websockets being closed unexpectedly on timeouts (eg. by
+firewalls, proxys or the JavaScript runtime). For (2) you have to keep
+an eye on the number of simultaniously open/established websockets
+which may be limited by the client & server runtime (Firefox has a
+default of 200), so you have to make sure they get closed at the right
+time.
+
+Viewed from CLJS sending & receiving data through a websocket is kind
 of like using `<!`and `>!` on a `core.async` channel. That's why some
-(all?) CLJS libs that support web sockets use `core.async` channels in
-their API as an interface to the web socket.
+(all?) CLJS libs that support websockets use `core.async` channels in
+their API as an interface to the underlying websocket.
 
-__Chord__
+Note that reverse proxys, load balancers, firewalls and routers
+sometimes may interfere with websocket usage [6]. Note also that the
+client (e.g. browser) may use an HTTP proxy when talking to the
+websocket URL which introduces yet another indirection in the
+communication path.
 
-For the __client side__ Chord [ref] gives you `chord.client.ws-ch`
-which (asynchronously) connects to a web socket URL and returns a
+[1] https://en.wikipedia.org/wiki/WebSocket
+[2] https://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-03
+[3] https://en.wikipedia.org/wiki/WebSocket#Protocol_handshake
+[4] https://docs.oracle.com/javaee/7/api/javax/websocket/package-summary.html
+[5] https://docs.oracle.com/javaee/7/tutorial/websocket.htm
+[6] https://www.infoq.com/articles/Web-Sockets-Proxy-Servers
+
+## Chord
+
+Chord [1] is a Clojure(Script) lib that offers using websockts through
+`core.async` channels.
+
+### CLJS Client
+
+For the CLJS __client side__ Chord gives you `chord.client.ws-ch`
+which (asynchronously) connects to a websocket URL and returns a
 `core.async` channel from which you read the
 `core.async`_communication channel_ (and an error indicator). You can
 then just use that _communication channel_ for two-way data/message
 exchange with the server.
 
-__TODO: code example__
+This example opens a new websocket, sends a message over that
+websocket and closes the websocket.
 
-On the __server side__ you have to supply a Ring-handler for the web
-socket URL which will be used by the client to establish the web
-socket. You can use the Ring-mideleware
+      (go 
+       (let [{:keys [ws-channel error]} (<! (ws-ch "ws://localhost:3001/web-socket"))]
+         (if error
+           (println "open failed")
+           (do 
+             (>! ws-channel "hello")
+             (close! ws-channel)))))
+
+__Warning__: during testing I noticed that the channel gets closed
+before the message is sent/received! So you should usually not close
+the websocket until all your _pending_ messages have been sent (which
+may be hard to find out).
+
+__Note__: opening a __new__ websocket for sending just __one__ message
+does not make sense in most cases since the handshake overhead is so
+big that you could use regular web services instead (although
+websockets do not suffer from the _same origin policy_; so that may be
+a valid use case).
+
+So in general you will open a websocket and then use it for sending
+and/or receiving many messages. Depending on your client and server
+code you can _multiplex_ several _logical_ channels over this one
+technical websocket channel [2].
+
+You can do this "manually" by dispatching (on the server and the
+client side!) on a message aspect like a special map key
+(e.g. `:the-channel-id` or the like). And you can put the dispatching
+code in a `core.async` channel and put that "dispatching channel"
+_around_ the ws-channel so that the multiplexing logic is hidden from
+users.
+
+And you may even implement "reconnect logic" behind the scenes. So
+that when your websocket goes away (see above) you could open a new
+websocket to the same URL and then use its channel instead of the one
+using the broken websocket. Users of the "dispatching channel" would
+not even notice. Note though that the server-side websocket may/can
+keep _state_ with an established websocket (there is a
+statefull/mutable "websocket session context" on the server) so a
+_reconnect_ must be handled appropriatly on the server side.
+
+### Clojure Server
+
+On the __server side__ you supply a Ring-handler (here I'm using a
+Compojure route) for the web socket URL which will be used by the
+client to establish the websocket. You can use the Ring-mideleware
 `chord.http-kit/wrap-websocket-handler` which will put the
 `core.async` _communication channel_ in the Ring request-map so in
 your Ring-handler you can easily fetch it from there. You can then use
-that _communication channel_ for __asynchronous__ or __synchronous__
-two-way data exchange with the client.
+that _communication channel_ for __asynchronous__ two-way data
+exchange with the client.
 
-__TODO: code example__
+    (defroutes web-socket-handler
+      (GET "/web-socket" {:keys [ws-channel] :as req}
+        (if-not ws-channel
+          "websocket connection failed!"
+          (do 
+            (a/go-loop []
+                       (if-let [{:keys [message] :as msg} (a/<! ws-channel)]
+                         (do
+                           (.println System/out (str "message received:" msg))
+                           (recur))
+                         (.println System/out (str "websocket closed!"))))
+            "websocket established"))))
 
-Note:
+__Note:__
 
-* the Ring handler returns (in response to the HTTP GET)
-  __synchronously__ to the client. I.e. the HTTP GET request does only
-  __establish__ the web socket connection. No message exchange in done
-  with this request (but you could?). Exchanging messages/data through
-  that web socket is done there after.
+* the Ring handler returns (in response to the HTTP `GET`)
+  __synchronously__ to the client. I.e. the HTTP `GET` request does
+  only __establish__ the websocket connection. No message exchange is
+  done with this request (but you could). Exchanging messages/data
+  through that websocket is done there after.
 
-* there can be more than one web socket open/established at a time
+* there can be more than one websocket open/established at a time
   between a client and a server. And the client as well as the server
-  can have open web sockets to more than one server/client.
+  can have open websockets to more than one server/client.
 
 * in browsers the JavaScript `WebSocket` class is controlled by the
   JavaScript/browser environment. This may mean that the browser
-  decides to close a web socket that has been idle for 30 seconds. You
-  may have to re-establish web socket connections in some
-  environments.
+  decides to close a websocket that has been idle for 30 seconds. You
+  may have to re-establish websocket connections in some environments
+  (see above).
 
 __solo.web.websocket__
 
@@ -2707,11 +2784,8 @@ reading from `web-socket-ch` will read any/all messages from any/all
 clients and writing to `web-socket-ch` will send that message to all
 clients.
 
-__TODO: routing? no send to all clients?__
-
-__solo.web.spa.websocket__
-
-__TODO: how many web sockets to establish? how to interface with them?__ 
+[1] https://github.com/jarohen/chord
+[2] https://www.rabbitmq.com/blog/2012/02/23/how-to-compose-apps-using-websockets/
 
 ------------------------------------------------------------------------
 # Step 13: Package, Release, Deploy

@@ -4,7 +4,25 @@
   :resource-paths ["resources"]
   :target-path "target/%s/"
 
+;; chord dependencies! exclude old versions!!!  
+;;                 [org.clojure/core.async "0.1.346.0-17112a-alpha"]
+;;                 [http-kit "2.1.19"]
+;;                 [org.clojure/tools.reader "0.9.2"]
+;;
+;;                 [cheshire "5.5.0"]
+;;
+;;                 [com.cognitect/transit-clj "0.8.275"]
+;;                 [com.cognitect/transit-cljs "0.8.220"]
+;;
+;;                 [org.clojure/data.fressian "0.2.1"]
+;;                 [net.unit8/fressian-cljs "0.2.0"]])
+;;
   :dependencies [[org.clojure/clojure "1.8.0"]
+                 [org.clojure/core.async "0.4.474"]
+                 [org.clojure/tools.reader "1.2.1"]
+                 [jarohen/chord "0.8.1"
+                  :exclusions [[org.clojure/core.async]
+                               [org.clojure/tools.reader]]]
                  [swank-clojure/swank-clojure "1.4.3"]
                  [org.clojure/tools.nrepl "0.2.12"]]
   
@@ -203,6 +221,7 @@
              :make-web-jar {:main solo.main
                             :aot [solo.main]
                             :dependencies [[ring/ring-jetty-adapter "1.6.3"]
+                                           [http-kit "2.1.19"]
                                            [log4j/log4j "1.2.17"]]}
 
              :make-web-war {:ring {:handler solo.webapp/app
@@ -224,7 +243,7 @@
 
                    :dependencies [[org.clojure/clojurescript "1.10.238"]
                                   [cljs-http "0.1.45"]
-                                  [org.clojure/core.async "0.4.474"]
+                                  ;; [org.clojure/core.async "0.4.474"]
                                   [devcards "0.2.5"
                                    :exclusions [cljsjs/react
                                                 cljsjs/react-dom
