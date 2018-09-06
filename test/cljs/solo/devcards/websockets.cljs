@@ -1,4 +1,14 @@
 (ns solo.devcards.websockets
+  "A websocket load-tester card (`websocket-load`).
+
+   Gives you a GUI for entering load-test parameters. Lets you run
+   load-tests against a websocket backend at
+   `ws://localhost:3001/web-socket`. The GUI presents a table in which
+   info about the opened websockets is displayed.
+
+   Currently the backend is not required to send any messages but it
+   may. Messages from the backend are consumed and printed."
+  
   (:require-macros
    [cljs.core.async.macros :refer [go go-loop]]
    [devcards.core :refer [defcard-rg]])
@@ -6,9 +16,16 @@
    [devcards.core]
    [reagent.core :as r]
    [chord.client :refer [ws-ch]]
-   [cljs.core.async :refer [<! >! put! close! onto-chan chan]]))
+   [cljs.core.async :refer [<! >! put! close! onto-chan chan timeout]]))
 
-(defn send-messages [!state n]
+(defn send-messages
+  "Sends data through a ws-channel and consumes data from the same
+   ws-channel.
+
+   Closes the ws-channel when all messages (if any) have been
+   sent. When no messages are sent then the channel is not closed!"
+
+  [!state n]
   (let [nr-of-messages (if-let [nows (:nr-of-messages @!state)] (js/parseInt nows) 0)
         ch (get-in @!state [:websockets n :chan])]
     (when (pos? nr-of-messages)
@@ -23,25 +40,19 @@
         (let [msg (str "hello " m " from socket " n)]
           (println msg)
           (>! ch msg)
+          (swap! !state assoc-in [:websockets n :n-messages-sent]
+                 (-> @!state (get-in [:websockets n :n-messages-sent]) inc))
+          (<! (timeout 0))
           (if (< m nr-of-messages)
             (recur (inc m))
-            ;; Wenn man die Socket sofort schließt, erhält der Server
-            ;; noch nicht mal die Nachrichten
-            #_ (close! ch)))))))
+            (do
+              (swap! !state assoc-in [:websockets n :open] false)
+              (close! ch))))))))
 
-(defn ws-example []
-  (go 
-   (let [{:keys [ws-channel error]} (<! (ws-ch "ws://localhost:3001/web-socket"))]
-     (if error
-       (println "open failed")
-       (do 
-         (>! ws-channel "hello")
-         (close! ws-channel))))))
+(defn open-websocket
+  "Opens a websockets and sends messages through the ws-channel."
 
-;; Öffnet die Websocket "n". Falls sie erfolgreich geöffnet werden
-;; kann, wird sie in !state hinterlegt. Ansonsten wird der Fehler
-;; hinterlegt.
-(defn open-websocket [!state n]
+  [!state n]
   (println "starting websocket " n)
   (go 
     (let [start-ts (js/Date.)
@@ -52,37 +63,40 @@
                                                 :connect-msec connect-msec})
         (do
           (swap! !state assoc-in [:websockets n] {:chan ws-channel
+                                                  :open true
                                                   :connect-msec connect-msec})
           (send-messages !state n))))))
 
-;; Startet in einer Schleife :nr-of-websockets websockets.
-;;
-;; Hinweis: die Schleife wird als Teil der Event-Verarbeitung
-;; durchlaufen. Erst wenn die Schleife fertig ist, ist auch der Event
-;; verarbeitet. Bis dahin erfolgt kein Update.
-;;
-;; Man sollte alternativ eine rekursive Lösung finden, bei der jeder
-;; Rekursionsschritt einzeln asynchron verarbeitet wird.
-(defn start-websockts [!state]
+(defn start-websockts
+  "Runs the load-tester.
+
+  Opens `:nr-of-websockets` websockets and send messages through
+  them. Intermediate results/states are displayed in the GUI through
+  r/atom `!state."
+
+  [!state]
   (let [nr-of-websockets (if-let [nows (:nr-of-websockets @!state)] (js/parseInt nows) 0)
         counter-ch (chan nr-of-websockets)]
     (println "starting " nr-of-websockets "websockts")
-    ;; #_ ;; loop asynchronuously 
+    #_ ;; loop asynchronuously 
     (go 
       (onto-chan counter-ch (range nr-of-websockets))
       (loop []
         (when-let [i (<! counter-ch)]
           (open-websocket !state i)
+          (<! (timeout 0))
           (recur))))
-    #_ ;; loop synchronuously
+    ;; #_ ;; loop synchronuously
     (doseq [n (range nr-of-websockets)]
-         (open-websocket !state n))))
+      (go
+        (<! (timeout 0))
+        (open-websocket !state n)))))
 
 (defcard-rg websocket-load
   "<small>Enter `Number of websockets to start` (i.e. _open_) and the
    `Number of messages to send` over each websocket.
 
-   Then `START` to run the test as described below. Note that each
+   Then `START` to run the test which described below. Note that each
    `START` will spawn a __new run__ and these may execute
    concurrently!
 
@@ -90,7 +104,7 @@
      below) _started_ websocket sending messages will start right
      away.
 
-   * For each started websockets there will be a row in the table
+   * For each started websocket there will be a row in the table
      below. Each websocket will have an `id`.
 
    * Starting/opening a websocket may fail. In this case there will
@@ -98,6 +112,9 @@
 
    * the number of _started_ websockets (rows in the table) is shown
      in `Number of websockets started`
+
+   * After all messages (if any) of any/each websocket have been sent
+     the websocket will be closed.
 
    </small>"
   
@@ -126,24 +143,29 @@
 
        [:input {:type "submit"
                 :value "START"
-                ;; man muss verhindern, dass man das mehrfach
-                ;; anstartet.
                 :on-click #(start-websockts !state)}]
 
        [:table
 
-        ;; (str @!state)
-        
-       [:thead
-        [:th "ID"]
-        [:th "STATUS"]]
+        [:thead
+         [:th "ID"]
+         [:th "STATUS"]]
     
-       [:tbody
-        (doall
-         (for [[id v] (sort-by first (:websockets @!state))]
-           ^{:key id}
-           [:tr
-            [:td id]
-            [:td (str v)]]))]]])))
+        [:tbody
+         (doall
+          (for [[id v] (sort-by first (:websockets @!state))]
+            ^{:key id}
+            [:tr
+             [:td id]
+             [:td (str v)]]))]]])))
 
+#_ ;; just for experiments/docu
+(defn ws-example []
+  (go 
+   (let [{:keys [ws-channel error]} (<! (ws-ch "ws://localhost:3001/web-socket"))]
+     (if error
+       (println "open failed")
+       (do 
+         (>! ws-channel "hello")
+         (close! ws-channel))))))
 
