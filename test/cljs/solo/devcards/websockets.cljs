@@ -36,18 +36,29 @@
             (println ("socket " n " : " msg))
             (recur))
           (println "socket " n " CLOSED")))
+      (go
+       (doseq [m (range nr-of-messages)
+               :while (:go @!state)
+               :let [msg (str "hello " m " from socket " n)]]
+         (<! (timeout 0))
+         (println msg)
+         (>! ch msg)
+         (swap! !state assoc-in [:websockets n :n-messages-sent]
+                (-> @!state (get-in [:websockets n :n-messages-sent]) inc))
+         ))
+      #_
       (go-loop [m 1]
-        (let [msg (str "hello " m " from socket " n)]
-          (println msg)
-          (>! ch msg)
-          (swap! !state assoc-in [:websockets n :n-messages-sent]
-                 (-> @!state (get-in [:websockets n :n-messages-sent]) inc))
-          (<! (timeout 0))
-          (if (< m nr-of-messages)
-            (recur (inc m))
-            (do
-              (swap! !state assoc-in [:websockets n :open] false)
-              (close! ch))))))))
+               (let [msg (str "hello " m " from socket " n)]
+                 (println msg)
+                 (>! ch msg)
+                 (swap! !state assoc-in [:websockets n :n-messages-sent]
+                        (-> @!state (get-in [:websockets n :n-messages-sent]) inc))
+                 (<! (timeout 0))
+                 (if (< m nr-of-messages)
+                   (recur (inc m))
+                   (do
+                     (swap! !state assoc-in [:websockets n :open] false)
+                     (close! ch))))))))
 
 (defn open-websocket
   "Opens a websockets and sends messages through the ws-channel."
@@ -82,15 +93,17 @@
     (go 
       (onto-chan counter-ch (range nr-of-websockets))
       (loop []
-        (when-let [i (<! counter-ch)]
-          (open-websocket !state i)
-          (<! (timeout 0))
-          (recur))))
+        (when (:go @!state)
+          (when-let [i (<! counter-ch)]
+            (open-websocket !state i)
+            (<! (timeout 0))
+            (recur)))))
     ;; #_ ;; loop synchronuously
-    (doseq [n (range nr-of-websockets)]
-      (go
-        (<! (timeout 0))
-        (open-websocket !state n)))))
+    (go
+     (doseq [n (range nr-of-websockets)
+             :while (:go @!state)]
+       (<! (timeout 0))
+       (open-websocket !state n)))))
 
 (defcard-rg websocket-load
   "<small>Enter `Number of websockets to start` (i.e. _open_) and the
@@ -143,10 +156,17 @@
 
        [:input {:type "submit"
                 :value "START"
-                :on-click #(start-websockts !state)}]
+                :on-click #(do
+                             (swap! !state assoc :go true)
+                             (start-websockts !state))}]
+
+       [:input {:type "submit"
+                :value "STOP"
+                :on-click #(swap! !state assoc :go false)}]
 
        [:table
 
+        ;;(str @!state)
         [:thead
          [:th "ID"]
          [:th "STATUS"]]

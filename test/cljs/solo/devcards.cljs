@@ -11,6 +11,7 @@
    [cljs.core.async :refer [<! >! put! close!]]
    [solo.spa :as spa]
    [solo.devcards.websockets]
+   [solo.devcards.loop]
    [solo.spa.chord :as solo-chord]
    [solo.spa.sysprops :as sysprops]))
 
