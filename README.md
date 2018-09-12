@@ -2095,7 +2095,8 @@ text-field we lose the focus because the DOM and GUI is re-drawn.
 
 Note that we did not introduce "slots" for the `set-log-level-form`
 (`logger` and `level`). For these we just query the DOM and use them
-directly without writing them into the `app-state`.
+directly without writing them into the `app-state` (which is something
+we do not want to do in the future).
 
        [:input {:type "submit"
                 :on-click
@@ -2209,7 +2210,7 @@ not using the DOM-state to represent the state of our app (to a
 certain degree the DOM _follows_ the app-state through
 event-listeners).
 
-This is a powerfull pattern: we can bring our app into states that my
+This is a powerfull pattern: we can bring our app into states that may
 be hard (if not impossible) to reach by GUI interaction with our
 app. This may be important for testing edge-cases of our app. And it
 allows us to __save__ and __restore__ app-states to "replay" cases
@@ -2373,17 +2374,20 @@ the "real" DOM.
 
 With Reagent you create the GUI by rendering "components" which are
 just functions that return a Hiccup-like nested-vector. With Hiccup we
-gave the vectors to Hiccup. With Reagent we give functions and vectors
-with functions to Reagent. Reagent needs to call the functions when
-traversing the nested-vector structure since it has to find out at
-which point in the nested structure the `atom` is de-referenced. Only
-so can it closely relate the vector-structure to the resulting DOM.
+gave the vectors to Hiccup. With Reagent we give vectors and
+optionally functions (which must return vectors) to Reagent.
+
+Reagent then calls these functions when traversing the nested-vector
+structure and thus finds out at which point in the nested structure
+the `atom` is de-referenced. Only so can it closely relate the
+vector-structure to the resulting DOM.
 
 For reference here is the `main` function and the
 `loggers-form`-component. In Reagent these functions are called
 _components_ because they should be __reusable__ things that can be
 used in other contexts. In this case the `logges-form` function can be
-used only for this one special use-case. So it is not reusable.
+used only for this one special use-case. So it is not reusable (see
+below for more examples).
 
 Note that `loggers-form` is contained in the `root` component as a
 function and __not__ called/evaluated to a vector (that is done be
@@ -2432,7 +2436,7 @@ Again `(main)` mounts the complete DOM at `id=main`-node.
     
     (main)
 
-Note that in `solo.spa` there is no "re-render the DOM watcher" on
+Note that in `solo.spa` there is __no__ "re-render the DOM watcher" on
 `app-state` -- Reagent takes care of that. All we need to do is use
 event-handler to cause state-changes of `app-state`.
 
@@ -2442,24 +2446,29 @@ While writing all this I realized that `solo.spa` is not a good
 example for building re-usable things for GUI construction with
 Reagent. So I created `solo.spa.sysprops`.
 
-It delivers just one component `sysprops-component`. This
+It delivers just one __reusable__ component `sysprops-component`. This
 _component-function_ returns a __function__ which is called "form 2"
 in Reagent. We use this to encapsulate (by a closure) the __state__ of
 this component __in__ the component. This way we do not leak the state
 into the globally visable namespace (like we did it with
 `solo.spa/app-state`).
 
-And just for the fun of it I introduced a _generic_ eval-web-service
-in `solo.web.spa`:
+And just for the fun of it I introduced a _generic_
+_eval-this-code_-web-service in `solo.web.spa`:
 
     (defroutes ws-routes
       (POST "/ws/eval/" req (let [source-string (get-in req [:query-params "eval"])]
                               {:body (eval-string source-string)}))
 
 With this we can now access _Solo_'s backend system properties from
-`solo.spa.sysprops` without creating a dedicated web-service. This is
-just for trying it out. We should have named functions in _Solo_'s
-backend for things like this (testing, documentation).
+`solo.spa.sysprops` without creating a dedicated web-service in the
+backend. This is just for trying it out. We should have named
+functions in _Solo_'s backend for things like this (testing,
+documentation).
+
+__WARNING:__ This generic web-serivice is a __Security Nightmare__! Do
+not use it anywhere other than your local __trusted__ development
+environment.
 
     (defn eval-in-backend [source-string]
       (go
@@ -2521,7 +2530,7 @@ And include that in the "main app":
 
 Devcards [5] let's you define _cards_ that hold just one Reagent
 component each. This lets you develop and test your components in
-isolation without the need to build a complete app for this.
+isolation without the need to build a complete _dummy_ _app_ for this.
 
 To `project.clj` we add a new `:cljsbuild :builds`:
 
@@ -2580,8 +2589,9 @@ to _devcards-use_ it. The component `sysprops-component` has no way of
 passing in _state_. You cannot pass in functions for accessing the
 _model_ -- i.e. the calls to `get-properties`, `set-property` and
 `clear-property` are backed-in. So if you want to be able to
-_devcards-test_ your code you have to provide _hooks_ which you can
-control in your _cards_ and probably in your app.
+_devcards-test_ your code (without changing and reloading it) you have
+to provide _hooks_ which you can control in your _cards_ and probably
+in your app.
 
 Note: while you're using Devcards as outlined above you can also use
 _Solo_ SPA with the backend. So you can use Devcards in one browser
@@ -2775,14 +2785,23 @@ __Note:__
   may have to re-establish websocket connections in some environments
   (see above).
 
-__solo.web.websocket__
+### The JavaScript event loop and core.async
 
-In `solo.web.websocket` you find the Ring-handler `websocket-handler`
-for the route `GET "/web-socket"`. It will connect all established web
-socket __communication channels__ to the channel `web-socket-ch`. So
-reading from `web-socket-ch` will read any/all messages from any/all
-clients and writing to `web-socket-ch` will send that message to all
-clients.
+
+
+
+
+### Load tester
+
+In `test/cljs/solo/devcards/websockets.cljs` you find a load-tester
+for websockets that you can play around with (see the doc-string for
+more info).
+
+You have to start the websocket endpoint with __TBD__.
+
+
+
+
 
 [1] https://github.com/jarohen/chord
 [2] https://www.rabbitmq.com/blog/2012/02/23/how-to-compose-apps-using-websockets/
