@@ -2640,6 +2640,7 @@ established that lets a server and a client exchange data both ways:
 
 [1] https://en.wikipedia.org/wiki/Push_technology#Long_polling
 [2] https://blog.baasil.io/why-you-shouldnt-use-long-polling-fallbacks-for-websockets-c1fff32a064a
+[ref] Comet
 
 ## Websockets
 
@@ -2688,11 +2689,11 @@ communication path.
 
 ## Chord
 
-Chord [1] is a Clojure(Script) lib that offers using websockts through
-`core.async` channels.
+Chord [1] is a Clojure(Script) lib that offers using websockets
+through `core.async` channels.
 
 ### CLJS Client
-
+r
 For the CLJS __client side__ Chord gives you `chord.client.ws-ch`
 which (asynchronously) connects to a websocket URL and returns a
 `core.async` channel from which you read the
@@ -2712,9 +2713,10 @@ websocket and closes the websocket.
              (close! ws-channel)))))
 
 __Warning__: during testing I noticed that the channel gets closed
-before the message is sent/received! So you should usually not close
-the websocket until all your _pending_ messages have been sent (which
-may be hard to find out).
+__before__ the message is sent/received (i.e. the message is
+__lost/droped!__). So you should usually not close the websocket until
+all your _pending_ messages have been sent/received (which may be hard
+to find out).
 
 __Note__: opening a __new__ websocket for sending just __one__ message
 does not make sense in most cases since the handshake overhead is so
@@ -2747,7 +2749,7 @@ _reconnect_ must be handled appropriatly on the server side.
 
 On the __server side__ you supply a Ring-handler (here I'm using a
 Compojure route) for the web socket URL which will be used by the
-client to establish the websocket. You can use the Ring-mideleware
+client to establish the websocket. You can use the Ring-middleware
 `chord.http-kit/wrap-websocket-handler` which will put the
 `core.async` _communication channel_ in the Ring request-map so in
 your Ring-handler you can easily fetch it from there. You can then use
@@ -2767,7 +2769,7 @@ exchange with the client.
                          (.println System/out (str "websocket closed!"))))
             "websocket established"))))
 
-__Note:__
+__Notes:__
 
 * the Ring handler returns (in response to the HTTP `GET`)
   __synchronously__ to the client. I.e. the HTTP `GET` request does
@@ -2787,21 +2789,76 @@ __Note:__
 
 ### The JavaScript event loop and core.async
 
+In Clojure/Java on the JVM we have _true_ _multi-threading_. I.e. we
+have many threads (of execution) which can really run in parallel (on
+a multi-core CPU).
+
+And even if we had only one core the threads would _seem_ to run in
+parallel since the JVM can take any thread off the CPU (any time) and
+put another thread on the CPU for execution and pick up the paused
+thread later on (_preemptive scheduling_).
+
+The executed program does not need any special code/statements for
+this to work (which does not mean, that concurrently running Java code
+_works_ -- the Java concurrency model introduces all kinds of funny
+things like the Java memory model, deadlocks, race-conditions and
+missed wake-ups. So there is much that can go wrong ;-).
+
+In JavaScript we have __only one thread__ (the event loop thread) that
+will execute our code (yes -- I know -- there are webworkers; maybe I
+cover that later on). And JavaScript cannot take our code of the CPU
+and make it pause and resume execution later on like the JVM does.
+
+Instead in JavaScript (and ClojureScript) __we have to make our code
+behave cooperativly__.  I.e. we have to put __extra code__ into our
+code so that it will allow for _quasi parallel_ execution: your code
+has to _step aside_ every now and then so that other code gets the
+chance to run if it wants to.
+
+Technically this is done by structuring your code so that it will do
+some work for some time (maybe 30 ms) and then use `setTimeout` and a
+callback to _prepare_ the rest of the work that still has to be
+done. Then your code just returns __control__ (and __no result__!) to
+the caller. `setTimeout` en-queues the callback in the event-loop for
+later execution. So when control returns to the event-loop _driver_ it
+will eventually picks up your enqueued callback and call it. Again the
+callback should do some work for some time and then step-aside (like
+before).
+
+All this means that your code cannot (as it could in Java/Clojure)
+communicate its result by __returning__ a value to a caller! It has to
+__call__ who ever is interested in the result and pass the result as
+an __argument__ to the called function.
+
+So (1) your code has to be structured so that its intermediate
+state/result and future work can be captured in a callback (usually a
+closure) and (2) its users must be able to _receive_ the result via a
+function call (or maybe a change of some mutuable
+state/variable).
+
+__Enter `core.async`__
+
+`core.async` gives you _channels_ to communicate results to whoever is
+interested in them. So rather than calling a function to communicate
+your result you'll _put_ your result in a channel, which is very much
+like a _queue_ data structure.
+
+And `core.async` gives you a `go` macro which frees you from using
+explicit callbacks in your code. Instead `go` will analyse your code
+and restructure 
 
 
 
 
-### Load tester
+
+
+### Websocket load tester
 
 In `test/cljs/solo/devcards/websockets.cljs` you find a load-tester
 for websockets that you can play around with (see the doc-string for
 more info).
 
 You have to start the websocket endpoint with __TBD__.
-
-
-
-
 
 [1] https://github.com/jarohen/chord
 [2] https://www.rabbitmq.com/blog/2012/02/23/how-to-compose-apps-using-websockets/
