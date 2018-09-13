@@ -2669,16 +2669,14 @@ which may be limited by the client & server runtime (Firefox has a
 default of 200), so you have to make sure they get closed at the right
 time.
 
-Viewed from CLJS sending & receiving data through a websocket is kind
-of like using `<!`and `>!` on a `core.async` channel. That's why some
-(all?) CLJS libs that support websockets use `core.async` channels in
-their API as an interface to the underlying websocket.
+Viewed from CLJS sending & receiving data __asynchronuously__ through
+a websocket is kind of like using `<!` and `>!` on a `core.async`
+_channel_ (see below!). That's why some (all?) CLJS libs that support
+websockets use `core.async` _channels_ in their API as an interface to
+the underlying websocket.
 
-Note that reverse proxys, load balancers, firewalls and routers
-sometimes may interfere with websocket usage [6]. Note also that the
-client (e.g. browser) may use an HTTP proxy when talking to the
-websocket URL which introduces yet another indirection in the
-communication path.
+Note that HTTP proxys, reverse proxys, load balancers and firewalls
+may interfere with websocket usage [6].
 
 [1] https://en.wikipedia.org/wiki/WebSocket
 [2] https://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-03
@@ -2693,7 +2691,7 @@ Chord [1] is a Clojure(Script) lib that offers using websockets
 through `core.async` channels.
 
 ### CLJS Client
-r
+
 For the CLJS __client side__ Chord gives you `chord.client.ws-ch`
 which (asynchronously) connects to a websocket URL and returns a
 `core.async` channel from which you read the
@@ -2802,7 +2800,7 @@ The executed program does not need any special code/statements for
 this to work (which does not mean, that concurrently running Java code
 _works_ -- the Java concurrency model introduces all kinds of funny
 things like the Java memory model, deadlocks, race-conditions and
-missed wake-ups. So there is much that can go wrong ;-).
+missed wake-ups. So there is much that can/will go wrong ;-).
 
 In JavaScript we have __only one thread__ (the event loop thread) that
 will execute our code (yes -- I know -- there are webworkers; maybe I
@@ -2811,46 +2809,69 @@ and make it pause and resume execution later on like the JVM does.
 
 Instead in JavaScript (and ClojureScript) __we have to make our code
 behave cooperativly__.  I.e. we have to put __extra code__ into our
-code so that it will allow for _quasi parallel_ execution: your code
-has to _step aside_ every now and then so that other code gets the
-chance to run if it wants to.
+code so that it will allow for _quasi parallel_ execution: when your
+code is busy doing some long running computation then it has to _step
+aside_ every now and then so that other code gets the chance to run if
+it wants to. Otherwise a browser GUI will freeze and only your code
+executes and usually that is not what you want (on a JS server like
+NodeJS this may be acceptable though depending on what you're trying
+to do).
 
-Technically this is done by structuring your code so that it will do
-some work for some time (maybe 30 ms) and then use `setTimeout` and a
-callback to _prepare_ the rest of the work that still has to be
-done. Then your code just returns __control__ (and __no result__!) to
-the caller. `setTimeout` en-queues the callback in the event-loop for
-later execution. So when control returns to the event-loop _driver_ it
-will eventually picks up your enqueued callback and call it. Again the
-callback should do some work for some time and then step-aside (like
-before).
+Technically _stepping aside_ is done by __structuring your code__ so
+that it will do some work for some time (maybe 10-30 ms) and then use
+`setTimeout` and a callback to _prepare_ the rest of the work that
+still has to be done. Then your code just returns __control__ (__no
+result__!) to the caller. `setTimeout` en-queues the callback in the
+event-loop for later execution. So when control returns to the
+event-loop _driver_ it will eventually pick up your enqueued callback
+and call it thus _driving__ your calculation further. Again the
+callback should do some work for some time and then again step-aside
+(like before) until it is finally done (i.e. your computation is
+complete). Note that there are _computations_ that run _forever_
+(e.g. continuously displaying the current time in a GUI).
 
 All this means that your code cannot (as it could in Java/Clojure)
 communicate its result by __returning__ a value to a caller! It has to
-__call__ who ever is interested in the result and pass the result as
-an __argument__ to the called function.
+__call__ whoever is interested in the result and pass the result as an
+__argument__ to the called function (the __callback_).
 
 So (1) your code has to be structured so that its intermediate
 state/result and future work can be captured in a callback (usually a
-closure) and (2) its users must be able to _receive_ the result via a
-function call (or maybe a change of some mutuable
+closure) and (2) its users of your code must be able to _receive_ the
+final result via a function call (or maybe a change of some mutable
 state/variable).
 
 __Enter `core.async`__
 
-`core.async` gives you _channels_ to communicate results to whoever is
+In ClojureScript (and Clojure) `core.async` lets you create/use
+_channels_ to communicate results (i.e. __data__) to whoever is
 interested in them. So rather than calling a function to communicate
-your result you'll _put_ your result in a channel, which is very much
-like a _queue_ data structure.
+your result directly to a __consumer__ you'll _put_ your result (via
+`>!` function) in a channel, which is very much like a _queue_ data
+structure. The __consumer__ of your result can then _fetch_ the data
+from that channel via `<!`.
 
-And `core.async` gives you a `go` macro which frees you from using
-explicit callbacks in your code. Instead `go` will analyse your code
-and restructure 
+And `core.async` gives you a `(go <body>)` macro which frees you from
+using explicit callbacks in your code. Instead `go` will (during
+__compile__ -- not at __runtime__!) analyse your code (`<body>`) and
+restructure it so that whenever your code uses `<!` in the `go`-block
+`go` will add/call code that checks if there is any data in the
+channel ready to be fetched from it. If so the data will be
+fetched/consumed from the channel and execution of your code will just
+continue. If there is no data waiting in the channel though the
+generated code will (1) register a callback which will be called
+when/if data arrives and (2) return control to the caller (see above).
 
+For `>!` there will also be extra code that _defers_ your code until
+the channel is able to receive your data (channels usually have a
+limited size so _producers_ may have to __wait__ until there is room
+in the channel).
 
+__Controlling the rate of data__
 
-
-
+Above I said that our code should _step aside_ every 10-30 ms or so
+when it is busy doing some long running calculation. With `go` and
+`<!` we have a tool for this.
 
 ### Websocket load tester
 
