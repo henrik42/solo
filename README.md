@@ -2869,9 +2869,18 @@ in the channel).
 
 __Controlling the rate of data__
 
-Above I said that our code should _step aside_ every 10-30 ms or so
-when it is busy doing some long running calculation. With `go` and
-`<!` we have a tool for this.
+Above I said that our code should _step aside_ (lets call it _yield_)
+every 10-30 ms or so when it is busy doing some long running
+calculation. With `go` and `<!` we have a tool for this.
+
+But imagine you have two computations running and each of them yields
+after 30ms. A third operation in the event queue (like a mouse click)
+may have to wait for 60ms and that may be too long. So we may choose
+shorter intervals to yield.
+
+Lets build a small app to illustrate what we have so far:
+
+
 
 ### Websocket load tester
 
