@@ -6,6 +6,7 @@
    [sablono.core :as sab]
    [reagent.core :as r]
    [solo.spa :as spa]
+   [solo.devcards.visualvm-dev]
    [solo.spa.sysprops :as sysprops]))
 
 (defcard-rg spa-top-of-page

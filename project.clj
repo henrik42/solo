@@ -5,6 +5,11 @@
   :target-path "target/%s/"
 
   :dependencies [[org.clojure/clojure "1.8.0"]
+                 [org.clojure/core.async "0.4.474"]
+                 [org.clojure/tools.reader "1.2.1"]
+                 [jarohen/chord "0.8.1"
+                  :exclusions [[org.clojure/core.async]
+                               [org.clojure/tools.reader]]]
                  [swank-clojure/swank-clojure "1.4.3"]
                  [org.clojure/tools.nrepl "0.2.12"]]
   
@@ -203,6 +208,7 @@
              :make-web-jar {:main solo.main
                             :aot [solo.main]
                             :dependencies [[ring/ring-jetty-adapter "1.6.3"]
+                                           [http-kit "2.1.19"]
                                            [log4j/log4j "1.2.17"]]}
 
              :make-web-war {:ring {:handler solo.webapp/app
@@ -224,7 +230,7 @@
 
                    :dependencies [[org.clojure/clojurescript "1.10.238"]
                                   [cljs-http "0.1.45"]
-                                  [org.clojure/core.async "0.4.474"]
+                                  ;; [org.clojure/core.async "0.4.474"]
                                   [devcards "0.2.5"
                                    :exclusions [cljsjs/react
                                                 cljsjs/react-dom
