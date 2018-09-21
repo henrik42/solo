@@ -25,18 +25,25 @@
              (do 
                (println (str "server sent: " c))
                (swap! !state assoc
-                      :server-sent c
+                      :server-sent (:message c)
                       :timestamp (js/Date.))
                (println "recur!")
                (recur))
              (println "socket closes")))))))
 
 (defn visualvm-ui []
-  (let [!state (r/atom {:availableProcessors "pending"})]
+  (let [!state (r/atom {:server-sent "not connected"})]
     (start-websocket !state)
     (fn []
       [:table
-       [:tr>td (str "state = " @!state)]
-       [:tr
-        [:td "availableProcessors"] [:td (:availableProcessors @!state)]]])))
+       [:tbody
+        [:tr>td (str "state = " @!state)]
+        [:tr [:td "current time"] [:td (str (:timestamp @!state))]]
+        (doall
+         (for [k [:available-processors ;; "Number of proc"
+                  :total-memory-bytes
+                  :free-memory-bytes
+                  :max-memory-bytes]]
+           ^{:key (str k)}
+           [:tr [:td (name k)] [:td (get-in @!state [:server-sent k] "n/a")]]))]])))
       

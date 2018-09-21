@@ -65,8 +65,7 @@
     {:available-processors (.availableProcessors rt)
      :free-memory-bytes (.freeMemory rt)
      :max-memory-bytes (.maxMemory rt)
-     :total-memory (.totalMemory rt)
-     }))
+     :total-memory-bytes (.totalMemory rt)}))
 
 ;; establish web-socket
 
@@ -88,15 +87,15 @@
                            :n (swap! !counter inc)} (sys-info))
                  r (a/alt!
                     :priority true
-                    ws-channel ([v _] (a/go
-                                        (println (str "/sys-info: msg from client " v))
-                                        (let [r (process-msg v)]
-                                          (println (str "/sys-info: sending to client " r))
-                                          (a/>! ws-channel))))
-                     ctrl-ch* ([v _] (do
+;;                     ws-channel ([v _] (a/go
+;;                                        (println (str "/sys-info: msg from client " v))
+;;                                        (let [r (process-msg v)]
+;;                                          (println (str "/sys-info: sending to client " r))
+;;                                          (a/>! ws-channel))))
+                    ctrl-ch* ([v _] (do
                                       (println (str "/sys-info: read from ctrl-channel (leaving loop): " v))
                                       false))
-                     [[ws-channel c]] (do
+                    [[ws-channel c]] (do
                                        (println (str "/sys-info: sending to client:" c))
                                        :keep-going)
                     )]
@@ -116,3 +115,4 @@
   (run-server
    (-> #'sys-info-handler wrap-websocket-handler)
    {:port 3001}))
+
