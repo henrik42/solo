@@ -1674,13 +1674,12 @@ HTML-`form` _POST-backs_. While we're introducing client-side
 scripting we'll re-structure the logic a little:
 
 * In `src/clj/solo/web/spa.clj` we publish web-services
-  (`/ws/get-current-loggers` and `/ws/set-log-level`) on the
-  server-side. These will use JSON [4] as message format. That makes
-  it easy to use/consume these web-services from the
-  browser/CLJS/JavaScript.
+  (`/ws/get-current-loggers` and `/ws/set-log-level`) on the server
+  side. These will use JSON [4] as message format. That makes it easy
+  to use/consume these web-services from the browser/CLJS/JavaScript.
 
 * In `src/cljs/solo/spa.cljs` we use/consume these web-services on the
-  client-side. We'll use CLJS to (1) retrieve the loggers via
+  client side. We'll use CLJS to (1) retrieve the loggers via
   `/ws/get-current-loggers`, (2) do filtering and (3) render the data
   to the DOM. For mutation we'll (4) call `/ws/set-log-level`.
 
@@ -2096,7 +2095,8 @@ text-field we lose the focus because the DOM and GUI is re-drawn.
 
 Note that we did not introduce "slots" for the `set-log-level-form`
 (`logger` and `level`). For these we just query the DOM and use them
-directly without writing them into the `app-state`.
+directly without writing them into the `app-state` (which is something
+we do not want to do in the future).
 
        [:input {:type "submit"
                 :on-click
@@ -2130,7 +2130,7 @@ and _long_ _poll_ that URL:
     (:require [clojure.browser.repl :as repl])
     (defonce conn (repl/connect "http://localhost:9000/repl"))
 
-Then you need to start the server-side of the browser REPL:
+Then you need to start the server side of the browser REPL:
 
     solo-project$ rlwrap lein run-brepl
 
@@ -2210,7 +2210,7 @@ not using the DOM-state to represent the state of our app (to a
 certain degree the DOM _follows_ the app-state through
 event-listeners).
 
-This is a powerfull pattern: we can bring our app into states that my
+This is a powerfull pattern: we can bring our app into states that may
 be hard (if not impossible) to reach by GUI interaction with our
 app. This may be important for testing edge-cases of our app. And it
 allows us to __save__ and __restore__ app-states to "replay" cases
@@ -2374,17 +2374,20 @@ the "real" DOM.
 
 With Reagent you create the GUI by rendering "components" which are
 just functions that return a Hiccup-like nested-vector. With Hiccup we
-gave the vectors to Hiccup. With Reagent we give functions and vectors
-with functions to Reagent. Reagent needs to call the functions when
-traversing the nested-vector structure since it has to find out at
-which point in the nested structure the `atom` is de-referenced. Only
-so can it closely relate the vector-structure to the resulting DOM.
+gave the vectors to Hiccup. With Reagent we give vectors and
+optionally functions (which must return vectors) to Reagent.
+
+Reagent then calls these functions when traversing the nested-vector
+structure and thus finds out at which point in the nested structure
+the `atom` is de-referenced. Only so can it closely relate the
+vector-structure to the resulting DOM.
 
 For reference here is the `main` function and the
 `loggers-form`-component. In Reagent these functions are called
 _components_ because they should be __reusable__ things that can be
 used in other contexts. In this case the `logges-form` function can be
-used only for this one special use-case. So it is not reusable.
+used only for this one special use-case. So it is not reusable (see
+below for more examples).
 
 Note that `loggers-form` is contained in the `root` component as a
 function and __not__ called/evaluated to a vector (that is done be
@@ -2433,7 +2436,7 @@ Again `(main)` mounts the complete DOM at `id=main`-node.
     
     (main)
 
-Note that in `solo.spa` there is no "re-render the DOM watcher" on
+Note that in `solo.spa` there is __no__ "re-render the DOM watcher" on
 `app-state` -- Reagent takes care of that. All we need to do is use
 event-handler to cause state-changes of `app-state`.
 
@@ -2443,24 +2446,29 @@ While writing all this I realized that `solo.spa` is not a good
 example for building re-usable things for GUI construction with
 Reagent. So I created `solo.spa.sysprops`.
 
-It delivers just one component `sysprops-component`. This
+It delivers just one __reusable__ component `sysprops-component`. This
 _component-function_ returns a __function__ which is called "form 2"
 in Reagent. We use this to encapsulate (by a closure) the __state__ of
 this component __in__ the component. This way we do not leak the state
 into the globally visable namespace (like we did it with
 `solo.spa/app-state`).
 
-And just for the fun of it I introduced a _generic_ eval-web-service
-in `solo.web.spa`:
+And just for the fun of it I introduced a _generic_
+_eval-this-code_-web-service in `solo.web.spa`:
 
     (defroutes ws-routes
       (POST "/ws/eval/" req (let [source-string (get-in req [:query-params "eval"])]
                               {:body (eval-string source-string)}))
 
 With this we can now access _Solo_'s backend system properties from
-`solo.spa.sysprops` without creating a dedicated web-service. This is
-just for trying it out. We should have named functions in _Solo_'s
-backend for things like this (testing, documentation).
+`solo.spa.sysprops` without creating a dedicated web-service in the
+backend. This is just for trying it out. We should have named
+functions in _Solo_'s backend for things like this (testing,
+documentation).
+
+__WARNING:__ This generic web-serivice is a __Security Nightmare__! Do
+not use it anywhere other than your local __trusted__ development
+environment.
 
     (defn eval-in-backend [source-string]
       (go
@@ -2522,7 +2530,7 @@ And include that in the "main app":
 
 Devcards [5] let's you define _cards_ that hold just one Reagent
 component each. This lets you develop and test your components in
-isolation without the need to build a complete app for this.
+isolation without the need to build a complete _dummy_ _app_ for this.
 
 To `project.clj` we add a new `:cljsbuild :builds`:
 
@@ -2577,16 +2585,17 @@ micro-integration points and these use the reusable components your
 creating for production.
 
 For `src/cljs/solo/spa/sysprops.cljs` I did not do anything to be able
-to devcards-use it. The component `sysprops-component` has no way of
+to _devcards-use_ it. The component `sysprops-component` has no way of
 passing in _state_. You cannot pass in functions for accessing the
 _model_ -- i.e. the calls to `get-properties`, `set-property` and
 `clear-property` are backed-in. So if you want to be able to
-devcards-test your code you have to provide _hooks_ which you can
-control in your _cards_ and probably in your app.
+_devcards-test_ your code (without changing and reloading it) you have
+to provide _hooks_ which you can control in your _cards_ and probably
+in your app.
 
 Note: while you're using Devcards as outlined above you can also use
 _Solo_ SPA with the backend. So you can use Devcards in one browser
-tab and your production app in another.
+tab and your production app in another ... __so much power!!!!__
 
 [1] http://reagent-project.github.io/  
 [2] https://reactjs.org/  
@@ -2595,12 +2604,189 @@ tab and your production app in another.
 [5] https://github.com/bhauman/devcards  
 
 ------------------------------------------------------------------------
-# Step 12: chord, sente, solo.client.websockets
+# Step 12: chord, solo.client.websockets
 ------------------------------------------------------------------------
 
-__TODO__: full-duplex-async client-server communication
+Until now we've been __asynchronously__ (i.e. concurrently -- viewed
+from the JavaScript event thread) calling __synchronous__ web-services
+(HTTP request/response) in the _Solo_ backend from CLJS/browser. So
+the client (_Solo_ SPA) __initiates__ the communication and __pulls__
+data from the server (like reading log4j log-levels) and __pushes__
+data to the server (like setting log4j log-levels).
 
-* solo.websockets
+Now we want to (actively) __push__ data __from the server to the
+client__.
+
+This can be done via _long polling_[1]. In this case the __client__
+still __pulls__ data from the server, but the server will __wait__
+with its response until it wants to send (think _push_) something to
+the client. When the client (which may have been waiting for the
+response for some time) finally receives that response it will put the
+received data somewhere (like an `atom` or a `core.async` channel or a
+call-back function) and will then `loop`/`recur` and _pull_ the server
+again.
+
+So, viewed from the outside this behaves as if the server was
+__pushing__ data to the client.
+
+Of course the client may also send data to the server when doing the
+_long polling_ call and it does not even need to wait for the server
+to respond before doing the next request (maybe using more than one
+connection at a time or closing the one that was opened first or
+whatever; there many options).
+
+_Long polling_ has some draw-backs [2]. A standard has been
+established that lets a server and a client exchange data both ways:
+
+[1] https://en.wikipedia.org/wiki/Push_technology#Long_polling
+[2] https://blog.baasil.io/why-you-shouldnt-use-long-polling-fallbacks-for-websockets-c1fff32a064a
+[ref] Comet
+
+## Websockets
+
+Websocket [1,2] connections are (as with _long polling_)
+created/initiated on the client. The client _connects_ to the server
+via a HTTP(S) `GET` request (and then _switches_ protocol [3]).
+
+Browsers support websockets through JavaScript and on the server side
+there are web-containers that support them (like `http-kit`
+[TBD:ref]). There is a Java API [4] and tutorial [5].
+
+Once a websocket connection has been established the client and the
+server can both send messages through that websocket (text and
+binary). None has to wait for the other for an answer (so it's not
+request/response, it's more like _event propagation_ or _message
+passing_). Exchange is done in parallel.
+
+Note that each HTTP(S) `GET` request to the websocket URL establishes
+a __new__ __websocket__. So when building an app you may (1) use one
+_long-lived_ websocket or (2) use many _short-lived_ websockets. Of
+course you can mix both options in your app. For (1) you may have to
+deal with websockets being closed unexpectedly on timeouts (eg. by
+firewalls, proxys or the JavaScript runtime). For (2) you have to keep
+an eye on the number of simultaniously open/established websockets
+which may be limited by the client & server runtime (Firefox has a
+default of 200), so you have to make sure they get closed at the right
+time.
+
+Viewed from CLJS sending & receiving data __asynchronuously__ through
+a websocket is kind of like using `<!` and `>!` on a `core.async`
+_channel_ (see below!). That's why some (all?) CLJS libs that support
+websockets use `core.async` _channels_ in their API as an interface to
+the underlying websocket.
+
+Note that HTTP proxys, reverse proxys, load balancers and firewalls
+may interfere with websocket usage [6].
+
+[1] https://en.wikipedia.org/wiki/WebSocket
+[2] https://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-03
+[3] https://en.wikipedia.org/wiki/WebSocket#Protocol_handshake
+[4] https://docs.oracle.com/javaee/7/api/javax/websocket/package-summary.html
+[5] https://docs.oracle.com/javaee/7/tutorial/websocket.htm
+[6] https://www.infoq.com/articles/Web-Sockets-Proxy-Servers
+
+## Chord
+
+Chord [1] is a Clojure(Script) lib that offers using websockets
+through `core.async` channels.
+
+### CLJS Client
+
+For the CLJS __client side__ Chord gives you `chord.client.ws-ch`
+which (asynchronously) connects to a websocket URL and returns a
+`core.async` channel from which you read the
+`core.async`_communication channel_ (and an error indicator). You can
+then just use that _communication channel_ for two-way data/message
+exchange with the server.
+
+This example opens a new websocket, sends a message over that
+websocket and closes the websocket.
+
+      (go 
+       (let [{:keys [ws-channel error]} (<! (ws-ch "ws://localhost:3001/web-socket"))]
+         (if error
+           (println "open failed")
+           (do 
+             (>! ws-channel "hello")
+             (close! ws-channel)))))
+
+__Warning__: during testing I noticed that the channel gets closed
+__before__ the message is sent/received (i.e. the message is
+__lost/droped!__). So you should usually not close the websocket until
+all your _pending_ messages have been sent/received (which may be hard
+to find out).
+
+__Note__: opening a __new__ websocket for sending just __one__ message
+does not make sense in most cases since the handshake overhead is so
+big that you could use regular web services instead (although
+websockets do not suffer from the _same origin policy_; so that may be
+a valid use case).
+
+So in general you will open a websocket and then use it for sending
+and/or receiving many messages. Depending on your client and server
+code you can _multiplex_ several _logical_ channels over this one
+technical websocket channel [2].
+
+You can do this _manually_ by dispatching (on the server and the
+client side!) on a message aspect like a special map key
+(e.g. `:the-channel-id` or the like). And you can put the dispatching
+code in a `core.async` channel and put that _dispatching channel_
+_around_ the ws-channel so that the multiplexing logic is hidden from
+users.
+
+And you may even implement _reconnect logic_ behind the scenes. So
+that when your websocket goes away (see above) you could open a new
+websocket to the same URL and then use its channel instead of the one
+using the broken websocket. Users of the "dispatching channel" would
+not even notice. Note though that the server-side websocket may/can
+keep _state_ with an established websocket (there is a
+statefull/mutable "websocket session context" on the server) so a
+_reconnect_ must be handled appropriatly on the server side.
+
+### Clojure Server
+
+On the __server side__ you supply a Ring-handler (here I'm using a
+Compojure route) for the web socket URL which will be used by the
+client to establish the websocket. You can use the Ring-middleware
+`chord.http-kit/wrap-websocket-handler` which will put the
+`core.async` _communication channel_ in the Ring request-map so in
+your Ring-handler you can easily fetch it from there. You can then use
+that _communication channel_ for __asynchronous__ two-way data
+exchange with the client.
+
+    (defroutes web-socket-handler
+      (GET "/web-socket" {:keys [ws-channel] :as req}
+        (if-not ws-channel
+          "websocket connection failed!"
+          (do 
+            (a/go-loop []
+                       (if-let [{:keys [message] :as msg} (a/<! ws-channel)]
+                         (do
+                           (.println System/out (str "message received:" msg))
+                           (recur))
+                         (.println System/out (str "websocket closed!"))))
+            "websocket established"))))
+
+__Notes:__
+
+* the Ring handler returns (in response to the HTTP `GET`)
+  __synchronously__ to the client. I.e. the HTTP `GET` request does
+  only __establish__ the websocket connection. No message exchange is
+  done with this request (but you could). Exchanging messages/data
+  through that websocket is done there after.
+
+* there can be more than one websocket open/established at a time
+  between a client and a server. And the client as well as the server
+  can have open websockets to more than one server/client.
+
+* in browsers the JavaScript `WebSocket` class is controlled by the
+  JavaScript/browser environment. This may mean that the browser
+  decides to close a websocket that has been idle for 30 seconds. You
+  may have to re-establish websocket connections in some environments
+  (see above).
+
+[1] https://github.com/jarohen/chord
+[2] https://www.rabbitmq.com/blog/2012/02/23/how-to-compose-apps-using-websockets/
 
 ------------------------------------------------------------------------
 # Step 13: Package, Release, Deploy
@@ -2608,6 +2794,115 @@ __TODO__: full-duplex-async client-server communication
 
 __TODO__: build and use a Web-App (WAR) that you can deploy to
 JBoss/Wildfly/Websphere to tweak your log4j configuration at runtime.
+
+------------------------------------------------------------------------
+# Appendix A: The JavaScript event loop and core.async
+------------------------------------------------------------------------
+
+In Clojure/Java on the JVM we have _true_ _multi-threading_. I.e. we
+have many threads (of execution) which can really run in parallel (on
+a multi-core CPU).
+
+And even if we had only one core the threads would _seem_ to run in
+parallel since the JVM can take any thread off the CPU (any time) and
+put another thread on the CPU for execution and pick up the paused
+thread later on (_preemptive scheduling_).
+
+The executed program does not need any special code/statements for
+this to work (which does not mean, that concurrently running Java code
+_works_ -- the Java concurrency model introduces all kinds of funny
+things like the Java memory model, deadlocks, race-conditions and
+missed wake-ups. So there is much that can/will go wrong ;-).
+
+In JavaScript we have __only one thread__ (the event loop thread) that
+will execute our code (yes -- I know -- there are webworkers; maybe I
+cover that later on). And JavaScript cannot take our code of the CPU
+and make it pause and resume execution later on like the JVM does.
+
+Instead in JavaScript (and ClojureScript) __we have to make our code
+behave cooperativly__.  I.e. we have to put __extra code__ into our
+code so that it will allow for _quasi parallel_ execution: when your
+code is busy doing some long running computation then it has to _step
+aside_ every now and then so that other code gets the chance to run if
+it wants to. Otherwise a browser GUI will freeze and only your code
+executes and usually that is not what you want (on a JS server like
+NodeJS this may be acceptable though depending on what you're trying
+to do).
+
+Technically _stepping aside_ is done by __structuring your code__ so
+that it will do some work for some time (maybe 10-30 ms) and then use
+`setTimeout` and a callback to _prepare_ the rest of the work that
+still has to be done. Then your code just returns __control__ (__no
+result__!) to the caller. `setTimeout` en-queues the callback in the
+event-loop for later execution. So when control returns to the
+event-loop _driver_ it will eventually pick up your enqueued callback
+and call it thus _driving__ your calculation further. Again the
+callback should do some work for some time and then again step-aside
+(like before) until it is finally done (i.e. your computation is
+complete). Note that there are _computations_ that run _forever_
+(e.g. continuously displaying the current time in a GUI).
+
+All this means that your code cannot (as it could in Java/Clojure)
+communicate its result by __returning__ a value to a caller! It has to
+__call__ whoever is interested in the result and pass the result as an
+__argument__ to the called function (the __callback_).
+
+So (1) your code has to be structured so that its intermediate
+state/result and future work can be captured in a callback (usually a
+closure) and (2) its users of your code must be able to _receive_ the
+final result via a function call (or maybe a change of some mutable
+state/variable).
+
+__Enter `core.async`__
+
+In ClojureScript (and Clojure) `core.async` lets you create/use
+_channels_ to communicate results (i.e. __data__) to whoever is
+interested in them. So rather than calling a function to communicate
+your result directly to a __consumer__ you'll _put_ your result (via
+`>!` function) in a channel, which is very much like a _queue_ data
+structure. The __consumer__ of your result can then _fetch_ the data
+from that channel via `<!`.
+
+And `core.async` gives you a `(go <body>)` macro which frees you from
+using explicit callbacks in your code. Instead `go` will (during
+__compile__ -- not at __runtime__!) analyse your code (`<body>`) and
+restructure it so that whenever your code uses `<!` in the `go`-block
+`go` will add/call code that checks if there is any data in the
+channel ready to be fetched from it. If so the data will be
+fetched/consumed from the channel and execution of your code will just
+continue. If there is no data waiting in the channel though the
+generated code will (1) register a callback which will be called
+when/if data arrives and (2) return control to the caller (see above).
+
+For `>!` there will also be extra code that _defers_ your code until
+the channel is able to receive your data (channels usually have a
+limited size so _producers_ may have to __wait__ until there is room
+in the channel).
+
+__Controlling the rate of data__
+
+Above I said that our code should _step aside_ (lets call it _yield_)
+every 10-30 ms or so when it is busy doing some long running
+calculation. With `go` and `<!` we have a tool for this.
+
+But imagine you have two computations running and each of them yields
+after 30ms. A third operation in the event queue (like a mouse click)
+may have to wait for 60ms and that may be too long. So we may choose
+shorter intervals to yield.
+
+Lets build a small app to illustrate what we have so far:
+__TBD: code is in sente branch__
+
+------------------------------------------------------------------------
+# Appendix B: Websocket load tester
+------------------------------------------------------------------------
+
+In `test/cljs/solo/devcards/websockets.cljs` you find a load-tester
+for websockets that you can play around with (see the doc-string for
+more info).
+
+You have to start the websocket endpoint with
+__TBD: code is in sente branch__.
 
 ------------------------------------------------------------------------
 # Notes, TODO
